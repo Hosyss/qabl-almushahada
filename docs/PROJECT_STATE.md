@@ -116,7 +116,7 @@
 - P2Q-02 مدموجة على `main` في commit `120a43d62517141a3ed0c14cd07d6128655303fa` عبر PR #12.
 - CI #178 على `main` بعد الدمج اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
 
-## P2Q-03 — المعايرة المرجعية قبل التفعيل — مكتملة تقنيًا على الفرع وجاهزة للدمج
+## P2Q-03 — المعايرة المرجعية قبل التفعيل — مكتملة على main
 
 - أضيفت `reviewer_reference_sets`, `reviewer_reference_cases`, `reviewer_reference_attempts`, و`reviewer_reference_case_results`؛ الإجمالي أصبح **10 migrations / 24 product tables**.
 - المراجع الجديد يبدأ `probation` على مستوى قاعدة البيانات ولا يمكن أن يصبح `active` قبل اجتياز معايرة مرجعية ناجحة على المجموعة النشطة.
@@ -129,8 +129,8 @@
 - صلاحية المرجع يعاد التحقق منها عند بدء المحاولة، وعند كتابة كل case result، وعند الإقفال النهائي؛ سحب المرجع أو دخوله conflict أثناء المحاولة يفشل المسار مغلقًا.
 - تقاعد المجموعة ممنوع أثناء وجود attempts مفتوحة، وإعادة تفعيل reviewer موقوفة تحتاج Pass حديثًا بعد وقت الإيقاف.
 - `drizzle.config.ts` صار يقرأ `db/schema.ts` و`db/review-workflow-schema.ts` معًا، وتمت مطابقة partial unique indexes في Drizzle مع SQLite الفعلية.
-- آخر checkpoint على الفرع `6e3ccf8f9e24399199f5989dc77d50b595afa9cb` اجتاز `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
-- قبل الدمج النهائي: توثيق هذا checkpoint، PR مستقل، CI للـPR، ثم merge وCI على `main`.
+- P2Q-03 دُمجت على `main` عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`.
+- CI #199 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -159,7 +159,7 @@
 
 ## نقطة البدء التالية
 
-1. بعد دمج P2Q-03: `P2Q-04` **حرج / Work** — إيقاف تلقائي آمن عند نمط أخطاء أو تواطؤ مشتبه، مع مراجعة بشرية للاستئناف.
+1. التالي: `P2Q-04` **حرج / Work** — إيقاف تلقائي آمن عند نمط أخطاء أو تواطؤ مشتبه، مع مراجعة بشرية للاستئناف.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
