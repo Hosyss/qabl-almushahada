@@ -22,9 +22,7 @@ for (const migrationFile of migrationFiles) {
     .map((statement) => statement.trim())
     .filter(Boolean);
 
-  for (const statement of statements) {
-    database.exec(statement);
-  }
+  for (const statement of statements) database.exec(statement);
 }
 
 const foreignKeyErrors = database.prepare("PRAGMA foreign_key_check").all();
@@ -33,9 +31,14 @@ assert.deepEqual(foreignKeyErrors, [], "Foreign-key validation failed after appl
 const tables = database
   .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
   .all();
-assert.equal(tables.length, 16, "Unexpected number of product tables.");
+assert.equal(tables.length, 17, "Unexpected number of product tables.");
 const tableNames = new Set(tables.map((table) => table.name));
-for (const requiredTable of ["internal_users", "review_assignments", "review_assignment_drafts"]) {
+for (const requiredTable of [
+  "internal_users",
+  "review_assignments",
+  "review_assignment_drafts",
+  "internal_audit_events",
+]) {
   assert.ok(tableNames.has(requiredTable), `Missing P2-02 table: ${requiredTable}`);
 }
 
@@ -45,12 +48,23 @@ assert.ok(
   reviewBundleColumns.some((column) => column.name === "published_transition_id"),
   "Missing publication transition id.",
 );
+assert.ok(
+  reviewBundleColumns.some((column) => column.name === "workflow_transition_id"),
+  "Missing internal workflow transition id.",
+);
 
 const assignmentColumns = database.prepare("PRAGMA table_info('review_assignments')").all();
 assert.ok(assignmentColumns.some((column) => column.name === "revision"), "Missing assignment revision lock.");
 assert.ok(
   assignmentColumns.some((column) => column.name === "last_transition_id"),
   "Missing assignment transition id.",
+);
+
+const internalUserColumns = database.prepare("PRAGMA table_info('internal_users')").all();
+assert.ok(internalUserColumns.some((column) => column.name === "revision"), "Missing internal-user revision lock.");
+assert.ok(
+  internalUserColumns.some((column) => column.name === "last_transition_id"),
+  "Missing internal-user transition id.",
 );
 
 assert.throws(
@@ -155,6 +169,66 @@ assert.throws(
       ),
   /version mismatch/i,
   "Database allowed an assignment to point at the wrong version for its bundle.",
+);
+
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE internal_users SET role = 'admin' WHERE id = ?")
+      .run("workflow-coordinator"),
+  /immutable/i,
+  "Database allowed an internal account role to be rewritten after provisioning.",
+);
+
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE internal_users SET revision = -1 WHERE id = ?")
+      .run("workflow-coordinator"),
+  /nonnegative/i,
+  "Database accepted a negative internal-user revision.",
+);
+
+database
+  .prepare(
+    `INSERT INTO internal_audit_events
+       (id, actor_user_id, event_type, entity_type, entity_id, payload_json)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  .run("internal-audit-1", "workflow-coordinator", "test_event", "internal_user", "workflow-coordinator", "{}");
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE internal_audit_events SET event_type = 'tampered' WHERE id = ?")
+      .run("internal-audit-1"),
+  /append-only/i,
+  "Database allowed an internal audit event to be updated.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM internal_audit_events WHERE id = ?").run("internal-audit-1"),
+  /append-only/i,
+  "Database allowed an internal audit event to be deleted.",
+);
+
+database
+  .prepare(
+    `INSERT INTO review_audit_events
+       (id, bundle_id, actor_id, event_type, entity_type, entity_id, payload_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+  .run("review-audit-1", "workflow-bundle", "workflow-coordinator", "test_event", "review_bundle", "workflow-bundle", "{}");
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE review_audit_events SET event_type = 'tampered' WHERE id = ?")
+      .run("review-audit-1"),
+  /append-only/i,
+  "Database allowed a review audit event to be updated.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM review_audit_events WHERE id = ?").run("review-audit-1"),
+  /append-only/i,
+  "Database allowed a review audit event to be deleted.",
 );
 
 database.close();
