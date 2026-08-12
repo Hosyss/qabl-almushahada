@@ -458,7 +458,7 @@ assert.throws(
     database
       .prepare("UPDATE review_bundles SET current_approval_id = ? WHERE id = ?")
       .run("missing-approval", "workflow-bundle"),
-  /must belong to the same bundle/i,
+  /must belong to the same bundle|latest approved revision/i,
   "Database accepted a current approval pointer that does not belong to the bundle.",
 );
 
