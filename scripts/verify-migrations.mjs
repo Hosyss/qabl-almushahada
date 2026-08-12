@@ -31,7 +31,7 @@ assert.deepEqual(foreignKeyErrors, [], "Foreign-key validation failed after appl
 const tables = database
   .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
   .all();
-assert.equal(tables.length, 20, "Unexpected number of product tables.");
+assert.equal(tables.length, 24, "Unexpected number of product tables.");
 const tableNames = new Set(tables.map((table) => table.name));
 for (const requiredTable of [
   "internal_users",
@@ -40,9 +40,30 @@ for (const requiredTable of [
   "review_audit_selections",
   "review_audit_outcomes",
   "review_audit_findings",
+  "reviewer_reference_sets",
+  "reviewer_reference_cases",
+  "reviewer_reference_attempts",
+  "reviewer_reference_case_results",
   "internal_audit_events",
 ]) {
   assert.ok(tableNames.has(requiredTable), `Missing workflow table: ${requiredTable}`);
+}
+
+const referenceSetColumns = database.prepare("PRAGMA table_info('reviewer_reference_sets')").all();
+assert.ok(referenceSetColumns.some((column) => column.name === "revision"), "Missing reference-set revision lock.");
+const referenceAttemptColumns = database.prepare("PRAGMA table_info('reviewer_reference_attempts')").all();
+for (const requiredColumn of [
+  "category_agreement_bps",
+  "observation_recall_bps",
+  "observation_precision_bps",
+  "missed_high_sensitivity_count",
+  "max_severity_delta",
+  "blockers_json",
+]) {
+  assert.ok(
+    referenceAttemptColumns.some((column) => column.name === requiredColumn),
+    `Missing reference calibration metric column: ${requiredColumn}`,
+  );
 }
 
 const reviewBundleColumns = database.prepare("PRAGMA table_info('review_bundles')").all();
