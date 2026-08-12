@@ -1,0 +1,21 @@
+name: Checkpoint verification
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm run test:engine
+      - run: npm run test:migrations
+      - run: npm run lint:local
+      - run: npm run build:local

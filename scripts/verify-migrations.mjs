@@ -33,13 +33,24 @@ assert.deepEqual(foreignKeyErrors, [], "Foreign-key validation failed after appl
 const tables = database
   .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
   .all();
-assert.equal(tables.length, 13, "Unexpected number of product tables.");
+assert.equal(tables.length, 16, "Unexpected number of product tables.");
+const tableNames = new Set(tables.map((table) => table.name));
+for (const requiredTable of ["internal_users", "review_assignments", "review_assignment_drafts"]) {
+  assert.ok(tableNames.has(requiredTable), `Missing P2-02 table: ${requiredTable}`);
+}
 
 const reviewBundleColumns = database.prepare("PRAGMA table_info('review_bundles')").all();
 assert.ok(reviewBundleColumns.some((column) => column.name === "revision"), "Missing optimistic-lock revision.");
 assert.ok(
   reviewBundleColumns.some((column) => column.name === "published_transition_id"),
   "Missing publication transition id.",
+);
+
+const assignmentColumns = database.prepare("PRAGMA table_info('review_assignments')").all();
+assert.ok(assignmentColumns.some((column) => column.name === "revision"), "Missing assignment revision lock.");
+assert.ok(
+  assignmentColumns.some((column) => column.name === "last_transition_id"),
+  "Missing assignment transition id.",
 );
 
 assert.throws(
@@ -51,6 +62,100 @@ assert.throws(
   "Database accepted an invalid title kind.",
 );
 
+assert.throws(
+  () =>
+    database
+      .prepare("INSERT INTO internal_users (id, auth_email, role, status) VALUES (?, ?, ?, ?)")
+      .run("invalid-role", "invalid@example.com", "superuser", "active"),
+  /constraint/i,
+  "Database accepted an unknown internal role.",
+);
+
+assert.throws(
+  () =>
+    database
+      .prepare("INSERT INTO internal_users (id, auth_email, role, status) VALUES (?, ?, ?, ?)")
+      .run("invalid-email", "UPPER@EXAMPLE.COM", "review_coordinator", "active"),
+  /constraint/i,
+  "Database accepted a non-normalized auth email.",
+);
+
+database
+  .prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES (?, ?, ?, ?)")
+  .run("workflow-title", "Workflow title", "movie", 2026);
+database
+  .prepare(
+    `INSERT INTO title_versions
+       (id, title_id, edition_label, platform, language, runtime_seconds, content_fingerprint)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+  .run("workflow-version-a", "workflow-title", "A", "test", "ar", 6000, "workflow-fingerprint-a");
+database
+  .prepare(
+    `INSERT INTO title_versions
+       (id, title_id, edition_label, platform, language, runtime_seconds, content_fingerprint)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+  .run("workflow-version-b", "workflow-title", "B", "test", "ar", 6000, "workflow-fingerprint-b");
+database
+  .prepare(
+    "INSERT INTO reviewers (id, display_label, independence_group_id, status) VALUES (?, ?, ?, ?)",
+  )
+  .run("workflow-reviewer-a", "Reviewer A", "group-a", "active");
+database
+  .prepare(
+    "INSERT INTO reviewers (id, display_label, independence_group_id, status) VALUES (?, ?, ?, ?)",
+  )
+  .run("workflow-reviewer-b", "Reviewer B", "group-b", "active");
+database
+  .prepare("INSERT INTO review_bundles (id, version_id) VALUES (?, ?)")
+  .run("workflow-bundle", "workflow-version-a");
+database
+  .prepare("INSERT INTO internal_users (id, auth_email, role, status) VALUES (?, ?, ?, ?)")
+  .run("workflow-coordinator", "coordinator@example.com", "review_coordinator", "active");
+database
+  .prepare(
+    `INSERT INTO review_assignments
+       (id, bundle_id, version_id, reviewer_id, assigned_by_user_id, state)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  .run(
+    "workflow-assignment",
+    "workflow-bundle",
+    "workflow-version-a",
+    "workflow-reviewer-a",
+    "workflow-coordinator",
+    "assigned",
+  );
+
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE review_assignments SET reviewer_id = ? WHERE id = ?")
+      .run("workflow-reviewer-b", "workflow-assignment"),
+  /immutable/i,
+  "Database allowed an assignment reviewer to be swapped after assignment.",
+);
+
+assert.throws(
+  () =>
+    database
+      .prepare(
+        `INSERT INTO review_assignments
+           (id, bundle_id, version_id, reviewer_id, assigned_by_user_id, state)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "workflow-version-mismatch",
+        "workflow-bundle",
+        "workflow-version-b",
+        "workflow-reviewer-b",
+        "workflow-coordinator",
+        "assigned",
+      ),
+  /version mismatch/i,
+  "Database allowed an assignment to point at the wrong version for its bundle.",
+);
+
 database.close();
 console.log(`Verified ${migrationFiles.length} migration files and ${tables.length} product tables.`);
-
