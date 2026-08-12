@@ -47,8 +47,10 @@ export interface ReferenceCalibrationEvaluation {
 
 /**
  * Compare one candidate review with one human-approved reference review for the exact same version.
- * Matching is deterministic: same category, then interval overlap or a start-time difference <=20 seconds,
- * choosing the nearest unused candidate observation. This is deliberately not AI/semantic matching.
+ * Matching is deterministic: same category, overlapping intervals, and a start-time difference <=20 seconds,
+ * choosing the nearest unused candidate observation. Requiring both temporal conditions prevents a very long
+ * candidate interval from matching a distant reference event merely because the intervals touch.
+ * This is deliberately not AI/semantic matching.
  */
 export function compareReferenceCalibrationCase(input: {
   caseId: string;
@@ -188,7 +190,7 @@ function findClosestMatchingObservation(
     const overlaps =
       candidate.startSecond <= reference.endSecond && candidate.endSecond >= reference.startSecond;
     const startDistance = Math.abs(candidate.startSecond - reference.startSecond);
-    if (!overlaps && startDistance > OBSERVATION_MATCH_TOLERANCE_SECONDS) continue;
+    if (!overlaps || startDistance > OBSERVATION_MATCH_TOLERANCE_SECONDS) continue;
 
     if (startDistance < bestDistance || (startDistance === bestDistance && index < (bestIndex ?? Infinity))) {
       bestDistance = startDistance;
