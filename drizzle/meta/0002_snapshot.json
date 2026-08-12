@@ -1,0 +1,1364 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "db84bd24-0871-4a13-8a38-f7fce579b5a5",
+  "prevId": "affcdad4-7bce-471f-9409-1fb2f4b42e46",
+  "tables": {
+    "editorial_approval_submissions": {
+      "name": "editorial_approval_submissions",
+      "columns": {
+        "approval_id": {
+          "name": "approval_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "editorial_approval_submissions_approval_id_editorial_approvals_id_fk": {
+          "name": "editorial_approval_submissions_approval_id_editorial_approvals_id_fk",
+          "tableFrom": "editorial_approval_submissions",
+          "tableTo": "editorial_approvals",
+          "columnsFrom": [
+            "approval_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "editorial_approval_submissions_submission_id_review_submissions_id_fk": {
+          "name": "editorial_approval_submissions_submission_id_review_submissions_id_fk",
+          "tableFrom": "editorial_approval_submissions",
+          "tableTo": "review_submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "editorial_approval_submissions_approval_id_submission_id_pk": {
+          "columns": [
+            "approval_id",
+            "submission_id"
+          ],
+          "name": "editorial_approval_submissions_approval_id_submission_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "editorial_approvals": {
+      "name": "editorial_approvals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_id": {
+          "name": "bundle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "approver_id": {
+          "name": "approver_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version_fingerprint_confirmed": {
+          "name": "version_fingerprint_confirmed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "editorial_approvals_bundle_unique": {
+          "name": "editorial_approvals_bundle_unique",
+          "columns": [
+            "bundle_id"
+          ],
+          "isUnique": true
+        },
+        "editorial_approvals_approver_idx": {
+          "name": "editorial_approvals_approver_idx",
+          "columns": [
+            "approver_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "editorial_approvals_bundle_id_review_bundles_id_fk": {
+          "name": "editorial_approvals_bundle_id_review_bundles_id_fk",
+          "tableFrom": "editorial_approvals",
+          "tableTo": "review_bundles",
+          "columnsFrom": [
+            "bundle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "editorial_approvals_approver_id_reviewers_id_fk": {
+          "name": "editorial_approvals_approver_id_reviewers_id_fk",
+          "tableFrom": "editorial_approvals",
+          "tableTo": "reviewers",
+          "columnsFrom": [
+            "approver_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "editorial_approvals_status_check": {
+          "name": "editorial_approvals_status_check",
+          "value": "\"editorial_approvals\".\"status\" IN ('approved', 'changes_requested', 'rejected')"
+        },
+        "editorial_approvals_fingerprint_check": {
+          "name": "editorial_approvals_fingerprint_check",
+          "value": "\"editorial_approvals\".\"version_fingerprint_confirmed\" IN (0, 1)"
+        }
+      }
+    },
+    "editorial_spot_checks": {
+      "name": "editorial_spot_checks",
+      "columns": {
+        "approval_id": {
+          "name": "approval_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "observation_id": {
+          "name": "observation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "editorial_spot_checks_result_idx": {
+          "name": "editorial_spot_checks_result_idx",
+          "columns": [
+            "result"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "editorial_spot_checks_approval_id_editorial_approvals_id_fk": {
+          "name": "editorial_spot_checks_approval_id_editorial_approvals_id_fk",
+          "tableFrom": "editorial_spot_checks",
+          "tableTo": "editorial_approvals",
+          "columnsFrom": [
+            "approval_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "editorial_spot_checks_observation_id_observations_id_fk": {
+          "name": "editorial_spot_checks_observation_id_observations_id_fk",
+          "tableFrom": "editorial_spot_checks",
+          "tableTo": "observations",
+          "columnsFrom": [
+            "observation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "editorial_spot_checks_approval_id_observation_id_pk": {
+          "columns": [
+            "approval_id",
+            "observation_id"
+          ],
+          "name": "editorial_spot_checks_approval_id_observation_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "editorial_spot_checks_result_check": {
+          "name": "editorial_spot_checks_result_check",
+          "value": "\"editorial_spot_checks\".\"result\" IN ('confirmed', 'unresolved')"
+        }
+      }
+    },
+    "observation_flags": {
+      "name": "observation_flags",
+      "columns": {
+        "observation_id": {
+          "name": "observation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "flag": {
+          "name": "flag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "observation_flags_flag_idx": {
+          "name": "observation_flags_flag_idx",
+          "columns": [
+            "flag"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "observation_flags_observation_id_observations_id_fk": {
+          "name": "observation_flags_observation_id_observations_id_fk",
+          "tableFrom": "observation_flags",
+          "tableTo": "observations",
+          "columnsFrom": [
+            "observation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "observation_flags_observation_id_flag_pk": {
+          "columns": [
+            "observation_id",
+            "flag"
+          ],
+          "name": "observation_flags_observation_id_flag_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "observation_flags_value_check": {
+          "name": "observation_flags_value_check",
+          "value": "\"observation_flags\".\"flag\" IN ('jump_scare', 'blood', 'weapon', 'verbal_bullying', 'physical_bullying', 'bereavement', 'separation', 'flashing_sequence')"
+        }
+      }
+    },
+    "observations": {
+      "name": "observations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "severity": {
+          "name": "severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_second": {
+          "name": "start_second",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "end_second": {
+          "name": "end_second",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "frequency": {
+          "name": "frequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "spoiler_level": {
+          "name": "spoiler_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "observations_submission_idx": {
+          "name": "observations_submission_idx",
+          "columns": [
+            "submission_id"
+          ],
+          "isUnique": false
+        },
+        "observations_category_severity_idx": {
+          "name": "observations_category_severity_idx",
+          "columns": [
+            "category",
+            "severity"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "observations_submission_id_review_submissions_id_fk": {
+          "name": "observations_submission_id_review_submissions_id_fk",
+          "tableFrom": "observations",
+          "tableTo": "review_submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "observations_severity_check": {
+          "name": "observations_severity_check",
+          "value": "\"observations\".\"severity\" BETWEEN 1 AND 4"
+        },
+        "observations_start_check": {
+          "name": "observations_start_check",
+          "value": "\"observations\".\"start_second\" >= 0"
+        },
+        "observations_time_order_check": {
+          "name": "observations_time_order_check",
+          "value": "\"observations\".\"end_second\" >= \"observations\".\"start_second\""
+        },
+        "observations_summary_check": {
+          "name": "observations_summary_check",
+          "value": "length(trim(\"observations\".\"summary\")) > 0"
+        },
+        "observations_category_check": {
+          "name": "observations_category_check",
+          "value": "\"observations\".\"category\" IN ('fear', 'violence', 'language', 'bullying', 'sexualContent', 'substances', 'discrimination', 'selfHarm', 'grief', 'flashingLights')"
+        },
+        "observations_frequency_check": {
+          "name": "observations_frequency_check",
+          "value": "\"observations\".\"frequency\" IN ('single', 'repeated', 'sustained')"
+        },
+        "observations_context_check": {
+          "name": "observations_context_check",
+          "value": "\"observations\".\"context\" IN ('comic', 'neutral', 'educational', 'threatening', 'distressing')"
+        },
+        "observations_spoiler_check": {
+          "name": "observations_spoiler_check",
+          "value": "\"observations\".\"spoiler_level\" IN ('none', 'contextual', 'major')"
+        }
+      }
+    },
+    "review_audit_events": {
+      "name": "review_audit_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_id": {
+          "name": "bundle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "review_audit_events_bundle_time_idx": {
+          "name": "review_audit_events_bundle_time_idx",
+          "columns": [
+            "bundle_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "review_audit_events_entity_idx": {
+          "name": "review_audit_events_entity_idx",
+          "columns": [
+            "entity_type",
+            "entity_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "review_audit_events_bundle_id_review_bundles_id_fk": {
+          "name": "review_audit_events_bundle_id_review_bundles_id_fk",
+          "tableFrom": "review_audit_events",
+          "tableTo": "review_bundles",
+          "columnsFrom": [
+            "bundle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_audit_events_json_check": {
+          "name": "review_audit_events_json_check",
+          "value": "json_valid(\"review_audit_events\".\"payload_json\")"
+        }
+      }
+    },
+    "review_bundles": {
+      "name": "review_bundles",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version_id": {
+          "name": "version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'draft'"
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "published_transition_id": {
+          "name": "published_transition_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "review_bundles_version_idx": {
+          "name": "review_bundles_version_idx",
+          "columns": [
+            "version_id"
+          ],
+          "isUnique": false
+        },
+        "review_bundles_status_idx": {
+          "name": "review_bundles_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        },
+        "review_bundles_transition_unique": {
+          "name": "review_bundles_transition_unique",
+          "columns": [
+            "published_transition_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "review_bundles_version_id_title_versions_id_fk": {
+          "name": "review_bundles_version_id_title_versions_id_fk",
+          "tableFrom": "review_bundles",
+          "tableTo": "title_versions",
+          "columnsFrom": [
+            "version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_bundles_status_check": {
+          "name": "review_bundles_status_check",
+          "value": "\"review_bundles\".\"status\" IN ('draft', 'under_review', 'conflicted', 'verified', 'withdrawn')"
+        },
+        "review_bundles_revision_check": {
+          "name": "review_bundles_revision_check",
+          "value": "\"review_bundles\".\"revision\" >= 0"
+        }
+      }
+    },
+    "review_category_checks": {
+      "name": "review_category_checks",
+      "columns": {
+        "submission_id": {
+          "name": "submission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result": {
+          "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "review_category_checks_result_idx": {
+          "name": "review_category_checks_result_idx",
+          "columns": [
+            "result"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "review_category_checks_submission_id_review_submissions_id_fk": {
+          "name": "review_category_checks_submission_id_review_submissions_id_fk",
+          "tableFrom": "review_category_checks",
+          "tableTo": "review_submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "review_category_checks_submission_id_category_pk": {
+          "columns": [
+            "submission_id",
+            "category"
+          ],
+          "name": "review_category_checks_submission_id_category_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_category_checks_category_check": {
+          "name": "review_category_checks_category_check",
+          "value": "\"review_category_checks\".\"category\" IN ('fear', 'violence', 'language', 'bullying', 'sexualContent', 'substances', 'discrimination', 'selfHarm', 'grief', 'flashingLights')"
+        },
+        "review_category_checks_result_check": {
+          "name": "review_category_checks_result_check",
+          "value": "\"review_category_checks\".\"result\" IN ('none', 'present', 'uncertain')"
+        }
+      }
+    },
+    "review_reports": {
+      "name": "review_reports",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_id": {
+          "name": "bundle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "report_type": {
+          "name": "report_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'open'"
+        },
+        "resolution_note": {
+          "name": "resolution_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "review_reports_bundle_status_idx": {
+          "name": "review_reports_bundle_status_idx",
+          "columns": [
+            "bundle_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "review_reports_bundle_id_review_bundles_id_fk": {
+          "name": "review_reports_bundle_id_review_bundles_id_fk",
+          "tableFrom": "review_reports",
+          "tableTo": "review_bundles",
+          "columnsFrom": [
+            "bundle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_reports_message_check": {
+          "name": "review_reports_message_check",
+          "value": "length(trim(\"review_reports\".\"message\")) >= 10"
+        },
+        "review_reports_type_check": {
+          "name": "review_reports_type_check",
+          "value": "\"review_reports\".\"report_type\" IN ('different_version', 'missing_event', 'wrong_severity', 'spoiler', 'other')"
+        },
+        "review_reports_status_check": {
+          "name": "review_reports_status_check",
+          "value": "\"review_reports\".\"status\" IN ('open', 'investigating', 'resolved', 'dismissed')"
+        }
+      }
+    },
+    "review_submissions": {
+      "name": "review_submissions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bundle_id": {
+          "name": "bundle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version_id": {
+          "name": "version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reviewer_id": {
+          "name": "reviewer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "watched_seconds": {
+          "name": "watched_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "declared_complete": {
+          "name": "declared_complete",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "review_submissions_bundle_reviewer_unique": {
+          "name": "review_submissions_bundle_reviewer_unique",
+          "columns": [
+            "bundle_id",
+            "reviewer_id"
+          ],
+          "isUnique": true
+        },
+        "review_submissions_version_idx": {
+          "name": "review_submissions_version_idx",
+          "columns": [
+            "version_id"
+          ],
+          "isUnique": false
+        },
+        "review_submissions_reviewer_idx": {
+          "name": "review_submissions_reviewer_idx",
+          "columns": [
+            "reviewer_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "review_submissions_bundle_id_review_bundles_id_fk": {
+          "name": "review_submissions_bundle_id_review_bundles_id_fk",
+          "tableFrom": "review_submissions",
+          "tableTo": "review_bundles",
+          "columnsFrom": [
+            "bundle_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "review_submissions_version_id_title_versions_id_fk": {
+          "name": "review_submissions_version_id_title_versions_id_fk",
+          "tableFrom": "review_submissions",
+          "tableTo": "title_versions",
+          "columnsFrom": [
+            "version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "review_submissions_reviewer_id_reviewers_id_fk": {
+          "name": "review_submissions_reviewer_id_reviewers_id_fk",
+          "tableFrom": "review_submissions",
+          "tableTo": "reviewers",
+          "columnsFrom": [
+            "reviewer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_submissions_watched_seconds_check": {
+          "name": "review_submissions_watched_seconds_check",
+          "value": "\"review_submissions\".\"watched_seconds\" >= 0"
+        },
+        "review_submissions_time_order_check": {
+          "name": "review_submissions_time_order_check",
+          "value": "\"review_submissions\".\"completed_at\" > \"review_submissions\".\"started_at\""
+        },
+        "review_submissions_complete_check": {
+          "name": "review_submissions_complete_check",
+          "value": "\"review_submissions\".\"declared_complete\" IN (0, 1)"
+        }
+      }
+    },
+    "reviewers": {
+      "name": "reviewers",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "display_label": {
+          "name": "display_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "independence_group_id": {
+          "name": "independence_group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'probation'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "reviewers_independence_group_idx": {
+          "name": "reviewers_independence_group_idx",
+          "columns": [
+            "independence_group_id"
+          ],
+          "isUnique": false
+        },
+        "reviewers_status_idx": {
+          "name": "reviewers_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "reviewers_status_check": {
+          "name": "reviewers_status_check",
+          "value": "\"reviewers\".\"status\" IN ('active', 'probation', 'suspended')"
+        }
+      }
+    },
+    "title_versions": {
+      "name": "title_versions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title_id": {
+          "name": "title_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edition_label": {
+          "name": "edition_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "runtime_seconds": {
+          "name": "runtime_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_fingerprint": {
+          "name": "content_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'draft'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "title_versions_fingerprint_unique": {
+          "name": "title_versions_fingerprint_unique",
+          "columns": [
+            "content_fingerprint"
+          ],
+          "isUnique": true
+        },
+        "title_versions_title_idx": {
+          "name": "title_versions_title_idx",
+          "columns": [
+            "title_id"
+          ],
+          "isUnique": false
+        },
+        "title_versions_lookup_idx": {
+          "name": "title_versions_lookup_idx",
+          "columns": [
+            "platform",
+            "language",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "title_versions_title_id_titles_id_fk": {
+          "name": "title_versions_title_id_titles_id_fk",
+          "tableFrom": "title_versions",
+          "tableTo": "titles",
+          "columnsFrom": [
+            "title_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "title_versions_runtime_check": {
+          "name": "title_versions_runtime_check",
+          "value": "\"title_versions\".\"runtime_seconds\" > 0"
+        },
+        "title_versions_fingerprint_length_check": {
+          "name": "title_versions_fingerprint_length_check",
+          "value": "length(\"title_versions\".\"content_fingerprint\") >= 12"
+        },
+        "title_versions_status_check": {
+          "name": "title_versions_status_check",
+          "value": "\"title_versions\".\"status\" IN ('draft', 'active', 'superseded', 'withdrawn')"
+        }
+      }
+    },
+    "titles": {
+      "name": "titles",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "canonical_name": {
+          "name": "canonical_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "original_name": {
+          "name": "original_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "release_year": {
+          "name": "release_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "titles_name_idx": {
+          "name": "titles_name_idx",
+          "columns": [
+            "canonical_name"
+          ],
+          "isUnique": false
+        },
+        "titles_release_year_idx": {
+          "name": "titles_release_year_idx",
+          "columns": [
+            "release_year"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "titles_release_year_check": {
+          "name": "titles_release_year_check",
+          "value": "\"titles\".\"release_year\" BETWEEN 1880 AND 2200"
+        },
+        "titles_kind_check": {
+          "name": "titles_kind_check",
+          "value": "\"titles\".\"kind\" IN ('movie', 'series', 'episode', 'special')"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
