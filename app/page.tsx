@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import {
@@ -10,6 +10,11 @@ import {
   decideForFamily,
   type Severity,
 } from "@/lib/review-engine";
+import {
+  LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
+  parseLocalFamilySettings,
+  serializeLocalFamilySettings,
+} from "@/lib/local-family-settings";
 
 function LeafMark() {
   return (
@@ -48,6 +53,8 @@ export default function Home() {
   const [childAge, setChildAge] = useState(9);
   const [fearLimit, setFearLimit] = useState<Severity>(2);
   const [avoidBullying, setAvoidBullying] = useState(true);
+  const [familyStorageReady, setFamilyStorageReady] = useState(false);
+  const [familyStorageStatus, setFamilyStorageStatus] = useState<"pending" | "saved" | "unavailable">("pending");
 
   const demoTitles = [
     {
@@ -96,6 +103,37 @@ export default function Home() {
   const liveDecisionStops =
     liveDecision.verdict === "not_suitable" || liveDecision.verdict === "insufficient_data";
   const liveReason = liveDecision.reasons[0]?.messageAr ?? liveDecision.summaryAr;
+
+  useEffect(() => {
+    try {
+      const stored = parseLocalFamilySettings(
+        window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY),
+      );
+      if (stored) {
+        setChildAge(stored.childAge);
+        setFearLimit(stored.fearLimit);
+        setAvoidBullying(stored.avoidBullying);
+      }
+      setFamilyStorageReady(true);
+    } catch {
+      setFamilyStorageStatus("unavailable");
+      setFamilyStorageReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!familyStorageReady) return;
+
+    try {
+      window.localStorage.setItem(
+        LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
+        serializeLocalFamilySettings({ childAge, fearLimit, avoidBullying }),
+      );
+      setFamilyStorageStatus("saved");
+    } catch {
+      setFamilyStorageStatus("unavailable");
+    }
+  }, [avoidBullying, childAge, familyStorageReady, fearLimit]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -366,7 +404,14 @@ export default function Home() {
           <p>عدّل المثال وشوف إزاي النتيجة تتغير، من غير ما نغيّر الوقائع الأصلية للعمل.</p>
 
           <div className="family-points">
-            <span><i>✓</i> الإعدادات محفوظة على جهازك فقط</span>
+            <span>
+              <i>✓</i>{" "}
+              {familyStorageStatus === "unavailable"
+                ? "تعذر الحفظ المحلي في المتصفح؛ الإعدادات ستظل لهذه الجلسة فقط"
+                : familyStorageStatus === "saved"
+                  ? "الإعدادات محفوظة على جهازك فقط"
+                  : "الإعدادات تُحفظ محليًا على جهازك فقط"}
+            </span>
             <span><i>✓</i> لا نطلب اسم الطفل أو تاريخ ميلاده</span>
             <span><i>✓</i> تقدر تعرف السبب وراء كل حكم</span>
           </div>
@@ -375,7 +420,13 @@ export default function Home() {
         <div className="profile-lab">
           <div className="profile-lab__head">
             <div><span>نموذج أسرة</span><strong>حدود المشاهدة</strong></div>
-            <span className="local-pill">محلي على الجهاز</span>
+            <span className="local-pill">
+              {familyStorageStatus === "unavailable"
+                ? "الحفظ غير متاح"
+                : familyStorageStatus === "saved"
+                  ? "محفوظ على الجهاز"
+                  : "محلي على الجهاز"}
+            </span>
           </div>
 
           <div className="age-control">
