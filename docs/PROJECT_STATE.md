@@ -152,6 +152,21 @@
 - CI #234 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
 - آخر checkpoint قبل الدمج كان **122/122 اختبارًا، 0 فشل**؛ التفاصيل التشغيلية في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
 
+## P2Q-05 — لوحة الجودة والأدلة — مكتملة على main
+
+- أضيفت صفحة داخلية مرئية `/internal/quality` تعرض أدلة الجودة الفعلية من D1 بدل إنشاء score أو حالة موازية.
+- الوصول محصور server-side في `admin` و`editorial_reviewer` النشطين؛ المراجع والمنسق لا يملكان مدخل اللوحة.
+- الصفحة read-only بالكامل؛ لا توجد mutation لتغيير Hold أو حسمه أو تعديل نتيجة تدقيق أو معايرة من لوحة الجودة.
+- تعرض Safety Holds مع أسبابها وقرارات الحسم البشري، الحزم والبلاغات المتعارضة، Audit Calibration، وReference Calibration.
+- normalized audit rates تظل مخفية قبل **20 تدقيقًا مكتملًا** بما يطابق P2Q-02، ولا توجد `trustScore` أو ranking أو leaderboard.
+- أضيف مدخل مرئي من `/internal` للأدوار المصرح لها، والخدمة نفسها تعيد التحقق من الدور والحالة على الخادم حتى لو عُرف الرابط يدويًا.
+- اختبارات P2Q-05 تغطي policy الوصول، parsing للـHold/Resolution، إخفاء المعدلات تحت 20 عينة، وعدم وجود score/ranking.
+- استعلامات لوحة الجودة نفسها تُنفذ داخل `test:migrations` على SQLite بعد تطبيق جميع migrations، حتى لا يكفي مجرد نجاح TypeScript build.
+- لا schema أو migrations جديدة في P2Q-05؛ الإجمالي يظل **18 migration files / 24 product tables**.
+- التفاصيل التشغيلية موثقة في `docs/P2Q-05_QUALITY_DASHBOARD_CHECKPOINT.md`.
+- P2Q-05 دُمجت على `main` عبر PR #18 في commit `f2bccaa7a92ba07bf73523139774c05c92f08b1d`.
+- CI #250 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+
 ## Cloudflare — إعداد الإنتاج
 
 - الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
@@ -169,17 +184,17 @@
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
-- لوحة الجودة الداخلية `P2Q-05` لم تُنفذ بعد.
 
 ## الروابط الحالية
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
+- آخر PR مكتمل: `https://github.com/Hosyss/qabl-almushahada/pull/18`
 - الموقع المنشور القديم: `https://qabl-almushahada.hosys.chatgpt.site`
 - الرابط القديم لا يحتوي آخر سير العمل ولا يُعتبر نشر Cloudflare النهائي.
 
 ## نقطة البدء التالية
 
-1. التالي: `P2Q-05` **متوسط** — لوحة جودة تعرض أسباب الوقف والتعارض ومؤشرات المعايرة من غير ranking تنافسي.
+1. التالي: `P3-01` **متوسط** — بحث عربي يدعم اختلافات الكتابة والاسم الأصلي.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
