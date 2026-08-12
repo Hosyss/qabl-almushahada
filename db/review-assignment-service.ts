@@ -13,6 +13,7 @@ import {
   type ReviewAssignmentScope,
   type ReviewAssignmentState,
 } from "@/lib/internal-review-workflow";
+import { planPostSubmissionAudit } from "@/lib/review-audit-selection";
 import type { ReviewerIdentity } from "@/lib/review-engine";
 
 interface ActorRow {
@@ -143,6 +144,13 @@ export async function submitOwnReviewAssignment(input: {
     })),
   };
 
+  // The draw happens only after the final submission payload is validated and
+  // frozen in memory. It is never supplied by or returned to the reviewer.
+  const randomWords = new Uint32Array(1);
+  crypto.getRandomValues(randomWords);
+  const auditSelection = planPostSubmissionAudit(submission, randomWords[0]!);
+  const auditSelectionId = crypto.randomUUID();
+
   const db = requireD1();
   const now = new Date().toISOString();
   const transitionId = crypto.randomUUID();
@@ -239,6 +247,35 @@ export async function submitOwnReviewAssignment(input: {
     }
   }
 
+  const auditSelectionIndex = statements.length;
+  statements.push(
+    db.prepare(
+      `INSERT INTO review_audit_selections
+         (id, submission_id, assignment_id, bundle_id, version_id, reviewer_id,
+          risk_tier, sample_rate_bps, draw_u32, selected, risk_triggers_json, created_at)
+       SELECT ?, s.id, s.assignment_id, s.bundle_id, s.version_id, s.reviewer_id,
+              ?, ?, ?, ?, ?, ?
+       FROM review_submissions s
+       INNER JOIN review_assignments a ON a.id = s.assignment_id
+       WHERE s.id = ?
+         AND a.id = ?
+         AND a.last_transition_id = ?
+         AND a.state = 'submitted'
+         AND a.submission_id = s.id`,
+    ).bind(
+      auditSelectionId,
+      auditSelection.riskTier,
+      auditSelection.sampleRateBps,
+      auditSelection.drawU32,
+      auditSelection.selected ? 1 : 0,
+      JSON.stringify(auditSelection.riskTriggerCodes),
+      now,
+      submission.id,
+      loaded.scope.id,
+      transitionId,
+    ),
+  );
+
   const auditIndex = statements.length;
   statements.push(
     db.prepare(
@@ -267,6 +304,12 @@ export async function submitOwnReviewAssignment(input: {
 
   const results = await db.batch(statements);
   assertAtomicTransition(results, 0, auditIndex);
+  if ((results[auditSelectionIndex]?.meta?.changes ?? 0) !== 1) {
+    throw new ReviewWorkflowError(
+      "REVISION_CONFLICT",
+      "تعذر تسجيل قرار التدقيق العشوائي ذريًا مع الإرسال؛ أعد تحميل المهمة.",
+    );
+  }
 
   return {
     assignmentId: loaded.scope.id,
