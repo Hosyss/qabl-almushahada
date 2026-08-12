@@ -100,7 +100,7 @@
 - P2Q-01 مدموجة على `main` في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd` عبر PR #10.
 - CI #159 على `main` بعد الدمج نجح في **83/83 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
 
-## P2Q-02 — نتيجة التدقيق ومعايرة المراجع — مكتملة تقنيًا على الفرع قبل الدمج
+## P2Q-02 — نتيجة التدقيق ومعايرة المراجع — مكتملة على main
 
 - أضيفت `review_audit_outcomes` و`review_audit_findings` كسجل append-only لنتيجة التدقيق الفعلي والـfindings.
 - لا يسجل outcome إلا `editorial_reviewer` نشط وله reviewer identity نشطة ومستقلة عن المراجع الأصلي؛ self-audit ونفس مجموعة الاستقلال مرفوضان.
@@ -113,8 +113,8 @@
 - حجم العينة وraw counts متاحان للتدقيق، لكن normalized rates تظل `null` قبل **20 تدقيقًا مكتملًا** للمراجع؛ عند 20 تبدأ rates basis-points بالظهور.
 - لا توجد composite `trustScore` ولا ranking للمراجعين؛ P2Q-02 تقدم evidence/counts/rates فقط.
 - migration `0008_reviewer_calibration_outcomes.sql` رفعت الإجمالي إلى **9 migrations / 20 product tables**.
-- checkpoint الحالي على الفرع اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` بما فيه verifier الخاص بـP2Q-02، و`lint:local` و`build:local`.
-- لم تُدمج P2Q-02 على `main` بعد؛ لا يُعتبر هذا القسم checkpoint نهائيًا على main حتى PR + CI + merge + main CI.
+- P2Q-02 مدموجة على `main` في commit `120a43d62517141a3ed0c14cd07d6128655303fa` عبر PR #12.
+- CI #178 على `main` بعد الدمج اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
 
 ## Cloudflare — إعداد الإنتاج
 
