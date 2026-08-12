@@ -300,6 +300,12 @@ export const reviewReports = sqliteTable(
     bundleId: text("bundle_id")
       .notNull()
       .references(() => reviewBundles.id, { onDelete: "cascade" }),
+    versionId: text("version_id"),
+    invalidatedApprovalId: text("invalidated_approval_id"),
+    previousBundleStatus: text("previous_bundle_status", {
+      enum: ["draft", "under_review", "conflicted", "verified"],
+    }),
+    previousBundleRevision: integer("previous_bundle_revision"),
     reportType: text("report_type", {
       enum: ["different_version", "missing_event", "wrong_severity", "spoiler", "other"],
     }).notNull(),
@@ -307,13 +313,19 @@ export const reviewReports = sqliteTable(
     status: text("status", { enum: ["open", "investigating", "resolved", "dismissed"] })
       .notNull()
       .default("open"),
+    resolutionKind: text("resolution_kind", { enum: ["no_issue", "correction_required"] }),
     resolutionNote: text("resolution_note"),
+    resolvedByUserId: text("resolved_by_user_id"),
+    revision: integer("revision").notNull().default(0),
+    lastTransitionId: text("last_transition_id"),
     createdAt: createdAt(),
     resolvedAt: text("resolved_at"),
   },
   (table) => [
     index("review_reports_bundle_status_idx").on(table.bundleId, table.status),
+    index("review_reports_version_idx").on(table.versionId),
     check("review_reports_message_check", sql`length(trim(${table.message})) >= 10`),
+    check("review_reports_revision_check", sql`${table.revision} >= 0`),
     check(
       "review_reports_type_check",
       sql`${table.reportType} IN ('different_version', 'missing_event', 'wrong_severity', 'spoiler', 'other')`,
@@ -321,6 +333,10 @@ export const reviewReports = sqliteTable(
     check(
       "review_reports_status_check",
       sql`${table.status} IN ('open', 'investigating', 'resolved', 'dismissed')`,
+    ),
+    check(
+      "review_reports_resolution_kind_check",
+      sql`${table.resolutionKind} IS NULL OR ${table.resolutionKind} IN ('no_issue', 'correction_required')`,
     ),
   ],
 );

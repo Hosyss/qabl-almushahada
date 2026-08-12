@@ -24,7 +24,7 @@
 - بوابات جودة تمنع المصدر الواحد، مجموعات الاستقلال غير الكافية، `uncertain`، اختلاف وجود المحور، وفروق الشدة الكبيرة.
 - محوّل صارم من صفوف D1 إلى schema الإنچين؛ القيم المجهولة تُرفض.
 - نشر ذري بقفل `revision` و`transition ID` وسجل تدقيق.
-- فتح بلاغ جوهري ذري يوقف النتيجة ويحوّل الحزمة إلى `conflicted`.
+- فتح بلاغ جوهري ذري يوقف النتيجة ويحوّل الحزمة إلى `conflicted` ويسقط الاعتماد الحالي من غير حذف التاريخ.
 
 ## P2-02 — مكتمل على main
 
@@ -56,20 +56,38 @@
 - المراجع الموقوف أو غير النشط لا يحتسب ضمن شرط الثلاثة.
 - checkpoint P2-03 المدموج على main اجتاز 72/72 اختبارًا، و`test:migrations` و`lint:local` و`build:local`.
 
-## P2-04 — revisions غير قابلة للمحو
+## P2-04 — revisions غير قابلة للمحو — مكتمل على main
 
 - مسار إعادة الإرسال لم يعد يمسح `observations` أو `review_category_checks` أو `observation_flags` ولم يعد يعمل UPSERT فوق نفس `review_submission`.
 - كل إرسال جديد ينشئ `review_submissions` جديدًا بمعرّف جديد و`revision` متزايد و`supersedes_submission_id` يشير مباشرة إلى revision السابقة لنفس assignment.
 - `review_assignments.submission_id` هو المؤشر الوحيد للمراجعة الحالية؛ المحرك يقرأ هذا المؤشر ولا يخلط revisions القديمة في القرار.
 - SQLite يفرض lineage المراجعات ويتحقق من تطابق assignment مع bundle/version/reviewer، ويرفض القفز فوق revision سابقة.
 - SQLite يمنع `UPDATE` و`DELETE` على `review_submissions` وعلى category checks والوقائع والflags المرتبطة بها؛ التصحيح يكون revision جديدة فقط.
-- الاعتماد التحريري أصبح append-only أيضًا: كل اعتماد جديد يحصل على `revision` متزايد و`supersedes_approval_id` مباشر.
+- الاعتماد التحريري append-only أيضًا: كل اعتماد جديد يحصل على `revision` متزايد و`supersedes_approval_id` مباشر.
 - `review_bundles.current_approval_id` يشير إلى الاعتماد التحريري الحالي فقط، بينما كل الاعتمادات السابقة تبقى محفوظة.
-- loader العام يقرأ الاعتماد الحالي من `current_approval_id` فقط؛ هذا يسمح لاحقًا في P2-05 بإسقاط الاعتماد الحالي عند تصحيح جوهري من غير محو أي تاريخ.
-- SQLite يمنع `UPDATE` و`DELETE` على الاعتمادات وروابط submissions وspot checks القديمة، ويتحقق أن `current_approval_id` تابع لنفس الحزمة.
-- migration `0005_immutable_review_revisions.sql` رفعت العدد إلى **6 migrations** مع بقاء **17 جدولًا**؛ لا نحتاج جدولًا إضافيًا لأن lineage محفوظ داخل الصفوف نفسها.
-- `scripts/verify-migrations.mjs` يثبت أن revisions القديمة غير قابلة للتعديل/الحذف، وأن revision 2 يجب أن تشير مباشرة إلى revision 1، ويرفض lineage المزورة للمراجعات والاعتمادات.
-- آخر CI على فرع P2-04 اجتاز `test:engine`, `test:migrations`, `lint:local`, `build:local` بنجاح. لا يُعتبر P2-04 مدموجًا إلى main قبل إتمام PR وCI الخاص به.
+- SQLite يمنع `UPDATE` و`DELETE` على الاعتمادات وروابط submissions وspot checks القديمة ويتحقق من lineage.
+- migration `0005_immutable_review_revisions.sql` رفعت العدد وقتها إلى 6 migrations / 17 جدولًا.
+- P2-04 مدموج على `main` في commit `d32434356eeae46e51c0547fd46f430fa350e0a5`، وCI الخاص بـmain نجح في الاختبارات والمigrations والlint والbuild.
+
+## P2-05 — حسم البلاغ والتصحيح وإعادة الاعتماد — checkpoint جاهز للدمج
+
+- البلاغ الجوهري لا يُفتح إلا على حزمة `verified` لها `current_approval_id` فعلية؛ لا يمكن تعليق workflow ما زال تحت المراجعة ببلاغ عام.
+- عند الفتح يلتقط D1 server-side snapshot غير قابل للتزوير: `version_id`، حالة الحزمة، revision، والاعتماد الحالي الذي تم إبطاله. المتصفح لا يحدد هذه القيم.
+- snapshot لا تُقبل إلا إذا طابقت نفس النسخة ونفس revision ونفس أحدث approval معتمدة لحظة الفتح؛ أي snapshot مزورة تُرفض في SQLite.
+- فتح البلاغ يحوّل الحزمة إلى `conflicted` ويجعل `current_approval_id = NULL` فورًا من غير حذف approval التاريخية.
+- لا يسمح بأكثر من بلاغ `open/investigating` واحد للحزمة، ولا يسمح بإنشاء editorial approval جديدة أثناء وجود بلاغ نشط.
+- `open` و`investigating` فقط يدخلان `blockingReports` في الإنچين؛ `resolved` و`dismissed` لا يظلان مانعًا دائمًا بعد الحسم الصحيح.
+- حسم البلاغ محصور في `editorial_reviewer` نشط بهوية reviewer نشطة؛ هوية الفاعل تأتي من session/D1، والطلب يرفض أي server-owned fields مزورة.
+- مسار `no_issue` يعيد **نفس الاعتماد الذي أبطله البلاغ** فقط إذا بقيت الحزمة والنسخة والrevisions كما كانت متوقعة؛ أي تغيير متزامن يوقف الاستعادة.
+- مسار `correction_required` للنسخة نفسها يعيد كل assignments المعتمدة إلى `changes_requested`، فيجبر المراجعين على submission revisions جديدة ثم اعتماد تحريري revision جديدة.
+- إذا كان البلاغ `different_version` وثبتت صحته، تُحوّل الحزمة إلى `withdrawn` بدل تعديل الوقائع تحت هوية نسخة خاطئة.
+- بعد تصحيح مؤكد، SQLite تمنع إعادة approval التي أُبطلت، وتمنع تعيين أي approval تاريخية أقدم كـcurrent؛ `current_approval_id` يجب أن تكون أحدث revision حالية وحالتها `approved`.
+- أي محاولة لإرجاع الحزمة `verified` من غير current editorial approval تُرفض في SQLite.
+- `review_reports` أصبحت ذات revision lock وهوية/snapshot غير قابلة للتغيير، والبلاغات المحسومة لا يمكن تعديلها أو حذفها.
+- migration `0006_report_resolution_reapproval.sql` رفعت الإجمالي إلى **7 migrations / 17 جدولًا**.
+- `tests/report-resolution.test.ts` + `scripts/verify-report-resolution.mjs` يغطيان الصلاحيات، mass-assignment، snapshots المزورة، منع البلاغ المكرر، immutable resolution، approval freeze، latest-current guard، وإجبار approval جديدة بعد التصحيح.
+- آخر branch checkpoint قبل تحديث المستندات اجتاز **78/78 اختبارًا، 0 فشل**، ومعه `test:migrations`, `lint:local`, `build:local` كلها ناجحة.
+- P2-05 لم تدخل `main` بعد؛ يلزم CI على رأس التوثيق ثم PR/CI مستقل ثم merge وCI على main.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -81,7 +99,7 @@
 - عند تفعيل Access يجب تمرير Team Domain وAUD معًا؛ bootstrap admin اختياري لأول مرة فقط.
 - أضيفت أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy`، ولا تنسخ API token أو Account ID إلى Worker config.
 - اختبارات Cloudflare config تغطي منع placeholder، اكتمال Access pair، عدم تسريب credentials، وربط D1/Images.
-- **لم يحدث remote deploy بعد** لأن أدوات هذه الجلسة لا تحتوي Cloudflare API/CLI authentication متصلًا لإنشاء D1 جديد أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل تنفيذ ذلك والحصول على الرابط الحقيقي.
+- **لم يحدث remote deploy بعد** لأن الجلسة لا تملك Cloudflare API/CLI authentication متصلًا لإنشاء D1 حقيقي أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل ذلك.
 
 ## ما يزال تجريبيًا أو مؤجلًا
 
@@ -100,9 +118,9 @@
 
 ## نقطة البدء التالية
 
-1. إتمام PR وCI ودمج checkpoint `P2-04` إلى `main`.
-2. التالي بعد الدمج: `P2-05` **حرج / Work** — حسم البلاغات والتصحيح المرتبط بالنسخة وإجبار اعتماد جديد بعد التعديل الجوهري.
-3. عند توفر Cloudflare authentication: إنشاء D1 جديد لهذا المشروع، تطبيق migrations، deploy إلى Worker جديد، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-4. لا تبدأ تلميعًا بصريًا عامًا قبل حفظ checkpoint الأمني التالي.
+1. إتمام CI ثم PR ودمج checkpoint `P2-05` إلى `main` والتحقق من CI الخاص بـmain.
+2. التالي بعد الدمج: `P2Q-01` **حرج / Work** — تدقيق عشوائي غير قابل للتوقع مع رفع العينة للحالات عالية المخاطر.
+3. عند توفر Cloudflare authentication: إنشاء D1 حقيقي لهذا المشروع، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
+4. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
