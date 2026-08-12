@@ -10,6 +10,7 @@ import {
   requestReviewChanges,
   setInternalUserStatus,
 } from "@/db/internal-review-management-service";
+import { resolveReviewReport } from "@/db/resolve-review-report";
 
 async function requireSessionEmail(): Promise<string> {
   return (await requireInternalSessionUser()).email;
@@ -41,4 +42,8 @@ export async function flagReviewConflictAction(request: unknown) {
 
 export async function approveReviewBundleEditoriallyAction(request: unknown) {
   return approveReviewBundleEditorially({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function resolveReviewReportAction(request: unknown) {
+  return resolveReviewReport({ sessionEmail: await requireSessionEmail(), request });
 }
