@@ -31,7 +31,8 @@ export async function openReviewReport(input: {
        FROM review_bundles
        WHERE id = ?
          AND revision = ?
-         AND status != 'withdrawn'
+         AND status = 'verified'
+         AND current_approval_id IS NOT NULL
          AND NOT EXISTS (
            SELECT 1 FROM review_reports active_report
            WHERE active_report.bundle_id = review_bundles.id
@@ -59,6 +60,8 @@ export async function openReviewReport(input: {
            WHERE id = ?
              AND bundle_id = review_bundles.id
              AND previous_bundle_revision = ?
+             AND previous_bundle_status = 'verified'
+             AND invalidated_approval_id IS NOT NULL
          )`,
     ).bind(
       reportId,
@@ -95,7 +98,7 @@ export async function openReviewReport(input: {
   const changed = results.map((result) => result.meta?.changes ?? 0);
   if (changed.some((count) => count !== 1)) {
     throw new Error(
-      "Concurrent review update or an active report prevented opening the report; reload before retrying.",
+      "Concurrent review update, missing current approval, or an active report prevented opening the report; reload before retrying.",
     );
   }
 
