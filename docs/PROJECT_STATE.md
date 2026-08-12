@@ -79,29 +79,26 @@
 - P2-05 مدموجة على `main` في commit `16a6a844f9636373df83a44204579e0164ae9cd8` عبر PR #8.
 - CI #142 على `main` بعد الدمج اجتاز **78/78 اختبارًا، 0 فشل**، ومعه migrations وlint وbuild ناجحة.
 
-## P2Q-01 — تدقيق عشوائي غير متوقع بعد الإرسال — checkpoint جاهز للدمج
+## P2Q-01 — تدقيق عشوائي غير متوقع بعد الإرسال — مكتمل على main
 
 - أضيفت policy مستقلة في `lib/review-audit-selection.ts` لاختيار عينة التدقيق **بعد اكتمال validation وتجميد payload الإرسال النهائي**.
 - القرعة تُولد على الخادم بـ`crypto.getRandomValues` كـCSPRNG؛ لا يأتي draw أو rate أو risk tier أو selected من المتصفح.
 - السياسة الأولية صريحة وقابلة للمراجعة:
   - **10%** للحالات العادية (`1000 bps`).
   - **50%** للحالات عالية الحساسية (`5000 bps`).
-- high-risk لا يملك تعريفًا جديدًا؛ يعيد استخدام **نفس P2-03 thresholds** حتى لا يوجد اختلاف بين بوابة المراجع الثالث وسياسة رفع عينة التدقيق.
+- high-risk يعيد استخدام **نفس P2-03 thresholds**، فلا يوجد تعريف مخاطر موازٍ أو hidden heuristic.
 - المقارنة تتم مباشرة على نطاق uint32 بدل `%`، فتتجنب modulo bias.
-- high-risk ليست 100% عمدًا حتى لا يستطيع المراجع توقع أن كل حالة حساسة ستدخل تدقيقًا؛ ومع ذلك العينة فيها أعلى بخمس مرات من baseline.
-- قرار الاختيار يُكتب في **نفس D1 batch** الخاصة بالإرسال المقفول، فلا يعتبر الإرسال قابلًا للاعتماد من غير decision مسجلة.
-- استجابة submit للمراجع لا تحتوي نتيجة الاختيار، ولا يوجد server action يعيدها للمراجع.
-- أضيف جدول `review_audit_selections` يسجل **قرارًا واحدًا لكل submission سواء selected أو لا**: هوية submission/assignment/bundle/version/reviewer، risk tier، sample rate، draw، selected، triggers، ووقت الإنشاء.
-- قرارات الاختيار append-only؛ SQLite تمنع UPDATE/DELETE.
-- SQLite تعيد التحقق بشكل مستقل من هوية submission الحالية، ومن high-risk thresholds، ومن 10%/50%، ومن أن `selected` يطابق draw الفعلي؛ خفض high-risk إلى baseline أو تزوير نتيجة القرعة يُرفض.
+- high-risk ليست 100% عمدًا حتى لا يستطيع المراجع توقع أن كل حالة حساسة ستدخل تدقيقًا.
+- قرار الاختيار يُكتب في **نفس D1 batch** الخاصة بالإرسال المقفول، واستجابة submit للمراجع لا تحتوي نتيجة الاختيار.
+- جدول `review_audit_selections` يسجل قرارًا واحدًا لكل submission سواء selected أو لا: هوية submission/assignment/bundle/version/reviewer، risk tier، rate، draw، selected، triggers، ووقت الإنشاء.
+- القرارات append-only؛ SQLite تمنع UPDATE/DELETE.
+- SQLite تعيد التحقق من هوية submission الحالية، ومن high-risk thresholds، ومن 10%/50%، ومن أن `selected` يطابق draw الفعلي؛ down-rating أو تزوير نتيجة القرعة يُرفض.
 - SQLite تمنع انتقال assignment إلى `approved` إذا لم توجد audit-selection decision للمراجعة الحالية، وتمنع جعل bundle `verified` إذا كانت أي submission حالية بلا decision.
-- هذا البند **يختار العينة ويسجل القرار فقط**؛ تنفيذ التدقيق الفعلي ونتيجته وأثرها على سجل معايرة المراجع هي مهمة `P2Q-02` التالية.
+- P2Q-01 تختار العينة وتسجل القرار فقط؛ تنفيذ التدقيق الفعلي وoutcome والمعايرة هي `P2Q-02`.
 - migration `0007_random_audit_selection.sql` رفعت الإجمالي إلى **8 migrations / 18 product tables**.
-- `tests/random-audit-selection.test.ts` تختبر thresholds وحدود uint32 ورفع high-risk وعدم تحويله إلى 100%.
-- `scripts/verify-random-audit-selection.mjs` يختبر عند SQLite منع down-rating، تزوير draw outcome، تعديل/حذف القرار، الاعتماد بلا decision، وتكرار decision لنفس submission.
-- آخر branch checkpoint على head `73093d20ab1d5f0dc63943bd47f3e7adeafd3625` اجتاز **83/83 اختبارًا، 0 فشل**.
-- نفس checkpoint نجح في `test:migrations` مع رسالة `Verified 8 migration files and 18 product tables.`، ونجح `lint:local` و`build:local`.
-- P2Q-01 لم تدخل `main` بعد؛ يلزم CI على رأس التوثيق ثم PR/CI مستقل ثم merge وCI على main.
+- الاختبارات تشمل pure policy وSQLite guards للـrisk/rate/draw/immutability والاعتماد بلا decision.
+- P2Q-01 مدموجة على `main` في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd` عبر PR #10.
+- CI #159 على `main` بعد الدمج نجح في **83/83 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -131,9 +128,8 @@
 
 ## نقطة البدء التالية
 
-1. إتمام CI ثم PR ودمج checkpoint `P2Q-01` إلى `main` والتحقق من CI الخاص بـmain.
-2. التالي بعد الدمج: `P2Q-02` **حرج / Work** — سجل نتيجة التدقيق والمعايرة: أحداث فائتة، فروق شدة، تأكيد المدقق، وحجم عينة قبل أي trust score.
-3. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-4. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
+1. التالي: `P2Q-02` **حرج / Work** — سجل نتيجة التدقيق والمعايرة: أحداث فائتة، فروق شدة، تأكيد المدقق، وحجم عينة قبل أي trust score.
+2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
+3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
