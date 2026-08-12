@@ -80,6 +80,19 @@ db.prepare(
 assert.throws(
   () =>
     db.prepare(
+      `INSERT INTO editorial_approvals
+         (id, bundle_id, approver_id, status, revision, supersedes_approval_id,
+          version_fingerprint_confirmed, approved_at)
+       VALUES ('blocked-during-report', 'report-bundle', 'report-editor', 'approved', 2,
+               'report-approval-1', 1, '2026-08-12T09:30:00.000Z')`,
+    ).run(),
+  /active review report blocks new editorial approvals/i,
+  "An editorial approval was inserted while a material report was active.",
+);
+
+assert.throws(
+  () =>
+    db.prepare(
       `UPDATE review_bundles
        SET status = 'verified', current_approval_id = 'report-approval-1'
        WHERE id = 'report-bundle'`,
@@ -219,5 +232,44 @@ assert.throws(
   "A report was linked to a version different from its bundle.",
 );
 
+// A current-approval pointer may never point at an older approval when a newer revision exists.
+db.prepare(
+  `INSERT INTO review_bundles (id, version_id, status, revision)
+   VALUES ('latest-bundle', 'report-version-a', 'under_review', 0)`,
+).run();
+db.prepare(
+  `INSERT INTO editorial_approvals
+     (id, bundle_id, approver_id, status, revision, version_fingerprint_confirmed, approved_at)
+   VALUES ('latest-approval-1', 'latest-bundle', 'report-editor', 'approved', 1, 1,
+           '2026-08-12T12:10:00.000Z')`,
+).run();
+db.prepare(
+  `INSERT INTO editorial_approvals
+     (id, bundle_id, approver_id, status, revision, supersedes_approval_id,
+      version_fingerprint_confirmed, approved_at)
+   VALUES ('latest-approval-2', 'latest-bundle', 'report-editor', 'approved', 2,
+           'latest-approval-1', 1, '2026-08-12T12:20:00.000Z')`,
+).run();
+assert.throws(
+  () =>
+    db.prepare(
+      `UPDATE review_bundles
+       SET current_approval_id = 'latest-approval-1'
+       WHERE id = 'latest-bundle'`,
+    ).run(),
+  /latest approved revision/i,
+  "A bundle accepted a stale historical approval as its current approval.",
+);
+db.prepare(
+  `UPDATE review_bundles
+   SET current_approval_id = 'latest-approval-2'
+   WHERE id = 'latest-bundle'`,
+).run();
+assert.equal(
+  db.prepare("SELECT current_approval_id FROM review_bundles WHERE id = 'latest-bundle'").get().current_approval_id,
+  "latest-approval-2",
+  "The latest approved revision could not become current.",
+);
+
 db.close();
-console.log("Verified P2-05 report invalidation, immutable resolution, and mandatory reapproval guards.");
+console.log("Verified P2-05 report invalidation, immutable resolution, approval freeze, and mandatory reapproval guards.");
