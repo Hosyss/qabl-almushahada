@@ -9,17 +9,6 @@ import {
   type ReviewAssignmentState,
 } from "@/lib/internal-review-workflow";
 
-interface ActorRow {
-  userId: string;
-  authEmail: string;
-  role: string;
-  accountStatus: string;
-  reviewerId: string | null;
-  reviewerLabel: string | null;
-  independenceGroupId: string | null;
-  reviewerStatus: string | null;
-}
-
 export interface InternalUiActor {
   userId: string;
   email: string;
@@ -83,7 +72,7 @@ export interface InternalAssignmentUiRow {
   reviewerId: string;
   reviewerLabel: string;
   reviewerIndependenceGroupId: string;
-  reviewerStatus: string;
+  reviewerStatus: "active" | "probation" | "suspended";
   draftPresent: boolean;
 }
 
@@ -122,15 +111,73 @@ export interface ReviewerEditorData {
   draft: unknown | null;
 }
 
+interface ActorRow {
+  userId: string;
+  authEmail: string;
+  role: string;
+  accountStatus: string;
+  reviewerId: string | null;
+  reviewerLabel: string | null;
+  independenceGroupId: string | null;
+  reviewerStatus: string | null;
+}
+
+interface AssignmentDbRow {
+  id: string;
+  bundleId: string;
+  bundleRevision: number;
+  state: string;
+  revision: number;
+  submissionId: string | null;
+  titleName: string;
+  versionId: string;
+  editionLabel: string;
+  platform: string;
+  language: string;
+  runtimeSeconds: number;
+  contentFingerprint: string;
+  reviewerId: string;
+  reviewerLabel: string;
+  reviewerIndependenceGroupId: string;
+  reviewerStatus: string;
+  draftPayloadJson: string | null;
+}
+
+const ASSIGNMENT_SELECT = `SELECT
+    a.id AS id,
+    a.bundle_id AS bundleId,
+    b.revision AS bundleRevision,
+    a.state AS state,
+    a.revision AS revision,
+    a.submission_id AS submissionId,
+    t.canonical_name AS titleName,
+    v.id AS versionId,
+    v.edition_label AS editionLabel,
+    v.platform AS platform,
+    v.language AS language,
+    v.runtime_seconds AS runtimeSeconds,
+    v.content_fingerprint AS contentFingerprint,
+    r.id AS reviewerId,
+    r.display_label AS reviewerLabel,
+    r.independence_group_id AS reviewerIndependenceGroupId,
+    r.status AS reviewerStatus,
+    d.payload_json AS draftPayloadJson
+  FROM review_assignments a
+  INNER JOIN review_bundles b ON b.id = a.bundle_id AND b.version_id = a.version_id
+  INNER JOIN title_versions v ON v.id = a.version_id
+  INNER JOIN titles t ON t.id = v.title_id
+  INNER JOIN reviewers r ON r.id = a.reviewer_id
+  LEFT JOIN review_assignment_drafts d ON d.assignment_id = a.id`;
+
 export async function loadInternalDashboard(sessionEmail: string): Promise<InternalDashboardData> {
   const actor = await requireUiActor(sessionEmail);
-  const empty: Omit<InternalDashboardData, "actor"> = {
-    users: [],
-    bundles: [],
-    reviewers: [],
-    assignments: [],
-    observations: [],
-    auditEvents: [],
+  const empty = {
+    users: [] as InternalUserUiRow[],
+    bundles: [] as InternalBundleUiRow[],
+    reviewers: [] as InternalReviewerUiRow[],
+    assignments: [] as InternalAssignmentUiRow[],
+    observations: [] as EditorialObservationUiRow[],
+    auditEvents: [] as InternalAuditUiRow[],
   };
 
   if (actor.role === "admin") {
@@ -173,17 +220,13 @@ export async function loadReviewerEditor(
   if (!normalizedId) throw new ReviewWorkflowError("FORBIDDEN", "معرّف المهمة غير صالح.");
 
   const row = await requireD1()
-    .prepare(`${ASSIGNMENT_SELECT}
-      LEFT JOIN review_assignment_drafts d ON d.assignment_id = a.id
-      WHERE a.id = ? AND a.reviewer_id = ?
-      LIMIT 1`)
+    .prepare(`${ASSIGNMENT_SELECT} WHERE a.id = ? AND a.reviewer_id = ? LIMIT 1`)
     .bind(normalizedId, actor.reviewer.id)
-    .first<AssignmentDbRow & { draftPayloadJson: string | null }>();
-
+    .first<AssignmentDbRow>();
   if (!row) {
     throw new ReviewWorkflowError("ASSIGNMENT_OWNERSHIP", "المهمة غير موجودة أو ليست مخصصة لهذا المراجع.");
   }
-  const assignment = parseAssignment(row);
+
   let draft: unknown | null = null;
   if (row.draftPayloadJson !== null) {
     try {
@@ -192,8 +235,7 @@ export async function loadReviewerEditor(
       throw new ReviewWorkflowError("INVALID_DRAFT", "المسودة المخزنة غير صالحة.");
     }
   }
-
-  return { actor, assignment, draft };
+  return { actor, assignment: parseAssignment(row), draft };
 }
 
 async function requireUiActor(sessionEmail: string): Promise<InternalUiActor> {
@@ -202,19 +244,14 @@ async function requireUiActor(sessionEmail: string): Promise<InternalUiActor> {
 
   const row = await requireD1()
     .prepare(
-      `SELECT
-         u.id AS userId,
-         u.auth_email AS authEmail,
-         u.role AS role,
-         u.status AS accountStatus,
-         r.id AS reviewerId,
-         r.display_label AS reviewerLabel,
-         r.independence_group_id AS independenceGroupId,
-         r.status AS reviewerStatus
+      `SELECT u.id AS userId, u.auth_email AS authEmail, u.role AS role,
+              u.status AS accountStatus, r.id AS reviewerId,
+              r.display_label AS reviewerLabel,
+              r.independence_group_id AS independenceGroupId,
+              r.status AS reviewerStatus
        FROM internal_users u
        LEFT JOIN reviewers r ON r.id = u.reviewer_id
-       WHERE u.auth_email = ?
-       LIMIT 1`,
+       WHERE u.auth_email = ? LIMIT 1`,
     )
     .bind(normalizedEmail)
     .first<ActorRow>();
@@ -239,22 +276,17 @@ async function requireUiActor(sessionEmail: string): Promise<InternalUiActor> {
   if ((role === "reviewer" || role === "editorial_reviewer") && !reviewer) {
     throw new ReviewWorkflowError("FORBIDDEN", "الدور الداخلي يتطلب هوية مراجع مرتبطة.");
   }
-
   return { userId: row.userId, email: row.authEmail, role, status, reviewer };
 }
 
 async function loadUsers(): Promise<InternalUserUiRow[]> {
   const result = await requireD1()
     .prepare(
-      `SELECT
-         u.id AS id,
-         u.auth_email AS authEmail,
-         u.role AS role,
-         u.status AS status,
-         u.revision AS revision,
-         r.display_label AS reviewerLabel,
-         r.independence_group_id AS independenceGroupId,
-         r.status AS reviewerStatus
+      `SELECT u.id AS id, u.auth_email AS authEmail, u.role AS role,
+              u.status AS status, u.revision AS revision,
+              r.display_label AS reviewerLabel,
+              r.independence_group_id AS independenceGroupId,
+              r.status AS reviewerStatus
        FROM internal_users u
        LEFT JOIN reviewers r ON r.id = u.reviewer_id
        ORDER BY u.created_at DESC`,
@@ -278,9 +310,7 @@ async function loadInternalAuditEvents(): Promise<InternalAuditUiRow[]> {
     .prepare(
       `SELECT id, event_type AS eventType, entity_type AS entityType,
               entity_id AS entityId, created_at AS createdAt
-       FROM internal_audit_events
-       ORDER BY created_at DESC
-       LIMIT 50`,
+       FROM internal_audit_events ORDER BY created_at DESC LIMIT 50`,
     )
     .all<InternalAuditUiRow>();
   return result.results ?? [];
@@ -317,7 +347,6 @@ async function loadReviewerAccounts(): Promise<InternalReviewerUiRow[]> {
        ORDER BY r.display_label ASC`,
     )
     .all<Record<string, unknown>>();
-
   return (result.results ?? []).map((row) => ({
     authEmail: requireString(row.authEmail, "reviewer email"),
     reviewerId: requireString(row.reviewerId, "reviewer id"),
@@ -329,30 +358,27 @@ async function loadReviewerAccounts(): Promise<InternalReviewerUiRow[]> {
 }
 
 async function loadAssignmentsForReviewer(reviewerId: string): Promise<InternalAssignmentUiRow[]> {
-  const result = await requireD1()
-    .prepare(`${ASSIGNMENT_SELECT}
-      WHERE a.reviewer_id = ?
-      ORDER BY a.updated_at DESC`)
-    .bind(reviewerId)
-    .all<AssignmentDbRow>();
-  return (result.results ?? []).map(parseAssignment);
+  return queryAssignments("WHERE a.reviewer_id = ? ORDER BY a.updated_at DESC", [reviewerId]);
 }
 
 async function loadAllAssignments(): Promise<InternalAssignmentUiRow[]> {
-  const result = await requireD1()
-    .prepare(`${ASSIGNMENT_SELECT}
-      ORDER BY a.updated_at DESC
-      LIMIT 200`)
-    .all<AssignmentDbRow>();
-  return (result.results ?? []).map(parseAssignment);
+  return queryAssignments("ORDER BY a.updated_at DESC LIMIT 200", []);
 }
 
 async function loadEditorialAssignments(): Promise<InternalAssignmentUiRow[]> {
-  const result = await requireD1()
-    .prepare(`${ASSIGNMENT_SELECT}
-      WHERE a.state IN ('submitted', 'conflicted', 'changes_requested')
-      ORDER BY a.updated_at DESC`)
-    .all<AssignmentDbRow>();
+  return queryAssignments(
+    "WHERE a.state IN ('submitted', 'conflicted', 'changes_requested') ORDER BY a.updated_at DESC",
+    [],
+  );
+}
+
+async function queryAssignments(
+  suffix: string,
+  bindings: unknown[],
+): Promise<InternalAssignmentUiRow[]> {
+  let statement = requireD1().prepare(`${ASSIGNMENT_SELECT} ${suffix}`);
+  if (bindings.length > 0) statement = statement.bind(...bindings);
+  const result = await statement.all<AssignmentDbRow>();
   return (result.results ?? []).map(parseAssignment);
 }
 
@@ -371,53 +397,6 @@ async function loadEditorialObservations(): Promise<EditorialObservationUiRow[]>
     .all<EditorialObservationUiRow>();
   return result.results ?? [];
 }
-
-interface AssignmentDbRow {
-  id: string;
-  bundleId: string;
-  bundleRevision: number;
-  state: string;
-  revision: number;
-  submissionId: string | null;
-  titleName: string;
-  versionId: string;
-  editionLabel: string;
-  platform: string;
-  language: string;
-  runtimeSeconds: number;
-  contentFingerprint: string;
-  reviewerId: string;
-  reviewerLabel: string;
-  reviewerIndependenceGroupId: string;
-  reviewerStatus: string;
-  draftPresent: number;
-}
-
-const ASSIGNMENT_SELECT = `SELECT
-    a.id AS id,
-    a.bundle_id AS bundleId,
-    b.revision AS bundleRevision,
-    a.state AS state,
-    a.revision AS revision,
-    a.submission_id AS submissionId,
-    t.canonical_name AS titleName,
-    v.id AS versionId,
-    v.edition_label AS editionLabel,
-    v.platform AS platform,
-    v.language AS language,
-    v.runtime_seconds AS runtimeSeconds,
-    v.content_fingerprint AS contentFingerprint,
-    r.id AS reviewerId,
-    r.display_label AS reviewerLabel,
-    r.independence_group_id AS reviewerIndependenceGroupId,
-    r.status AS reviewerStatus,
-    CASE WHEN d.assignment_id IS NULL THEN 0 ELSE 1 END AS draftPresent
-  FROM review_assignments a
-  INNER JOIN review_bundles b ON b.id = a.bundle_id AND b.version_id = a.version_id
-  INNER JOIN title_versions v ON v.id = a.version_id
-  INNER JOIN titles t ON t.id = v.title_id
-  INNER JOIN reviewers r ON r.id = a.reviewer_id
-  LEFT JOIN review_assignment_drafts d ON d.assignment_id = a.id`;
 
 function parseAssignment(row: AssignmentDbRow): InternalAssignmentUiRow {
   if (!isReviewerStatus(row.reviewerStatus)) {
@@ -441,7 +420,7 @@ function parseAssignment(row: AssignmentDbRow): InternalAssignmentUiRow {
     reviewerLabel: row.reviewerLabel,
     reviewerIndependenceGroupId: row.reviewerIndependenceGroupId,
     reviewerStatus: row.reviewerStatus,
-    draftPresent: row.draftPresent === 1,
+    draftPresent: row.draftPayloadJson !== null,
   };
 }
 
