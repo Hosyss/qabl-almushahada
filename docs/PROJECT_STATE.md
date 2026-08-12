@@ -132,7 +132,7 @@
 - P2Q-03 دُمجت على `main` عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`.
 - CI #199 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
 
-## P2Q-04 — Safety Hold تلقائي وآمن — مكتملة تقنيًا على الفرع وجاهزة للدمج
+## P2Q-04 — Safety Hold تلقائي وآمن — مكتملة على main
 
 - السياسة versioned في `lib/reviewer-safety-hold.ts` ولا تنتج trust score أو ranking.
 - Hold فوري مؤقت عند أحدث audit مستقلة إذا ظهر **حدث عالي الحساسية فائت** أو `maxSeverityDelta = 3`.
@@ -147,10 +147,10 @@
 - unresolved hold يمنع activation ويمنع بدء reference reactivation/drift. الحسم البشري Admin-only ومرة واحدة، لكنه لا يعيد التفعيل وحده.
 - مسار العودة: **Human resolution → fresh P2Q-03 reference calibration → Admin activation**؛ لذلك لا قرار بشري وحده ولا calibration قديمة تكفي.
 - اختبارات SQLite تثبت 4/20 لا توقف و5/20 توقف، وأن الـ20th `confirmed` تقيّم النافذة، وأن Hold لا تكسر transaction التصحيح للحزمة التي كشفت الخطأ.
-- لم تُضف جداول منتج جديدة؛ checkpoint الحالي = **18 migration files / 24 product tables**.
-- آخر code checkpoint قبل التوثيق `1352b7274a2a879dee1d38cb82d7cb5ccfe0fb70` اجتاز **122/122 اختبارًا، 0 فشل**، وكل `test:migrations`, `lint:local`, و`build:local` بنجاح.
-- التفاصيل التشغيلية موثقة في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
-- الحالة الحالية: جاهزة لـCI التوثيق النهائي ثم PR مستقل؛ لا تُعتبر على `main` قبل الدمج وCI بعده.
+- لم تُضف جداول منتج جديدة؛ checkpoint = **18 migration files / 24 product tables**.
+- P2Q-04 دُمجت على `main` عبر PR #16 في commit `70eeb381bdb834ff89b646ac20263602e531d61f`.
+- CI #234 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+- آخر checkpoint قبل الدمج كان **122/122 اختبارًا، 0 فشل**؛ التفاصيل التشغيلية في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -179,7 +179,7 @@
 
 ## نقطة البدء التالية
 
-1. بعد دمج P2Q-04: `P2Q-05` **متوسط** — لوحة جودة تعرض أسباب الوقف والتعارض ومؤشرات المعايرة من غير ranking تنافسي.
+1. التالي: `P2Q-05` **متوسط** — لوحة جودة تعرض أسباب الوقف والتعارض ومؤشرات المعايرة من غير ranking تنافسي.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
