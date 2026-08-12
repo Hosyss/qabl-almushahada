@@ -1,0 +1,185 @@
+name: Cloudflare production deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CF_D1_DATABASE_NAME: qabl-almushahada-production
+  CF_WORKER_NAME: qabl-almushahada
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check Cloudflare credentials
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "### Cloudflare deploy not started" >> "$GITHUB_STEP_SUMMARY"
+            echo "Repository secrets \`CLOUDFLARE_API_TOKEN\` and/or \`CLOUDFLARE_ACCOUNT_ID\` are missing." >> "$GITHUB_STEP_SUMMARY"
+            echo "No remote Cloudflare resource was created or changed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify engine
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run test:engine
+
+      - name: Verify migrations locally
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run test:migrations
+
+      - name: Verify lint
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run lint:local
+
+      - name: Verify local build
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run build:local
+
+      - name: Resolve or create production D1
+        if: steps.credentials.outputs.available == 'true'
+        id: d1
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolve_database_id() {
+            npx wrangler d1 list --json > "$RUNNER_TEMP/d1-list.json"
+            node --input-type=module - "$RUNNER_TEMP/d1-list.json" "$CF_D1_DATABASE_NAME" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , file, wantedName] = process.argv;
+          const rows = JSON.parse(readFileSync(file, 'utf8'));
+          if (!Array.isArray(rows)) process.exit(2);
+          const matches = rows.filter((row) => row && row.name === wantedName);
+          if (matches.length > 1) {
+            console.error(`More than one D1 database is named ${wantedName}; refusing to guess.`);
+            process.exit(3);
+          }
+          if (matches.length === 0) process.exit(4);
+          const row = matches[0];
+          const id = row.uuid ?? row.id ?? row.database_id;
+          if (typeof id !== 'string' || !id) process.exit(5);
+          process.stdout.write(id);
+          NODE
+          }
+
+          if DB_ID="$(resolve_database_id)"; then
+            echo "Using existing D1 database: $CF_D1_DATABASE_NAME"
+          else
+            status=$?
+            if [[ "$status" -ne 4 ]]; then
+              echo "Could not safely resolve the production D1 database." >&2
+              exit "$status"
+            fi
+            echo "Creating dedicated D1 database: $CF_D1_DATABASE_NAME"
+            npx wrangler d1 create "$CF_D1_DATABASE_NAME"
+            DB_ID="$(resolve_database_id)"
+          fi
+
+          if [[ ! "$DB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
+            echo "Resolved D1 identifier is not a UUID; refusing to continue." >&2
+            exit 1
+          fi
+
+          echo "CF_D1_DATABASE_ID=$DB_ID" >> "$GITHUB_ENV"
+          echo "database_id=$DB_ID" >> "$GITHUB_OUTPUT"
+          echo "database_name=$CF_D1_DATABASE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Build Cloudflare production artifact
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run cloudflare:build
+
+      - name: Apply D1 migrations remotely
+        if: steps.credentials.outputs.available == 'true'
+        run: npm run cloudflare:migrate
+
+      - name: Verify remote D1 schema
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute DB \
+            --remote \
+            --config .wrangler/production/wrangler.jsonc \
+            --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('titles','title_versions','review_bundles','internal_accounts','reviewer_reference_sets') ORDER BY name;" \
+            --json > "$RUNNER_TEMP/d1-schema.json"
+
+          node --input-type=module - "$RUNNER_TEMP/d1-schema.json" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , file] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          const text = JSON.stringify(payload);
+          const required = ['titles', 'title_versions', 'review_bundles', 'internal_accounts', 'reviewer_reference_sets'];
+          const missing = required.filter((name) => !text.includes(`\"${name}\"`));
+          if (missing.length) {
+            console.error(`Remote D1 schema is missing required tables: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+          console.log('Remote D1 schema contains the required project tables.');
+          NODE
+
+      - name: Deploy Worker
+        if: steps.credentials.outputs.available == 'true'
+        id: worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run cloudflare:deploy 2>&1 | tee "$RUNNER_TEMP/cloudflare-deploy.log"
+          WORKER_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/cloudflare-deploy.log" | tail -n 1 || true)"
+          if [[ -z "$WORKER_URL" ]]; then
+            echo "Wrangler completed without a workers.dev URL; refusing to mark deployment verified." >&2
+            exit 1
+          fi
+          echo "worker_url=$WORKER_URL" >> "$GITHUB_OUTPUT"
+          echo "DEPLOYED_WORKER_URL=$WORKER_URL" >> "$GITHUB_ENV"
+
+      - name: Smoke-test public routes
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/" > /dev/null
+          curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/review" > /dev/null
+          curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/search?q=nemo" > /dev/null
+
+      - name: Record successful deployment
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          echo "### Cloudflare production deploy succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Worker: $DEPLOYED_WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "- D1: $CF_D1_DATABASE_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Public smoke tests: /, /review, /search?q=nemo" >> "$GITHUB_STEP_SUMMARY"
