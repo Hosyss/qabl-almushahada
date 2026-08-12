@@ -156,7 +156,7 @@ export async function submitOwnReviewAssignment(input: {
        WHERE id = ?
          AND reviewer_id = ?
          AND revision = ?
-         AND state IN ('assigned', 'in_progress', 'changes_requested')`,
+         AND state = 'in_progress'`,
     ).bind(
       submission.id,
       now,
