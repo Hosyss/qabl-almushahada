@@ -1,0 +1,378 @@
+.shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 42px 0 72px;
+}
+
+.topbar,
+.heroCard,
+.card {
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  border-radius: 22px;
+  box-shadow: 0 12px 38px rgba(24, 77, 64, 0.07);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 28px;
+}
+
+.topbar h1,
+.heroCard h1,
+.card h2,
+.assignmentCard h3 {
+  margin: 0;
+  color: var(--forest-deep);
+}
+
+.topbar p,
+.heroCard p {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+}
+
+.heroCard {
+  max-width: 720px;
+  margin: 70px auto;
+  padding: 34px;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 7px;
+  color: #a74d2f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notice {
+  margin: 16px 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(217, 104, 59, 0.24);
+  border-radius: 15px;
+  background: #fff6ed;
+  color: #7b3f2b;
+  font-size: 13px;
+}
+
+.card {
+  margin-top: 18px;
+  padding: 24px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.sectionHeading strong {
+  min-width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--sage-light);
+  color: var(--forest);
+}
+
+.muted,
+.empty {
+  color: #70847e;
+  font-size: 13px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.formGrid label,
+.fullLabel {
+  display: grid;
+  gap: 7px;
+  color: #38564e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.formGrid input,
+.formGrid select,
+.fullLabel textarea,
+.fullLabel input,
+.fullLabel select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(24, 77, 64, 0.18);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  padding: 10px 12px;
+  outline: none;
+}
+
+.formGrid input:focus,
+.formGrid select:focus,
+.fullLabel textarea:focus,
+.fullLabel input:focus,
+.fullLabel select:focus {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px rgba(24, 77, 64, 0.08);
+}
+
+.fullLabel textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.formActions {
+  display: flex;
+  align-items: end;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.inlineActions button {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--forest);
+  color: white;
+}
+
+.secondaryButton {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--forest);
+}
+
+.dangerButton {
+  background: #fff0ec;
+  color: #a33c25;
+}
+
+.primaryButton:disabled,
+.dangerButton:disabled,
+.inlineActions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.errorBox {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff0ec;
+  color: #9b3924;
+  font-size: 13px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.tableWrap th {
+  color: #688079;
+  font-size: 11px;
+}
+
+.list {
+  display: grid;
+}
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.listRow div {
+  display: grid;
+  gap: 4px;
+}
+
+.listRow small,
+.listRow time {
+  color: #788c86;
+  font-size: 11px;
+}
+
+.versionBox {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 5px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  background: var(--sage-light);
+  color: #48645d;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.versionBox code,
+.assignmentCard code {
+  direction: ltr;
+  text-align: left;
+  font-size: 10px;
+  color: #6b7e78;
+  overflow-wrap: anywhere;
+}
+
+.assignmentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.assignmentCard {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+}
+
+.assignmentCard p,
+.assignmentCard small {
+  margin: 0;
+  color: #70847e;
+  font-size: 12px;
+}
+
+.assignmentMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6b7f79;
+  font-size: 11px;
+}
+
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.inlineActions button {
+  background: var(--sage-light);
+  color: var(--forest);
+}
+
+.approvalBox {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.approvalBox h3 {
+  margin: 0 0 8px;
+}
+
+.observationList {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.observationRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+}
+
+.observationRow span {
+  display: grid;
+  gap: 3px;
+}
+
+.observationRow small {
+  color: #6f827c;
+}
+
+.checkLine {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 14px 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 18px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .card,
+  .heroCard {
+    padding: 18px;
+    border-radius: 17px;
+  }
+
+  .formGrid,
+  .assignmentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+  }
+
+  .versionBox {
+    grid-column: auto;
+  }
+}
