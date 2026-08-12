@@ -1,19 +1,26 @@
 import { requireInternalSessionUser } from "@/app/internal-session";
-import { loadInternalDashboard } from "@/db/internal-ui-service";
+import { loadInternalDashboard, type InternalDashboardData } from "@/db/internal-ui-service";
 import { ReviewWorkflowError } from "@/lib/internal-review-workflow";
 
 import InternalDashboardClient, { BootstrapPanel } from "./InternalDashboardClient";
 
 export default async function InternalDashboardPage() {
   const sessionUser = await requireInternalSessionUser();
+  let data: InternalDashboardData | null = null;
+  let canAttemptBootstrap = false;
 
   try {
-    const data = await loadInternalDashboard(sessionUser.email);
-    return <InternalDashboardClient data={data} />;
+    data = await loadInternalDashboard(sessionUser.email);
   } catch (error) {
     if (error instanceof ReviewWorkflowError && error.code === "FORBIDDEN") {
-      return <BootstrapPanel email={sessionUser.email} />;
+      canAttemptBootstrap = true;
+    } else {
+      throw error;
     }
-    throw error;
   }
+
+  if (canAttemptBootstrap || !data) {
+    return <BootstrapPanel email={sessionUser.email} />;
+  }
+  return <InternalDashboardClient data={data} />;
 }
