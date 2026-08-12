@@ -124,8 +124,6 @@ BEGIN
       SELECT 1 FROM `reviewer_reference_sets`
       WHERE `id` = NEW.`set_id` AND `status` = 'draft'
     ) THEN RAISE(ABORT, 'reference cases may only be added to a draft set')
-  END;
-  SELECT CASE
     WHEN NOT EXISTS (
       SELECT 1
       FROM `review_bundles` b
@@ -160,14 +158,10 @@ BEGIN
   SELECT CASE
     WHEN NEW.`revision` <> OLD.`revision` + 1
     THEN RAISE(ABORT, 'reference calibration set revision must advance exactly once')
-  END;
-  SELECT CASE
     WHEN OLD.`status` = 'draft' AND NEW.`status` = 'active' AND (
       NEW.`activated_by_user_id` IS NULL OR NEW.`activated_at` IS NULL OR
       (SELECT COUNT(*) FROM `reviewer_reference_cases` WHERE `set_id` = OLD.`id`) < OLD.`minimum_cases`
     ) THEN RAISE(ABORT, 'reference calibration set is not ready for activation')
-  END;
-  SELECT CASE
     WHEN NOT (
       (OLD.`status` = 'draft' AND NEW.`status` = 'active')
       OR (OLD.`status` = 'active' AND NEW.`status` = 'retired')
@@ -184,13 +178,9 @@ BEGIN
       SELECT 1 FROM `reviewer_reference_sets`
       WHERE `id` = NEW.`set_id` AND `status` = 'active'
     ) THEN RAISE(ABORT, 'reference calibration requires the active set')
-  END;
-  SELECT CASE
     WHEN NEW.`purpose` = 'initial' AND NOT EXISTS (
       SELECT 1 FROM `reviewers` WHERE `id` = NEW.`reviewer_id` AND `status` = 'probation'
     ) THEN RAISE(ABORT, 'initial calibration requires a probation reviewer')
-  END;
-  SELECT CASE
     WHEN NEW.`purpose` IN ('reactivation', 'drift') AND NOT EXISTS (
       SELECT 1 FROM `reviewers` WHERE `id` = NEW.`reviewer_id` AND `status` = 'suspended'
     ) THEN RAISE(ABORT, 'reactivation calibration requires a suspended reviewer')
@@ -232,8 +222,6 @@ BEGIN
     WHEN (SELECT COUNT(*) FROM `reviewer_reference_case_results` WHERE `attempt_id` = OLD.`id`)
       <> (SELECT COUNT(*) FROM `reviewer_reference_cases` WHERE `set_id` = OLD.`set_id`)
     THEN RAISE(ABORT, 'all reference calibration cases must be completed')
-  END;
-  SELECT CASE
     WHEN NEW.`category_agreement_bps` <> (
       SELECT CASE
         WHEN COALESCE(SUM(`category_total`), 0) = 0 THEN 10000
@@ -269,8 +257,6 @@ BEGIN
       WHERE `attempt_id` = OLD.`id`
     )
     THEN RAISE(ABORT, 'reference calibration metrics do not match stored case results')
-  END;
-  SELECT CASE
     WHEN NEW.`status` = 'passed' AND NOT (
       NEW.`category_agreement_bps` >= 9500
       AND NEW.`observation_recall_bps` >= 9000
