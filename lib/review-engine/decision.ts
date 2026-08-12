@@ -1,4 +1,4 @@
-import { assessReviewQuality } from "./quality.ts";
+import { assessReviewQuality } from "./quality-gated.ts";
 import {
   CONTENT_CATEGORIES,
   CONTENT_FLAGS,
