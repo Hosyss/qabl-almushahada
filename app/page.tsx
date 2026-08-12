@@ -14,6 +14,7 @@ import {
   LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
   parseLocalFamilySettings,
   serializeLocalFamilySettings,
+  type LocalFamilySettings,
 } from "@/lib/local-family-settings";
 
 function LeafMark() {
@@ -53,7 +54,6 @@ export default function Home() {
   const [childAge, setChildAge] = useState(9);
   const [fearLimit, setFearLimit] = useState<Severity>(2);
   const [avoidBullying, setAvoidBullying] = useState(true);
-  const [familyStorageReady, setFamilyStorageReady] = useState(false);
   const [familyStorageStatus, setFamilyStorageStatus] = useState<"pending" | "saved" | "unavailable">("pending");
 
   const demoTitles = [
@@ -105,35 +105,53 @@ export default function Home() {
   const liveReason = liveDecision.reasons[0]?.messageAr ?? liveDecision.summaryAr;
 
   useEffect(() => {
-    try {
-      const stored = parseLocalFamilySettings(
-        window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY),
-      );
-      if (stored) {
-        setChildAge(stored.childAge);
-        setFearLimit(stored.fearLimit);
-        setAvoidBullying(stored.avoidBullying);
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = parseLocalFamilySettings(
+          window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY),
+        );
+        if (stored) {
+          setChildAge(stored.childAge);
+          setFearLimit(stored.fearLimit);
+          setAvoidBullying(stored.avoidBullying);
+          setFamilyStorageStatus("saved");
+        }
+      } catch {
+        setFamilyStorageStatus("unavailable");
       }
-      setFamilyStorageReady(true);
-    } catch {
-      setFamilyStorageStatus("unavailable");
-      setFamilyStorageReady(true);
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!familyStorageReady) return;
-
+  function persistFamilySettings(settings: LocalFamilySettings) {
     try {
       window.localStorage.setItem(
         LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
-        serializeLocalFamilySettings({ childAge, fearLimit, avoidBullying }),
+        serializeLocalFamilySettings(settings),
       );
       setFamilyStorageStatus("saved");
     } catch {
       setFamilyStorageStatus("unavailable");
     }
-  }, [avoidBullying, childAge, familyStorageReady, fearLimit]);
+  }
+
+  function changeChildAge(delta: number) {
+    const nextAge = Math.min(17, Math.max(3, childAge + delta));
+    if (nextAge === childAge) return;
+    setChildAge(nextAge);
+    persistFamilySettings({ childAge: nextAge, fearLimit, avoidBullying });
+  }
+
+  function changeFearLimit(nextFearLimit: Severity) {
+    setFearLimit(nextFearLimit);
+    persistFamilySettings({ childAge, fearLimit: nextFearLimit, avoidBullying });
+  }
+
+  function changeAvoidBullying(nextAvoidBullying: boolean) {
+    setAvoidBullying(nextAvoidBullying);
+    persistFamilySettings({ childAge, fearLimit, avoidBullying: nextAvoidBullying });
+  }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -432,9 +450,9 @@ export default function Home() {
           <div className="age-control">
             <span>عمر الطفل</span>
             <div>
-              <button type="button" aria-label="تقليل العمر" onClick={() => setChildAge((age) => Math.max(3, age - 1))}>−</button>
+              <button type="button" aria-label="تقليل العمر" onClick={() => changeChildAge(-1)}>−</button>
               <strong>{childAge}<small> سنة</small></strong>
-              <button type="button" aria-label="زيادة العمر" onClick={() => setChildAge((age) => Math.min(17, age + 1))}>+</button>
+              <button type="button" aria-label="زيادة العمر" onClick={() => changeChildAge(1)}>+</button>
             </div>
           </div>
 
@@ -445,14 +463,14 @@ export default function Home() {
               min="0"
               max="3"
               value={fearLimit}
-              onChange={(event) => setFearLimit(Number(event.target.value) as Severity)}
+              onChange={(event) => changeFearLimit(Number(event.target.value) as Severity)}
             />
             <i><span>ممنوع</span><span>خفيف</span><span>متوسط</span><span>قوي</span></i>
           </label>
 
           <label className="toggle-control">
             <span><b>التنمر اللفظي</b><small>عنصر ممنوع تمامًا</small></span>
-            <input type="checkbox" checked={avoidBullying} onChange={(event) => setAvoidBullying(event.target.checked)} />
+            <input type="checkbox" checked={avoidBullying} onChange={(event) => changeAvoidBullying(event.target.checked)} />
             <i aria-hidden="true"><b /></i>
           </label>
 
