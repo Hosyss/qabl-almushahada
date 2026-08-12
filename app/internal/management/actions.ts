@@ -14,6 +14,14 @@ import {
   getReviewerCalibrationSummary,
   recordReviewAuditOutcome,
 } from "@/db/review-audit-outcome-service";
+import {
+  activateCalibratedReviewer,
+  activateReferenceCalibrationSet,
+  addReferenceCalibrationCase,
+  createReferenceCalibrationSet,
+  startOwnReferenceCalibrationAttempt,
+  submitOwnReferenceCalibrationCase,
+} from "@/db/reviewer-reference-calibration-service";
 import { resolveReviewReport } from "@/db/resolve-review-report";
 
 async function requireSessionEmail(): Promise<string> {
@@ -61,4 +69,28 @@ export async function getReviewerCalibrationSummaryAction(reviewerId: string) {
     sessionEmail: await requireSessionEmail(),
     reviewerId,
   });
+}
+
+export async function createReferenceCalibrationSetAction(request: unknown) {
+  return createReferenceCalibrationSet({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function addReferenceCalibrationCaseAction(request: unknown) {
+  return addReferenceCalibrationCase({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function activateReferenceCalibrationSetAction(request: unknown) {
+  return activateReferenceCalibrationSet({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function startOwnReferenceCalibrationAttemptAction() {
+  return startOwnReferenceCalibrationAttempt({ sessionEmail: await requireSessionEmail() });
+}
+
+export async function submitOwnReferenceCalibrationCaseAction(request: unknown) {
+  return submitOwnReferenceCalibrationCase({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function activateCalibratedReviewerAction(request: unknown) {
+  return activateCalibratedReviewer({ sessionEmail: await requireSessionEmail(), request });
 }

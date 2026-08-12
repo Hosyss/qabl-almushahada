@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 import {
   observations,
@@ -232,10 +240,7 @@ export const reviewAuditFindings = sqliteTable(
       "review_audit_findings_category_check",
       sql`${table.category} IN ('fear', 'violence', 'language', 'bullying', 'sexualContent', 'substances', 'discrimination', 'selfHarm', 'grief', 'flashingLights')`,
     ),
-    check(
-      "review_audit_findings_auditor_severity_check",
-      sql`${table.auditorSeverity} BETWEEN 1 AND 4`,
-    ),
+    check("review_audit_findings_auditor_severity_check", sql`${table.auditorSeverity} BETWEEN 1 AND 4`),
     check(
       "review_audit_findings_reviewer_severity_check",
       sql`${table.reviewerSeverity} IS NULL OR ${table.reviewerSeverity} BETWEEN 1 AND 4`,
@@ -244,6 +249,130 @@ export const reviewAuditFindings = sqliteTable(
       "review_audit_findings_summary_check",
       sql`length(trim(${table.summary})) BETWEEN 5 AND 1000`,
     ),
+  ],
+);
+
+export const reviewerReferenceSets = sqliteTable(
+  "reviewer_reference_sets",
+  {
+    id: text("id").primaryKey(),
+    label: text("label").notNull(),
+    status: text("status", { enum: ["draft", "active", "retired"] }).notNull().default("draft"),
+    minimumCases: integer("minimum_cases").notNull().default(10),
+    revision: integer("revision").notNull().default(0),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => internalUsers.id, { onDelete: "restrict" }),
+    activatedByUserId: text("activated_by_user_id").references(() => internalUsers.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: createdAt(),
+    activatedAt: text("activated_at"),
+  },
+  (table) => [
+    uniqueIndex("reviewer_reference_sets_one_active_unique")
+      .on(table.status)
+      .where(sql`${table.status} = 'active'`),
+    check("reviewer_reference_sets_status_check", sql`${table.status} IN ('draft', 'active', 'retired')`),
+    check("reviewer_reference_sets_minimum_cases_check", sql`${table.minimumCases} >= 10`),
+    check("reviewer_reference_sets_revision_check", sql`${table.revision} >= 0`),
+  ],
+);
+
+export const reviewerReferenceCases = sqliteTable(
+  "reviewer_reference_cases",
+  {
+    id: text("id").primaryKey(),
+    setId: text("set_id")
+      .notNull()
+      .references(() => reviewerReferenceSets.id, { onDelete: "restrict" }),
+    bundleId: text("bundle_id")
+      .notNull()
+      .references(() => reviewBundles.id, { onDelete: "restrict" }),
+    referenceSubmissionId: text("reference_submission_id")
+      .notNull()
+      .references(() => reviewSubmissions.id, { onDelete: "restrict" }),
+    sequence: integer("sequence").notNull(),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => internalUsers.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("reviewer_reference_cases_set_sequence_unique").on(table.setId, table.sequence),
+    uniqueIndex("reviewer_reference_cases_set_bundle_unique").on(table.setId, table.bundleId),
+    check("reviewer_reference_cases_sequence_check", sql`${table.sequence} >= 1`),
+  ],
+);
+
+export const reviewerReferenceAttempts = sqliteTable(
+  "reviewer_reference_attempts",
+  {
+    id: text("id").primaryKey(),
+    reviewerId: text("reviewer_id")
+      .notNull()
+      .references(() => reviewers.id, { onDelete: "restrict" }),
+    setId: text("set_id")
+      .notNull()
+      .references(() => reviewerReferenceSets.id, { onDelete: "restrict" }),
+    purpose: text("purpose", { enum: ["initial", "reactivation", "drift"] }).notNull(),
+    status: text("status", { enum: ["in_progress", "passed", "failed"] })
+      .notNull()
+      .default("in_progress"),
+    categoryAgreementBps: integer("category_agreement_bps"),
+    observationRecallBps: integer("observation_recall_bps"),
+    observationPrecisionBps: integer("observation_precision_bps"),
+    missedHighSensitivityCount: integer("missed_high_sensitivity_count"),
+    maxSeverityDelta: integer("max_severity_delta"),
+    blockersJson: text("blockers_json").notNull().default("[]"),
+    startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    uniqueIndex("reviewer_reference_attempts_one_open_unique")
+      .on(table.reviewerId)
+      .where(sql`${table.status} = 'in_progress'`),
+    index("reviewer_reference_attempts_reviewer_time_idx").on(table.reviewerId, table.completedAt),
+    check(
+      "reviewer_reference_attempts_purpose_check",
+      sql`${table.purpose} IN ('initial', 'reactivation', 'drift')`,
+    ),
+    check(
+      "reviewer_reference_attempts_status_check",
+      sql`${table.status} IN ('in_progress', 'passed', 'failed')`,
+    ),
+    check(
+      "reviewer_reference_attempts_json_check",
+      sql`json_valid(${table.blockersJson}) AND json_type(${table.blockersJson}) = 'array'`,
+    ),
+  ],
+);
+
+export const reviewerReferenceCaseResults = sqliteTable(
+  "reviewer_reference_case_results",
+  {
+    attemptId: text("attempt_id")
+      .notNull()
+      .references(() => reviewerReferenceAttempts.id, { onDelete: "restrict" }),
+    caseId: text("case_id")
+      .notNull()
+      .references(() => reviewerReferenceCases.id, { onDelete: "restrict" }),
+    candidatePayloadJson: text("candidate_payload_json").notNull(),
+    categoryMatches: integer("category_matches").notNull(),
+    categoryTotal: integer("category_total").notNull(),
+    referenceObservationCount: integer("reference_observation_count").notNull(),
+    candidateObservationCount: integer("candidate_observation_count").notNull(),
+    matchedObservationCount: integer("matched_observation_count").notNull(),
+    missedObservationCount: integer("missed_observation_count").notNull(),
+    falsePositiveObservationCount: integer("false_positive_observation_count").notNull(),
+    missedHighSensitivityCount: integer("missed_high_sensitivity_count").notNull(),
+    maxSeverityDelta: integer("max_severity_delta").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.attemptId, table.caseId] }),
+    check("reviewer_reference_case_results_json_check", sql`json_valid(${table.candidatePayloadJson})`),
+    check("reviewer_reference_case_results_category_total_check", sql`${table.categoryTotal} = 10`),
   ],
 );
 
