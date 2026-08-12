@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import { reviewBundles, reviewers, titleVersions } from "./schema";
+import { reviewBundles, reviewSubmissions, reviewers, titleVersions } from "./schema";
 
 const createdAt = () => text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
 const updatedAt = () => text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -102,6 +102,47 @@ export const reviewAssignmentDrafts = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [check("review_assignment_drafts_json_check", sql`json_valid(${table.payloadJson})`)],
+);
+
+export const reviewAuditSelections = sqliteTable(
+  "review_audit_selections",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => reviewSubmissions.id, { onDelete: "restrict" }),
+    assignmentId: text("assignment_id")
+      .notNull()
+      .references(() => reviewAssignments.id, { onDelete: "restrict" }),
+    bundleId: text("bundle_id")
+      .notNull()
+      .references(() => reviewBundles.id, { onDelete: "restrict" }),
+    versionId: text("version_id")
+      .notNull()
+      .references(() => titleVersions.id, { onDelete: "restrict" }),
+    reviewerId: text("reviewer_id")
+      .notNull()
+      .references(() => reviewers.id, { onDelete: "restrict" }),
+    riskTier: text("risk_tier", { enum: ["baseline", "high_risk"] }).notNull(),
+    sampleRateBps: integer("sample_rate_bps").notNull(),
+    drawU32: integer("draw_u32").notNull(),
+    selected: integer("selected", { mode: "boolean" }).notNull(),
+    riskTriggersJson: text("risk_triggers_json").notNull().default("[]"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("review_audit_selections_submission_unique").on(table.submissionId),
+    index("review_audit_selections_selected_time_idx").on(table.selected, table.createdAt),
+    index("review_audit_selections_reviewer_time_idx").on(table.reviewerId, table.createdAt),
+    check("review_audit_selections_risk_tier_check", sql`${table.riskTier} IN ('baseline', 'high_risk')`),
+    check("review_audit_selections_rate_check", sql`${table.sampleRateBps} IN (1000, 5000)`),
+    check("review_audit_selections_draw_check", sql`${table.drawU32} BETWEEN 0 AND 4294967295`),
+    check("review_audit_selections_selected_check", sql`${table.selected} IN (0, 1)`),
+    check(
+      "review_audit_selections_json_check",
+      sql`json_valid(${table.riskTriggersJson}) AND json_type(${table.riskTriggersJson}) = 'array'`,
+    ),
+  ],
 );
 
 /** Global internal-security audit log. Rows are made immutable by SQL triggers in migrations. */
