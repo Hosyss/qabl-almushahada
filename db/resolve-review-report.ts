@@ -104,7 +104,21 @@ async function dismissReportAsNoIssue(
          AND revision = ?
          AND status IN ('open', 'investigating')
          AND bundle_id = ?
-         AND version_id = ?`,
+         AND version_id = ?
+         AND invalidated_approval_id = ?
+         AND EXISTS (
+           SELECT 1 FROM review_bundles b
+           WHERE b.id = review_reports.bundle_id
+             AND b.version_id = review_reports.version_id
+             AND b.revision = ?
+             AND b.status = 'conflicted'
+             AND b.current_approval_id IS NULL
+         )
+         AND EXISTS (
+           SELECT 1 FROM editorial_approvals a
+           WHERE a.id = review_reports.invalidated_approval_id
+             AND a.bundle_id = review_reports.bundle_id
+         )`,
     ).bind(
       plan.note,
       actor.userId,
@@ -114,6 +128,8 @@ async function dismissReportAsNoIssue(
       plan.expectedReportRevision,
       report.bundleId,
       report.versionId,
+      report.invalidatedApprovalId,
+      plan.expectedBundleRevision,
     ),
     db.prepare(
       `UPDATE review_bundles
@@ -222,7 +238,29 @@ async function confirmCorrectionRequired(
          AND revision = ?
          AND status IN ('open', 'investigating')
          AND bundle_id = ?
-         AND version_id = ?`,
+         AND version_id = ?
+         AND invalidated_approval_id = ?
+         AND EXISTS (
+           SELECT 1 FROM review_bundles b
+           WHERE b.id = review_reports.bundle_id
+             AND b.version_id = review_reports.version_id
+             AND b.revision = ?
+             AND b.status = 'conflicted'
+             AND b.current_approval_id IS NULL
+         )
+         AND (
+           ? = 1
+           OR (
+             (SELECT COUNT(*) FROM review_assignments
+              WHERE bundle_id = review_reports.bundle_id
+                AND version_id = review_reports.version_id) = ?
+             AND
+             (SELECT COUNT(*) FROM review_assignments
+              WHERE bundle_id = review_reports.bundle_id
+                AND version_id = review_reports.version_id
+                AND state = 'approved') = ?
+           )
+         )`,
     ).bind(
       plan.note,
       actor.userId,
@@ -232,6 +270,11 @@ async function confirmCorrectionRequired(
       plan.expectedReportRevision,
       report.bundleId,
       report.versionId,
+      report.invalidatedApprovalId,
+      plan.expectedBundleRevision,
+      versionMismatch ? 1 : 0,
+      expectedApprovedAssignments,
+      expectedApprovedAssignments,
     ),
   ];
 
@@ -286,6 +329,16 @@ async function confirmCorrectionRequired(
              AND status = 'resolved'
              AND resolution_kind = 'correction_required'
              AND last_transition_id = ?
+         )
+         AND (
+           ? = 1
+           OR (
+             SELECT COUNT(*) FROM review_assignments
+             WHERE bundle_id = review_bundles.id
+               AND version_id = review_bundles.version_id
+               AND state = 'changes_requested'
+               AND last_transition_id = ?
+           ) = ?
          )`,
     ).bind(
       versionMismatch ? "withdrawn" : "under_review",
@@ -296,6 +349,9 @@ async function confirmCorrectionRequired(
       plan.expectedBundleRevision,
       report.reportId,
       transitionId,
+      versionMismatch ? 1 : 0,
+      transitionId,
+      expectedApprovedAssignments,
     ),
   );
 
