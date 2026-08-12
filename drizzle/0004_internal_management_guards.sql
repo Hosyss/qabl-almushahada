@@ -74,3 +74,14 @@ BEFORE DELETE ON `internal_audit_events`
 BEGIN
   SELECT RAISE(ABORT, 'internal audit events are append-only');
 END;
+--> statement-breakpoint
+CREATE TRIGGER `review_assignment_submission_bumps_bundle_revision`
+AFTER UPDATE OF `state` ON `review_assignments`
+FOR EACH ROW
+WHEN NEW.`state` = 'submitted' AND OLD.`state` <> 'submitted'
+BEGIN
+  UPDATE `review_bundles`
+  SET `revision` = `revision` + 1,
+      `updated_at` = CURRENT_TIMESTAMP
+  WHERE `id` = NEW.`bundle_id`;
+END;
