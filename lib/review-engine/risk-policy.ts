@@ -5,7 +5,9 @@ import type {
   ReviewSubmission,
 } from "./types.ts";
 
-export const HIGH_SENSITIVITY_CATEGORY_THRESHOLDS = {
+export const HIGH_SENSITIVITY_CATEGORY_THRESHOLDS: Partial<
+  Record<ContentCategory, ObservedSeverity>
+> = {
   selfHarm: 1,
   sexualContent: 2,
   flashingLights: 2,
@@ -13,14 +15,14 @@ export const HIGH_SENSITIVITY_CATEGORY_THRESHOLDS = {
   substances: 3,
   discrimination: 3,
   bullying: 3,
-} as const satisfies Partial<Record<ContentCategory, ObservedSeverity>>;
+};
 
-export const HIGH_SENSITIVITY_FLAG_THRESHOLDS = {
+export const HIGH_SENSITIVITY_FLAG_THRESHOLDS: Partial<Record<ContentFlag, ObservedSeverity>> = {
   flashing_sequence: 1,
   blood: 3,
   weapon: 3,
   physical_bullying: 3,
-} as const satisfies Partial<Record<ContentFlag, ObservedSeverity>>;
+};
 
 export type ThirdReviewRiskCode =
   | "severity_4_any_category"
