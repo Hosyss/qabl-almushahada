@@ -69,7 +69,7 @@
 - migration `0005_immutable_review_revisions.sql` رفعت العدد وقتها إلى 6 migrations / 17 جدولًا.
 - P2-04 مدموج على `main` في commit `d32434356eeae46e51c0547fd46f430fa350e0a5`، وCI الخاص بـmain نجح في الاختبارات والمigrations والlint والbuild.
 
-## P2-05 — حسم البلاغ والتصحيح وإعادة الاعتماد — checkpoint جاهز للدمج
+## P2-05 — حسم البلاغ والتصحيح وإعادة الاعتماد — مكتمل على main
 
 - البلاغ الجوهري لا يُفتح إلا على حزمة `verified` لها `current_approval_id` فعلية؛ لا يمكن تعليق workflow ما زال تحت المراجعة ببلاغ عام.
 - عند الفتح يلتقط D1 server-side snapshot غير قابل للتزوير: `version_id`، حالة الحزمة، revision، والاعتماد الحالي الذي تم إبطاله. المتصفح لا يحدد هذه القيم.
@@ -86,8 +86,8 @@
 - `review_reports` أصبحت ذات revision lock وهوية/snapshot غير قابلة للتغيير، والبلاغات المحسومة لا يمكن تعديلها أو حذفها.
 - migration `0006_report_resolution_reapproval.sql` رفعت الإجمالي إلى **7 migrations / 17 جدولًا**.
 - `tests/report-resolution.test.ts` + `scripts/verify-report-resolution.mjs` يغطيان الصلاحيات، mass-assignment، snapshots المزورة، منع البلاغ المكرر، immutable resolution، approval freeze، latest-current guard، وإجبار approval جديدة بعد التصحيح.
-- آخر branch checkpoint قبل تحديث المستندات اجتاز **78/78 اختبارًا، 0 فشل**، ومعه `test:migrations`, `lint:local`, `build:local` كلها ناجحة.
-- P2-05 لم تدخل `main` بعد؛ يلزم CI على رأس التوثيق ثم PR/CI مستقل ثم merge وCI على main.
+- P2-05 مدموجة على `main` في commit `16a6a844f9636373df83a44204579e0164ae9cd8` عبر PR #8.
+- CI #142 على `main` بعد الدمج اجتاز **78/78 اختبارًا، 0 فشل**، ومعه `test:migrations`, `lint:local`, `build:local` كلها ناجحة.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -118,9 +118,8 @@
 
 ## نقطة البدء التالية
 
-1. إتمام CI ثم PR ودمج checkpoint `P2-05` إلى `main` والتحقق من CI الخاص بـmain.
-2. التالي بعد الدمج: `P2Q-01` **حرج / Work** — تدقيق عشوائي غير قابل للتوقع مع رفع العينة للحالات عالية المخاطر.
-3. عند توفر Cloudflare authentication: إنشاء D1 حقيقي لهذا المشروع، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-4. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
+1. التالي: `P2Q-01` **حرج / Work** — تدقيق عشوائي غير قابل للتوقع مع رفع العينة للحالات عالية المخاطر.
+2. عند توفر Cloudflare authentication: إنشاء D1 حقيقي لهذا المشروع، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
+3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
