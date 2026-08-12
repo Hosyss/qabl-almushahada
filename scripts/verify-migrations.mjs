@@ -52,6 +52,26 @@ assert.ok(
   reviewBundleColumns.some((column) => column.name === "workflow_transition_id"),
   "Missing internal workflow transition id.",
 );
+assert.ok(
+  reviewBundleColumns.some((column) => column.name === "current_approval_id"),
+  "Missing current editorial approval pointer.",
+);
+
+const submissionColumns = database.prepare("PRAGMA table_info('review_submissions')").all();
+for (const requiredColumn of ["assignment_id", "revision", "supersedes_submission_id"]) {
+  assert.ok(
+    submissionColumns.some((column) => column.name === requiredColumn),
+    `Missing immutable submission revision column: ${requiredColumn}`,
+  );
+}
+
+const approvalColumns = database.prepare("PRAGMA table_info('editorial_approvals')").all();
+for (const requiredColumn of ["revision", "supersedes_approval_id"]) {
+  assert.ok(
+    approvalColumns.some((column) => column.name === requiredColumn),
+    `Missing immutable editorial approval revision column: ${requiredColumn}`,
+  );
+}
 
 const assignmentColumns = database.prepare("PRAGMA table_info('review_assignments')").all();
 assert.ok(assignmentColumns.some((column) => column.name === "revision"), "Missing assignment revision lock.");
@@ -229,6 +249,217 @@ assert.throws(
   () => database.prepare("DELETE FROM review_audit_events WHERE id = ?").run("review-audit-1"),
   /append-only/i,
   "Database allowed a review audit event to be deleted.",
+);
+
+const submissionInsert = database.prepare(
+  `INSERT INTO review_submissions
+     (id, bundle_id, version_id, reviewer_id, assignment_id, revision, supersedes_submission_id,
+      started_at, completed_at, watched_seconds, declared_complete)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+);
+submissionInsert.run(
+  "submission-r1",
+  "workflow-bundle",
+  "workflow-version-a",
+  "workflow-reviewer-a",
+  "workflow-assignment",
+  1,
+  null,
+  "2026-08-12T10:00:00.000Z",
+  "2026-08-12T11:40:00.000Z",
+  5900,
+);
+database
+  .prepare(
+    "INSERT INTO review_category_checks (submission_id, category, result) VALUES (?, ?, ?)",
+  )
+  .run("submission-r1", "fear", "present");
+database
+  .prepare(
+    `INSERT INTO observations
+       (id, submission_id, category, severity, start_second, end_second, frequency, context, spoiler_level, summary)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  .run(
+    "observation-r1",
+    "submission-r1",
+    "fear",
+    2,
+    10,
+    20,
+    "single",
+    "threatening",
+    "none",
+    "Immutable revision fixture",
+  );
+database
+  .prepare("INSERT INTO observation_flags (observation_id, flag) VALUES (?, ?)")
+  .run("observation-r1", "jump_scare");
+
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE review_submissions SET watched_seconds = 5800 WHERE id = ?")
+      .run("submission-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable submission revision to be updated.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM review_submissions WHERE id = ?").run("submission-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable submission revision to be deleted.",
+);
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE review_category_checks SET result = 'none' WHERE submission_id = ? AND category = ?")
+      .run("submission-r1", "fear"),
+  /immutable revisions/i,
+  "Database allowed an immutable category check to be updated.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM observations WHERE id = ?").run("observation-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable observation to be deleted.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM observation_flags WHERE observation_id = ?").run("observation-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable observation flag to be deleted.",
+);
+
+submissionInsert.run(
+  "submission-r2",
+  "workflow-bundle",
+  "workflow-version-a",
+  "workflow-reviewer-a",
+  "workflow-assignment",
+  2,
+  "submission-r1",
+  "2026-08-12T12:00:00.000Z",
+  "2026-08-12T13:40:00.000Z",
+  5950,
+);
+assert.equal(
+  database
+    .prepare("SELECT supersedes_submission_id AS previousId FROM review_submissions WHERE id = ?")
+    .get("submission-r2").previousId,
+  "submission-r1",
+  "Second submission revision did not preserve lineage to revision one.",
+);
+assert.throws(
+  () =>
+    submissionInsert.run(
+      "submission-r3-invalid",
+      "workflow-bundle",
+      "workflow-version-a",
+      "workflow-reviewer-a",
+      "workflow-assignment",
+      3,
+      "submission-r1",
+      "2026-08-12T14:00:00.000Z",
+      "2026-08-12T15:40:00.000Z",
+      5950,
+    ),
+  /lineage is invalid/i,
+  "Database accepted a submission revision that skipped its direct predecessor.",
+);
+
+const approvalInsert = database.prepare(
+  `INSERT INTO editorial_approvals
+     (id, bundle_id, approver_id, status, revision, supersedes_approval_id,
+      version_fingerprint_confirmed, notes, approved_at)
+   VALUES (?, ?, ?, 'approved', ?, ?, 1, ?, ?)`,
+);
+approvalInsert.run(
+  "approval-r1",
+  "workflow-bundle",
+  "workflow-reviewer-b",
+  1,
+  null,
+  "first approval",
+  "2026-08-12T16:00:00.000Z",
+);
+database
+  .prepare("UPDATE review_bundles SET current_approval_id = ? WHERE id = ?")
+  .run("approval-r1", "workflow-bundle");
+database
+  .prepare(
+    "INSERT INTO editorial_approval_submissions (approval_id, submission_id) VALUES (?, ?)",
+  )
+  .run("approval-r1", "submission-r1");
+database
+  .prepare(
+    "INSERT INTO editorial_spot_checks (approval_id, observation_id, result) VALUES (?, ?, ?)",
+  )
+  .run("approval-r1", "observation-r1", "confirmed");
+
+approvalInsert.run(
+  "approval-r2",
+  "workflow-bundle",
+  "workflow-reviewer-b",
+  2,
+  "approval-r1",
+  "second approval",
+  "2026-08-12T17:00:00.000Z",
+);
+database
+  .prepare("UPDATE review_bundles SET current_approval_id = ? WHERE id = ?")
+  .run("approval-r2", "workflow-bundle");
+assert.equal(
+  database.prepare("SELECT current_approval_id AS approvalId FROM review_bundles WHERE id = ?").get("workflow-bundle")
+    .approvalId,
+  "approval-r2",
+  "Bundle did not point to the latest editorial approval revision.",
+);
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE editorial_approvals SET notes = 'tampered' WHERE id = ?")
+      .run("approval-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable editorial approval revision to be updated.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM editorial_approvals WHERE id = ?").run("approval-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable editorial approval revision to be deleted.",
+);
+assert.throws(
+  () =>
+    database
+      .prepare("DELETE FROM editorial_approval_submissions WHERE approval_id = ?")
+      .run("approval-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable approval-submission link to be deleted.",
+);
+assert.throws(
+  () => database.prepare("DELETE FROM editorial_spot_checks WHERE approval_id = ?").run("approval-r1"),
+  /immutable revisions/i,
+  "Database allowed an immutable editorial spot check to be deleted.",
+);
+assert.throws(
+  () =>
+    approvalInsert.run(
+      "approval-r3-invalid",
+      "workflow-bundle",
+      "workflow-reviewer-b",
+      3,
+      "approval-r1",
+      "invalid skipped approval",
+      "2026-08-12T18:00:00.000Z",
+    ),
+  /lineage is invalid/i,
+  "Database accepted an approval revision that skipped its direct predecessor.",
+);
+
+assert.throws(
+  () =>
+    database
+      .prepare("UPDATE review_bundles SET current_approval_id = ? WHERE id = ?")
+      .run("missing-approval", "workflow-bundle"),
+  /must belong to the same bundle/i,
+  "Database accepted a current approval pointer that does not belong to the bundle.",
 );
 
 database.close();
