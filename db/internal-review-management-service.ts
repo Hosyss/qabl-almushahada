@@ -62,6 +62,11 @@ interface InternalUserTargetRow {
   revision: number;
 }
 
+interface ApprovalLineageRow {
+  latestApprovalId: string | null;
+  nextRevision: number;
+}
+
 export async function bootstrapInitialAdmin(sessionEmail: string) {
   const normalizedEmail = normalizeSessionEmail(sessionEmail);
   const configuredEmail = getBootstrapAdminEmail();
@@ -372,6 +377,25 @@ export async function approveReviewBundleEditorially(input: { sessionEmail: stri
   }
 
   const db = requireD1();
+  const lineage = await db
+    .prepare(
+      `SELECT
+         (
+           SELECT id FROM editorial_approvals
+           WHERE bundle_id = ?
+           ORDER BY revision DESC, created_at DESC, id DESC
+           LIMIT 1
+         ) AS latestApprovalId,
+         COALESCE((SELECT MAX(revision) FROM editorial_approvals WHERE bundle_id = ?), 0) + 1 AS nextRevision`,
+    )
+    .bind(bundleId, bundleId)
+    .first<ApprovalLineageRow>();
+  const approvalRevision = lineage?.nextRevision;
+  if (!Number.isInteger(approvalRevision) || approvalRevision < 1) {
+    throw new ReviewWorkflowError("INVALID_DRAFT", "تعذر تحديد revision الاعتماد التالي بأمان.");
+  }
+  const supersedesApprovalId = lineage?.latestApprovalId ?? null;
+
   const transitionId = crypto.randomUUID();
   const approvalId = crypto.randomUUID();
   const assignmentPredicate = plan.assignments.map(() => "(id = ? AND revision = ? AND state = 'submitted')").join(" OR ");
@@ -398,13 +422,39 @@ export async function approveReviewBundleEditorially(input: { sessionEmail: stri
     ),
     db.prepare(
       `INSERT INTO editorial_approvals
-         (id, bundle_id, approver_id, status, version_fingerprint_confirmed, notes, approved_at, created_at)
-       SELECT ?, id, ?, 'approved', 1, ?, ?, ?
+         (id, bundle_id, approver_id, status, revision, supersedes_approval_id,
+          version_fingerprint_confirmed, notes, approved_at, created_at)
+       SELECT ?, id, ?, 'approved', ?, ?, 1, ?, ?, ?
        FROM review_bundles
        WHERE id = ? AND workflow_transition_id = ?`,
-    ).bind(approvalId, actor.reviewer.id, plan.notes, now, now, bundleId, transitionId),
+    ).bind(
+      approvalId,
+      actor.reviewer.id,
+      approvalRevision,
+      supersedesApprovalId,
+      plan.notes,
+      now,
+      now,
+      bundleId,
+      transitionId,
+    ),
   ];
 
+  const currentApprovalPointerIndex = statements.length;
+  statements.push(
+    db.prepare(
+      `UPDATE review_bundles
+       SET current_approval_id = ?
+       WHERE id = ?
+         AND workflow_transition_id = ?
+         AND EXISTS (
+           SELECT 1 FROM editorial_approvals
+           WHERE id = ? AND bundle_id = ? AND revision = ?
+         )`,
+    ).bind(approvalId, bundleId, transitionId, approvalId, bundleId, approvalRevision),
+  );
+
+  const assignmentStartIndex = statements.length;
   for (const row of submittedRows) {
     const expectedRevision = plan.assignments.find((item) => item.assignmentId === row.id)!.expectedRevision;
     statements.push(
@@ -440,13 +490,20 @@ export async function approveReviewBundleEditorially(input: { sessionEmail: stri
     db.prepare(
       `INSERT INTO review_audit_events
          (id, bundle_id, actor_id, event_type, entity_type, entity_id, payload_json, created_at)
-       SELECT ?, id, ?, 'editorial_bundle_approved', 'review_bundle', id, ?, ?
+       SELECT ?, id, ?, 'editorial_approval_revision_created', 'editorial_approval', ?, ?, ?
        FROM review_bundles
        WHERE id = ? AND workflow_transition_id = ?`,
     ).bind(
       crypto.randomUUID(),
       actor.userId,
-      JSON.stringify({ approvalId, submissionIds, qualityStatus: quality.status }),
+      approvalId,
+      JSON.stringify({
+        approvalId,
+        approvalRevision,
+        supersedesApprovalId,
+        submissionIds,
+        qualityStatus: quality.status,
+      }),
       now,
       bundleId,
       transitionId,
@@ -454,12 +511,16 @@ export async function approveReviewBundleEditorially(input: { sessionEmail: stri
   );
 
   const results = await db.batch(statements);
-  const requiredIndexes = [0, 1, auditIndex];
-  for (let index = 0; index < submittedRows.length; index += 1) requiredIndexes.push(2 + index);
+  const requiredIndexes = [0, 1, currentApprovalPointerIndex, auditIndex];
+  for (let index = 0; index < submittedRows.length; index += 1) {
+    requiredIndexes.push(assignmentStartIndex + index);
+  }
   assertChanges(results, requiredIndexes);
   return {
     bundleId,
     approvalId,
+    approvalRevision,
+    supersedesApprovalId,
     bundleRevision: plan.expectedBundleRevision + 1,
     approvedAssignmentIds: submittedRows.map((row) => row.id),
     quality,
