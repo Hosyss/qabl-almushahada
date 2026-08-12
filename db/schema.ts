@@ -95,6 +95,7 @@ export const reviewBundles = sqliteTable(
     revision: integer("revision").notNull().default(0),
     publishedTransitionId: text("published_transition_id"),
     workflowTransitionId: text("workflow_transition_id"),
+    currentApprovalId: text("current_approval_id"),
     createdAt: createdAt(),
     publishedAt: text("published_at"),
     updatedAt: updatedAt(),
@@ -104,6 +105,7 @@ export const reviewBundles = sqliteTable(
     index("review_bundles_status_idx").on(table.status),
     uniqueIndex("review_bundles_transition_unique").on(table.publishedTransitionId),
     uniqueIndex("review_bundles_workflow_transition_unique").on(table.workflowTransitionId),
+    uniqueIndex("review_bundles_current_approval_unique").on(table.currentApprovalId),
     check(
       "review_bundles_status_check",
       sql`${table.status} IN ('draft', 'under_review', 'conflicted', 'verified', 'withdrawn')`,
@@ -125,6 +127,9 @@ export const reviewSubmissions = sqliteTable(
     reviewerId: text("reviewer_id")
       .notNull()
       .references(() => reviewers.id, { onDelete: "restrict" }),
+    assignmentId: text("assignment_id"),
+    revision: integer("revision").notNull().default(1),
+    supersedesSubmissionId: text("supersedes_submission_id"),
     startedAt: text("started_at").notNull(),
     completedAt: text("completed_at").notNull(),
     watchedSeconds: integer("watched_seconds").notNull(),
@@ -133,9 +138,11 @@ export const reviewSubmissions = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("review_submissions_bundle_reviewer_unique").on(table.bundleId, table.reviewerId),
+    uniqueIndex("review_submissions_assignment_revision_unique").on(table.assignmentId, table.revision),
+    index("review_submissions_bundle_reviewer_idx").on(table.bundleId, table.reviewerId),
     index("review_submissions_version_idx").on(table.versionId),
     index("review_submissions_reviewer_idx").on(table.reviewerId),
+    check("review_submissions_revision_check", sql`${table.revision} >= 1`),
     check("review_submissions_watched_seconds_check", sql`${table.watchedSeconds} >= 0`),
     check("review_submissions_time_order_check", sql`${table.completedAt} > ${table.startedAt}`),
     check("review_submissions_complete_check", sql`${table.declaredComplete} IN (0, 1)`),
@@ -232,6 +239,8 @@ export const editorialApprovals = sqliteTable(
       .notNull()
       .references(() => reviewers.id, { onDelete: "restrict" }),
     status: text("status", { enum: ["approved", "changes_requested", "rejected"] }).notNull(),
+    revision: integer("revision").notNull().default(1),
+    supersedesApprovalId: text("supersedes_approval_id"),
     versionFingerprintConfirmed: integer("version_fingerprint_confirmed", { mode: "boolean" })
       .notNull()
       .default(false),
@@ -240,8 +249,9 @@ export const editorialApprovals = sqliteTable(
     createdAt: createdAt(),
   },
   (table) => [
-    uniqueIndex("editorial_approvals_bundle_unique").on(table.bundleId),
+    uniqueIndex("editorial_approvals_bundle_revision_unique").on(table.bundleId, table.revision),
     index("editorial_approvals_approver_idx").on(table.approverId),
+    check("editorial_approvals_revision_check", sql`${table.revision} >= 1`),
     check("editorial_approvals_status_check", sql`${table.status} IN ('approved', 'changes_requested', 'rejected')`),
     check(
       "editorial_approvals_fingerprint_check",
