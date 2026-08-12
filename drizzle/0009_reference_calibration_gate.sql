@@ -3,6 +3,7 @@ CREATE TABLE `reviewer_reference_sets` (
   `label` text NOT NULL,
   `status` text DEFAULT 'draft' NOT NULL,
   `minimum_cases` integer DEFAULT 10 NOT NULL,
+  `revision` integer DEFAULT 0 NOT NULL,
   `created_by_user_id` text NOT NULL,
   `activated_by_user_id` text,
   `created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -11,6 +12,7 @@ CREATE TABLE `reviewer_reference_sets` (
   FOREIGN KEY (`activated_by_user_id`) REFERENCES `internal_users`(`id`) ON UPDATE no action ON DELETE restrict,
   CONSTRAINT `reviewer_reference_sets_status_check` CHECK (`status` IN ('draft', 'active', 'retired')),
   CONSTRAINT `reviewer_reference_sets_minimum_cases_check` CHECK (`minimum_cases` >= 10),
+  CONSTRAINT `reviewer_reference_sets_revision_check` CHECK (`revision` >= 0),
   CONSTRAINT `reviewer_reference_sets_activation_check` CHECK (
     (`status` = 'draft' AND `activated_by_user_id` IS NULL AND `activated_at` IS NULL)
     OR (`status` IN ('active', 'retired') AND `activated_by_user_id` IS NOT NULL AND `activated_at` IS NOT NULL)
@@ -68,6 +70,11 @@ CREATE TABLE `reviewer_reference_attempts` (
   CONSTRAINT `reviewer_reference_attempts_completion_check` CHECK (
     (`status` = 'in_progress' AND `completed_at` IS NULL AND `category_agreement_bps` IS NULL AND `observation_recall_bps` IS NULL AND `observation_precision_bps` IS NULL AND `missed_high_sensitivity_count` IS NULL AND `max_severity_delta` IS NULL)
     OR (`status` IN ('passed', 'failed') AND `completed_at` IS NOT NULL AND `category_agreement_bps` IS NOT NULL AND `observation_recall_bps` IS NOT NULL AND `observation_precision_bps` IS NOT NULL AND `missed_high_sensitivity_count` IS NOT NULL AND `max_severity_delta` IS NOT NULL)
+  ),
+  CONSTRAINT `reviewer_reference_attempts_blockers_check` CHECK (
+    (`status` = 'passed' AND json_array_length(`blockers_json`) = 0)
+    OR (`status` = 'failed' AND json_array_length(`blockers_json`) > 0)
+    OR (`status` = 'in_progress' AND json_array_length(`blockers_json`) = 0)
   )
 );
 --> statement-breakpoint
@@ -147,9 +154,13 @@ BEGIN
 END;
 --> statement-breakpoint
 CREATE TRIGGER `reviewer_reference_set_transition_guard`
-BEFORE UPDATE OF `status`, `activated_by_user_id`, `activated_at` ON `reviewer_reference_sets`
+BEFORE UPDATE OF `status`, `activated_by_user_id`, `activated_at`, `revision` ON `reviewer_reference_sets`
 FOR EACH ROW
 BEGIN
+  SELECT CASE
+    WHEN NEW.`revision` <> OLD.`revision` + 1
+    THEN RAISE(ABORT, 'reference calibration set revision must advance exactly once')
+  END;
   SELECT CASE
     WHEN OLD.`status` = 'draft' AND NEW.`status` = 'active' AND (
       NEW.`activated_by_user_id` IS NULL OR NEW.`activated_at` IS NULL OR
@@ -160,7 +171,6 @@ BEGIN
     WHEN NOT (
       (OLD.`status` = 'draft' AND NEW.`status` = 'active')
       OR (OLD.`status` = 'active' AND NEW.`status` = 'retired')
-      OR (OLD.`status` = NEW.`status` AND OLD.`activated_by_user_id` IS NEW.`activated_by_user_id` AND OLD.`activated_at` IS NEW.`activated_at`)
     ) THEN RAISE(ABORT, 'invalid reference calibration set transition')
   END;
 END;
@@ -224,6 +234,43 @@ BEGIN
     THEN RAISE(ABORT, 'all reference calibration cases must be completed')
   END;
   SELECT CASE
+    WHEN NEW.`category_agreement_bps` <> (
+      SELECT CASE
+        WHEN COALESCE(SUM(`category_total`), 0) = 0 THEN 10000
+        ELSE CAST(SUM(`category_matches`) * 10000 / SUM(`category_total`) AS INTEGER)
+      END
+      FROM `reviewer_reference_case_results`
+      WHERE `attempt_id` = OLD.`id`
+    )
+    OR NEW.`observation_recall_bps` <> (
+      SELECT CASE
+        WHEN COALESCE(SUM(`reference_observation_count`), 0) = 0 THEN 10000
+        ELSE CAST(SUM(`matched_observation_count`) * 10000 / SUM(`reference_observation_count`) AS INTEGER)
+      END
+      FROM `reviewer_reference_case_results`
+      WHERE `attempt_id` = OLD.`id`
+    )
+    OR NEW.`observation_precision_bps` <> (
+      SELECT CASE
+        WHEN COALESCE(SUM(`candidate_observation_count`), 0) = 0 THEN 10000
+        ELSE CAST(SUM(`matched_observation_count`) * 10000 / SUM(`candidate_observation_count`) AS INTEGER)
+      END
+      FROM `reviewer_reference_case_results`
+      WHERE `attempt_id` = OLD.`id`
+    )
+    OR NEW.`missed_high_sensitivity_count` <> (
+      SELECT COALESCE(SUM(`missed_high_sensitivity_count`), 0)
+      FROM `reviewer_reference_case_results`
+      WHERE `attempt_id` = OLD.`id`
+    )
+    OR NEW.`max_severity_delta` <> (
+      SELECT COALESCE(MAX(`max_severity_delta`), 0)
+      FROM `reviewer_reference_case_results`
+      WHERE `attempt_id` = OLD.`id`
+    )
+    THEN RAISE(ABORT, 'reference calibration metrics do not match stored case results')
+  END;
+  SELECT CASE
     WHEN NEW.`status` = 'passed' AND NOT (
       NEW.`category_agreement_bps` >= 9500
       AND NEW.`observation_recall_bps` >= 9000
@@ -266,7 +313,7 @@ BEGIN
           OR (
             OLD.`status` = 'suspended'
             AND a.`purpose` IN ('reactivation', 'drift')
-            AND a.`completed_at` >= OLD.`updated_at`
+            AND datetime(a.`completed_at`) >= datetime(OLD.`updated_at`)
           )
         )
     ) THEN RAISE(ABORT, 'reviewer activation requires a current passed reference calibration')
