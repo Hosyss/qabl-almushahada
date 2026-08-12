@@ -6,7 +6,7 @@
 
 | الدور | المسموح | غير المسموح |
 |---|---|---|
-| Admin | bootstrap الأول مرة واحدة، provisioning للحسابات، وقراءة سجل التدقيق | إدخال مراجعة أو اعتماد محتوى لمجرد كونه Admin |
+| Admin | bootstrap الأول مرة واحدة، provisioning للحسابات، الإيقاف الآمن، وقراءة سجل التدقيق | إدخال مراجعة أو اعتماد محتوى لمجرد كونه Admin، أو إعادة تفعيل حساب موقوف قبل مسار P2Q |
 | منسق المراجعات | إنشاء/توزيع المهام وقراءة حالة المهام | كتابة وقائع نيابة عن المراجع أو اعتماد النتيجة |
 | مراجع | قراءة مهمته فقط، حفظ مسودتها، وإرسالها | فتح مهمة مراجع آخر، تغيير النسخة/المراجع، أو الاعتماد |
 | معتمد تحريري | قراءة المراجعات المرسلة، طلب تعديل، إعلان conflict، والاعتماد وفق الاستقلال | اعتماد مراجعته أو مراجعة من مجموعة الاستقلال نفسها |
@@ -23,13 +23,15 @@ Admin لا يرث تلقائيًا صلاحيات المنسق أو المراج
 6. إنشاء أول Admin مسموح فقط إذا كانت `internal_users` فارغة وكان بريد الجلسة يساوي `INTERNAL_BOOTSTRAP_ADMIN_EMAIL` المضبوط في بيئة التشغيل.
 7. بعد وجود أول حساب داخلي، bootstrap يُرفض دائمًا.
 
-## Provisioning
+## Provisioning وإيقاف الحسابات
 
 - Admin فقط يستطيع إنشاء حساب داخلي جديد.
 - البريد والدور يمران بتحقق server-side وunknown fields تُرفض.
 - أدوار `reviewer` و`editorial_reviewer` لا تقبل `reviewerId` من الطلب.
 - الخادم يولد هوية `reviewers` ويربطها بالحساب مع `displayLabel` و`independenceGroupId` المحددين إداريًا.
 - قاعدة البيانات تمنع تعديل `auth_email` أو `role` أو `reviewer_id` بعد provisioning؛ تغيير الهوية لا يحدث بتحديث صامت.
+- Admin يستطيع إيقاف حساب آخر بقفل `internal_users.revision`، وإيقاف reviewer يحول الحزم التي شارك فيها إلى `conflicted` ويرفع revision.
+- إعادة تفعيل حساب موقوف محظورة حاليًا حتى تنفيذ سياسة المعايرة والاستئناف ضمن P2Q؛ هذا يمنع عودة مراجعات قديمة للأهلية بمجرد إعادة الحساب إلى `active`.
 
 ## توزيع المهام
 
@@ -86,14 +88,14 @@ submitted → conflicted → changes_requested
 
 - assignment drafts/submission تستخدم `review_assignments.revision` و`last_transition_id`.
 - coordinator/editorial operations تقفل كذلك `review_bundles.revision` وتستخدم `workflow_transition_id`.
-- الحسابات الداخلية لها `revision` و`last_transition_id` لإدارة التغييرات الإدارية لاحقًا بدون lost updates.
+- الحسابات الداخلية لها `revision` و`last_transition_id` لإدارة التغييرات الإدارية بدون lost updates.
 - أحداث الحزم تذهب إلى `review_audit_events`.
 - أحداث الأمن العامة مثل bootstrap/provisioning تذهب إلى `internal_audit_events`.
 - كلا الجدولين محميان بـSQLite triggers تمنع `UPDATE` و`DELETE`؛ السجل append-only على مستوى قاعدة البيانات وليس convention في التطبيق فقط.
 
 ## الاختبارات المثبتة
 
-- `test:engine`: 47 اختبارًا تشمل إنچين القرار + IDOR + mass assignment + separation of duties + provisioning + coordinator assignment + editorial transitions/approval.
+- `test:engine`: 49 اختبارًا تشمل إنچين القرار + IDOR + mass assignment + separation of duties + provisioning + coordinator assignment + editorial transitions/approval + منع reactivation قبل P2Q.
 - `test:migrations`: يطبق 5 migrations على SQLite مؤقتة ويتحقق من 17 جدولًا والقيود والـtriggers وسجلات التدقيق غير القابلة للتعديل.
 - `verify-workflow-transitions.mjs`: يثبت أن stale bundle revision لا ينشئ assignment وأن `submitted` يرفع bundle revision بينما `in_progress` لا يفعل.
 - `lint:local` و`build:local` جزء من checkpoint verification الإلزامي.
