@@ -100,6 +100,22 @@
 - P2Q-01 مدموجة على `main` في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd` عبر PR #10.
 - CI #159 على `main` بعد الدمج نجح في **83/83 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
 
+## P2Q-02 — نتيجة التدقيق ومعايرة المراجع — مكتملة تقنيًا على الفرع قبل الدمج
+
+- أضيفت `review_audit_outcomes` و`review_audit_findings` كسجل append-only لنتيجة التدقيق الفعلي والـfindings.
+- لا يسجل outcome إلا `editorial_reviewer` نشط وله reviewer identity نشطة ومستقلة عن المراجع الأصلي؛ self-audit ونفس مجموعة الاستقلال مرفوضان.
+- selected submission تظل مانعة للاعتماد حتى يكتمل outcome بـ`confirmed`؛ SQLite تمنع editorial approval و`verified` قبل ذلك.
+- `confirmed` لا يقبل findings. وجود `missed_event` أو `severity_difference` ينتج `correction_required` ويرجع الـassignment ذريًا إلى `changes_requested`.
+- هوية المراجع والمدقق وشدة المراجع الأصلية تُحل من D1؛ العميل لا يستطيع إرسال أو تزوير `reviewerSeverity` أو server-owned identities.
+- findings تدعم الحدث الفائت بمحور/شدة/توقيت مضبوط، وفرق الشدة ضد observation موجودة داخل نفس submission فقط.
+- outcome النهائي والfindings محمية من UPDATE/DELETE بعد الإقفال؛ سجل audit يسجل confirmed أو correction_required.
+- `getReviewerCalibrationSummary` يحسب النتائج من outcomes المكتملة المخزنة، وليس من قيمة client-side أو UI state.
+- حجم العينة وraw counts متاحان للتدقيق، لكن normalized rates تظل `null` قبل **20 تدقيقًا مكتملًا** للمراجع؛ عند 20 تبدأ rates basis-points بالظهور.
+- لا توجد composite `trustScore` ولا ranking للمراجعين؛ P2Q-02 تقدم evidence/counts/rates فقط.
+- migration `0008_reviewer_calibration_outcomes.sql` رفعت الإجمالي إلى **9 migrations / 20 product tables**.
+- checkpoint الحالي على الفرع اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` بما فيه verifier الخاص بـP2Q-02، و`lint:local` و`build:local`.
+- لم تُدمج P2Q-02 على `main` بعد؛ لا يُعتبر هذا القسم checkpoint نهائيًا على main حتى PR + CI + merge + main CI.
+
 ## Cloudflare — إعداد الإنتاج
 
 - الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
@@ -117,8 +133,8 @@
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
-- تنفيذ outcome للتدقيق العشوائي وسجل المعايرة لم يبدأ بعد؛ P2Q-01 يختار العينة فقط.
-- تفعيل/معايرة المراجعين ضد مجموعة مرجعية لم يبدأ بعد.
+- تفعيل/معايرة المراجعين ضد **مجموعة مرجعية** لم يبدأ بعد؛ هذا هو P2Q-03.
+- الإيقاف التلقائي عند نمط أخطاء/تواطؤ لم يبدأ بعد؛ هذا هو P2Q-04.
 
 ## الروابط الحالية
 
@@ -128,7 +144,7 @@
 
 ## نقطة البدء التالية
 
-1. التالي: `P2Q-02` **حرج / Work** — سجل نتيجة التدقيق والمعايرة: أحداث فائتة، فروق شدة، تأكيد المدقق، وحجم عينة قبل أي trust score.
+1. التالي: `P2Q-03` **حرج / Work** — مجموعة معايرة مرجعية واختبار اتفاق المراجعين قبل تفعيل حساب جديد وبعد الانحراف.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
