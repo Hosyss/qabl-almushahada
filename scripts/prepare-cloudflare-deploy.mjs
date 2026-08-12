@@ -21,6 +21,10 @@ export function buildCloudflareProductionConfig(env = process.env) {
     compatibility_date: CLOUDFLARE_COMPATIBILITY_DATE,
     compatibility_flags: ["nodejs_compat"],
     workers_dev: true,
+    assets: {
+      not_found_handling: "none",
+      binding: "ASSETS",
+    },
     d1_databases: [
       {
         binding: "DB",
