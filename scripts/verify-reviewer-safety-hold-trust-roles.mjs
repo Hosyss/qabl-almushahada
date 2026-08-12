@@ -75,7 +75,14 @@ function createBundle(prefix, selected) {
         risk_tier, sample_rate_bps, draw_u32, selected, risk_triggers_json)
      VALUES (?, ?, ?, ?, 'trust-version', 'trust-subject',
              'baseline', 1000, ?, ?, '[]')`,
-  ).run(selectionId, submissionId, assignmentId, selected ? 0 : 4294967295, selected ? 1 : 0);
+  ).run(
+    selectionId,
+    submissionId,
+    assignmentId,
+    bundleId,
+    selected ? 0 : 4294967295,
+    selected ? 1 : 0,
+  );
   return { bundleId, assignmentId, submissionId, selectionId };
 }
 
