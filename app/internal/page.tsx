@@ -1,8 +1,11 @@
+import Link from "next/link";
+
 import { requireInternalSessionUser } from "@/app/internal-session";
 import { loadInternalDashboard, type InternalDashboardData } from "@/db/internal-ui-service";
 import { ReviewWorkflowError } from "@/lib/internal-review-workflow";
 
 import InternalDashboardClient, { BootstrapPanel } from "./InternalDashboardClient";
+import shortcutStyles from "./qualityShortcut.module.css";
 
 export default async function InternalDashboardPage() {
   const sessionUser = await requireInternalSessionUser();
@@ -22,5 +25,21 @@ export default async function InternalDashboardPage() {
   if (canAttemptBootstrap || !data) {
     return <BootstrapPanel email={sessionUser.email} />;
   }
-  return <InternalDashboardClient data={data} />;
+
+  const canViewQuality =
+    data.actor.role === "admin" ||
+    (data.actor.role === "editorial_reviewer" && data.actor.reviewer?.status === "active");
+
+  return (
+    <>
+      {canViewQuality && (
+        <nav className={shortcutStyles.bar} dir="rtl" aria-label="روابط الجودة الداخلية">
+          <Link className={shortcutStyles.link} href="/internal/quality">
+            عرض لوحة الجودة والأدلة
+          </Link>
+        </nav>
+      )}
+      <InternalDashboardClient data={data} />
+    </>
+  );
 }
