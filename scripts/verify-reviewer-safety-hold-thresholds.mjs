@@ -40,6 +40,20 @@ for (const [reviewerId, userId, email, group] of [
   ).run(userId, email, reviewerId);
 }
 
+assert.throws(
+  () =>
+    db.prepare(
+      "UPDATE reviewers SET updated_at = '2026-08-12T00:30:00.000Z' WHERE id = 'confirmed-window-subject'",
+    ).run(),
+  /safety epoch anchor cannot change/i,
+  "An unrelated active-reviewer timestamp update silently reset the safety evaluation epoch.",
+);
+assert.equal(
+  db.prepare("SELECT updated_at AS updatedAt FROM reviewers WHERE id = 'confirmed-window-subject'").get().updatedAt,
+  "2026-08-12 00:00:00",
+  "The active reviewer safety epoch anchor changed after a rejected metadata-style update.",
+);
+
 db.prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES ('threshold-title', 'Safety hold threshold fixture', 'movie', 2026)").run();
 db.prepare(
   `INSERT INTO title_versions
@@ -198,4 +212,4 @@ const foreignKeyErrors = db.prepare("PRAGMA foreign_key_check").all();
 assert.deepEqual(foreignKeyErrors, [], "Threshold verifier broke foreign keys.");
 
 db.close();
-console.log("Verified P2Q-04 rolling-window correction thresholds and confirmed-audit parity.");
+console.log("Verified P2Q-04 rolling-window thresholds, confirmed-audit parity, and active epoch anchoring.");
