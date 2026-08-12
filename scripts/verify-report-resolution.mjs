@@ -89,7 +89,15 @@ assert.throws(
 );
 
 assert.throws(
-  () => db.prepare("UPDATE review_reports SET message = 'tampered identity' WHERE id = 'report-1'").run(),
+  () =>
+    db.prepare(
+      `UPDATE review_reports
+       SET message = 'tampered identity',
+           status = 'investigating',
+           revision = 1,
+           last_transition_id = 'identity-tamper'
+       WHERE id = 'report-1'`,
+    ).run(),
   /immutable/i,
   "Report identity fields were mutable.",
 );
