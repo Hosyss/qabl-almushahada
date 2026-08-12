@@ -41,10 +41,11 @@
 - `request changes` و`conflicted` أصبحا transitions محميين للمعتمد التحريري المستقل فقط، مع revision للحزمة والمهمة وسجل تدقيق.
 - الاعتماد التحريري الفعلي أصبح مربوطًا بـ`editorial_approvals` و`editorial_approval_submissions` و`editorial_spot_checks`، ولا يكتب `approved` قبل تشغيل `assessReviewQuality` على candidate bundle ونجاح كل بوابات الجودة.
 - الاعتماد يجب أن يشمل كل المهام المرسلة بالـrevisions الحالية، يؤكد بصمة النسخة، ويمنع self-approval أو نفس مجموعة الاستقلال.
+- إيقاف الحساب الداخلي مسموح للـAdmin مع revision lock، لكن إعادة تفعيله محظورة fail-closed حاليًا حتى تنفيذ سياسة المعايرة والاستئناف في P2Q؛ لا تعود مراجعات قديمة للأهلية بمجرد زر تفعيل.
 - أضيف `internal_audit_events` للأحداث الأمنية غير المرتبطة بحزمة بعينها.
 - كل من `review_audit_events` و`internal_audit_events` محميان بـSQLite triggers تمنع `UPDATE` و`DELETE`؛ السجل append-only على مستوى قاعدة البيانات.
 - 5 migrations تنشئ حاليًا 17 جدولًا.
-- `test:engine` يحتوي 47 اختبارًا ناجحًا تشمل اختبارات الإنچين، IDOR، mass assignment، فصل الواجبات، provisioning، coordinator assignment، transitions التحريرية، الاعتماد، fingerprint/revision checks والقيم المجهولة.
+- `test:engine` يحتوي 49 اختبارًا ناجحًا تشمل اختبارات الإنچين، IDOR، mass assignment، فصل الواجبات، provisioning، coordinator assignment، transitions التحريرية، الاعتماد، fingerprint/revision checks، منع reactivation غير المعايرة، والقيم المجهولة.
 - `test:migrations` يفحص migrations والقيود وimmutability، ويشغّل أيضًا `verify-workflow-transitions.mjs` لاختبار stale coordinator revision ورفع bundle revision عند `submitted`.
 - `lint:local` و`build:local` ناجحان على checkpoint الحالي للفرع.
 
@@ -56,7 +57,7 @@
 - زر الإبلاغ الظاهر في الواجهة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
 - لم تُبن بعد واجهة `/internal` للمشرف والمنسق والمراجع والمعتمد. هذا الجزء **خفيف / مجاني** فوق server actions والخدمات المحمية الموجودة، ولا يجب إعادة بناء منطق الصلاحيات داخل الواجهة.
-- تفعيل/معايرة المراجعين ضد مجموعة مرجعية لم يبدأ بعد؛ هذا ضمن `P2Q-03` ولا يجوز اختصاره لاحقًا.
+- تفعيل/معايرة المراجعين ضد مجموعة مرجعية لم يبدأ بعد؛ هذا ضمن `P2Q-03`، وإعادة تفعيل أي حساب موقوف تبقى ممنوعة حتى وجود مسار استئناف صريح.
 
 ## نقطة البدء التالية
 
