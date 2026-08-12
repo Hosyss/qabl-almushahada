@@ -104,21 +104,23 @@ export function prepareInternalUserStatusChange(
 ): {
   targetUserId: string;
   expectedRevision: number;
-  status: "active" | "suspended";
+  status: "suspended";
 } {
   assertCanManageInternalUsers(actor);
   const input = requirePlainObject(raw, "بيانات تغيير حالة الحساب غير صالحة.");
   rejectUnknownKeys(input, ["targetUserId", "expectedRevision", "status"]);
   const targetUserId = requireTrimmedString(input.targetUserId, "targetUserId", 1, 160);
   const expectedRevision = requireRevision(input.expectedRevision, "expectedRevision");
-  const status = input.status;
-  if (status !== "active" && status !== "suspended") {
-    throw new ReviewWorkflowError("INVALID_DRAFT", "حالة الحساب المطلوبة غير معروفة.");
+  if (input.status !== "suspended") {
+    throw new ReviewWorkflowError(
+      "FORBIDDEN",
+      "إعادة تفعيل الحسابات مؤجلة حتى مسار المعايرة والاستئناف في P2Q؛ المسموح حاليًا هو الإيقاف الآمن فقط.",
+    );
   }
-  if (targetUserId === actor.userId && status === "suspended") {
+  if (targetUserId === actor.userId) {
     throw new ReviewWorkflowError("FORBIDDEN", "لا يمكن للمشرف إيقاف حسابه بنفسه.");
   }
-  return { targetUserId, expectedRevision, status };
+  return { targetUserId, expectedRevision, status: "suspended" };
 }
 
 export function prepareReviewAssignmentCreation(
