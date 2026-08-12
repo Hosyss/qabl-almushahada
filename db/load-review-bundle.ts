@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { hydrateReviewBundle } from "@/lib/review-engine";
 import { getDb } from "./index";
+import { reviewAssignments } from "./review-workflow-schema";
 import {
   editorialApprovalSubmissions,
   editorialApprovals,
@@ -24,6 +25,7 @@ export async function loadReviewBundle(bundleId: string) {
     .select({
       bundleId: reviewBundles.id,
       revision: reviewBundles.revision,
+      currentApprovalId: reviewBundles.currentApprovalId,
       versionId: titleVersions.id,
       titleId: titleVersions.titleId,
       editionLabel: titleVersions.editionLabel,
@@ -54,9 +56,15 @@ export async function loadReviewBundle(bundleId: string) {
       watchedSeconds: reviewSubmissions.watchedSeconds,
       declaredComplete: reviewSubmissions.declaredComplete,
     })
-    .from(reviewSubmissions)
+    .from(reviewAssignments)
+    .innerJoin(reviewSubmissions, eq(reviewAssignments.submissionId, reviewSubmissions.id))
     .innerJoin(reviewers, eq(reviewSubmissions.reviewerId, reviewers.id))
-    .where(eq(reviewSubmissions.bundleId, bundleId));
+    .where(
+      and(
+        eq(reviewAssignments.bundleId, bundleId),
+        inArray(reviewAssignments.state, ["submitted", "approved"]),
+      ),
+    );
 
   const submissionIds = submissionRows.map((row) => row.id);
   const categoryRows = submissionIds.length
@@ -73,20 +81,27 @@ export async function loadReviewBundle(bundleId: string) {
     ? await db.select().from(observationFlags).where(inArray(observationFlags.observationId, observationIds))
     : [];
 
-  const approvalRows = await db
-    .select({
-      id: editorialApprovals.id,
-      status: editorialApprovals.status,
-      approverId: editorialApprovals.approverId,
-      approverIndependenceGroupId: reviewers.independenceGroupId,
-      approverStatus: reviewers.status,
-      approvedAt: editorialApprovals.approvedAt,
-      versionFingerprintConfirmed: editorialApprovals.versionFingerprintConfirmed,
-    })
-    .from(editorialApprovals)
-    .innerJoin(reviewers, eq(editorialApprovals.approverId, reviewers.id))
-    .where(eq(editorialApprovals.bundleId, bundleId))
-    .limit(1);
+  const approvalRows = bundleRow.currentApprovalId
+    ? await db
+        .select({
+          id: editorialApprovals.id,
+          status: editorialApprovals.status,
+          approverId: editorialApprovals.approverId,
+          approverIndependenceGroupId: reviewers.independenceGroupId,
+          approverStatus: reviewers.status,
+          approvedAt: editorialApprovals.approvedAt,
+          versionFingerprintConfirmed: editorialApprovals.versionFingerprintConfirmed,
+        })
+        .from(editorialApprovals)
+        .innerJoin(reviewers, eq(editorialApprovals.approverId, reviewers.id))
+        .where(
+          and(
+            eq(editorialApprovals.id, bundleRow.currentApprovalId),
+            eq(editorialApprovals.bundleId, bundleId),
+          ),
+        )
+        .limit(1)
+    : [];
 
   const blockingReportRows = await db
     .select({
