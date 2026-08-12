@@ -64,6 +64,12 @@ function insertOpenReport(id, versionId, approvalId, previousRevision) {
   ).run(id, versionId, approvalId, previousRevision);
 }
 
+assert.throws(
+  () => insertOpenReport("report-forged-snapshot", "report-version-a", "report-approval-1", 4),
+  /opening snapshot is invalid/i,
+  "A report accepted a forged previous bundle revision snapshot.",
+);
+
 insertOpenReport("report-1", "report-version-a", "report-approval-1", 5);
 db.prepare(
   `UPDATE review_bundles
@@ -84,7 +90,7 @@ assert.throws(
 
 assert.throws(
   () => insertOpenReport("report-duplicate", "report-version-a", "report-approval-1", 6),
-  /unique/i,
+  /opening snapshot is invalid|unique/i,
   "A second active report was accepted for the same bundle.",
 );
 
