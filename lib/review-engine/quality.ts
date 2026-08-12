@@ -1,3 +1,4 @@
+import { assessThirdReviewRequirement } from "./third-review-risk.ts";
 import {
   CONTENT_CATEGORIES,
   CONTENT_FLAGS,
@@ -227,13 +228,29 @@ export function assessReviewQuality(bundle: ReviewBundle): QualityAssessment {
     issue(issues, "SECOND_REVIEW_REQUIRED", "لا يصدر قرار منشور من مراجعة بشرية واحدة.");
   }
 
-
   if (activeReviewerIds.size !== activeSubmissions.length) {
     issue(issues, "DUPLICATE_REVIEWER_SUBMISSION", "المراجع نفسه لا يُحتسب أكثر من مرة داخل الحزمة.");
   }
 
   if (independentGroups.size < 2) {
     issue(issues, "INDEPENDENT_REVIEW_REQUIRED", "المراجعتان ليستا مستقلتين بما يكفي لاعتماد النتيجة.");
+  }
+
+  const thirdReviewRequirement = assessThirdReviewRequirement(activeSubmissions);
+  if (
+    thirdReviewRequirement.required &&
+    (activeReviewerIds.size < thirdReviewRequirement.requiredActiveReviewerCount ||
+      independentGroups.size < thirdReviewRequirement.requiredIndependentGroupCount)
+  ) {
+    issue(
+      issues,
+      "THIRD_INDEPENDENT_REVIEW_REQUIRED",
+      "ظهرت واقعة عالية الحساسية وفق سياسة المخاطر؛ يلزم ثلاثة مراجعين نشطين من ثلاث مجموعات استقلال مختلفة قبل أي اعتماد.",
+      {
+        submissionIds: [...new Set(thirdReviewRequirement.triggers.map((trigger) => trigger.submissionId))],
+        observationIds: [...new Set(thirdReviewRequirement.triggers.map((trigger) => trigger.observationId))],
+      },
+    );
   }
 
   for (let firstIndex = 0; firstIndex < activeSubmissions.length; firstIndex += 1) {
