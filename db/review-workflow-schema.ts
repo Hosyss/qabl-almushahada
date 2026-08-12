@@ -1,7 +1,13 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import { reviewBundles, reviewSubmissions, reviewers, titleVersions } from "./schema";
+import {
+  observations,
+  reviewBundles,
+  reviewSubmissions,
+  reviewers,
+  titleVersions,
+} from "./schema";
 
 const createdAt = () => text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`);
 const updatedAt = () => text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`);
@@ -141,6 +147,102 @@ export const reviewAuditSelections = sqliteTable(
     check(
       "review_audit_selections_json_check",
       sql`json_valid(${table.riskTriggersJson}) AND json_type(${table.riskTriggersJson}) = 'array'`,
+    ),
+  ],
+);
+
+export const reviewAuditOutcomes = sqliteTable(
+  "review_audit_outcomes",
+  {
+    id: text("id").primaryKey(),
+    selectionId: text("selection_id")
+      .notNull()
+      .references(() => reviewAuditSelections.id, { onDelete: "restrict" }),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => reviewSubmissions.id, { onDelete: "restrict" }),
+    assignmentId: text("assignment_id")
+      .notNull()
+      .references(() => reviewAssignments.id, { onDelete: "restrict" }),
+    bundleId: text("bundle_id")
+      .notNull()
+      .references(() => reviewBundles.id, { onDelete: "restrict" }),
+    versionId: text("version_id")
+      .notNull()
+      .references(() => titleVersions.id, { onDelete: "restrict" }),
+    subjectReviewerId: text("subject_reviewer_id")
+      .notNull()
+      .references(() => reviewers.id, { onDelete: "restrict" }),
+    auditorUserId: text("auditor_user_id")
+      .notNull()
+      .references(() => internalUsers.id, { onDelete: "restrict" }),
+    auditorReviewerId: text("auditor_reviewer_id")
+      .notNull()
+      .references(() => reviewers.id, { onDelete: "restrict" }),
+    status: text("status", { enum: ["pending", "confirmed", "correction_required"] })
+      .notNull()
+      .default("pending"),
+    notes: text("notes").notNull().default(""),
+    revision: integer("revision").notNull().default(0),
+    finalTransitionId: text("final_transition_id"),
+    completedAt: text("completed_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("review_audit_outcomes_selection_unique").on(table.selectionId),
+    uniqueIndex("review_audit_outcomes_transition_unique").on(table.finalTransitionId),
+    index("review_audit_outcomes_subject_time_idx").on(table.subjectReviewerId, table.completedAt),
+    index("review_audit_outcomes_auditor_time_idx").on(table.auditorReviewerId, table.completedAt),
+    check(
+      "review_audit_outcomes_status_check",
+      sql`${table.status} IN ('pending', 'confirmed', 'correction_required')`,
+    ),
+    check("review_audit_outcomes_revision_check", sql`${table.revision} IN (0, 1)`),
+    check("review_audit_outcomes_notes_check", sql`length(${table.notes}) <= 4000`),
+  ],
+);
+
+export const reviewAuditFindings = sqliteTable(
+  "review_audit_findings",
+  {
+    id: text("id").primaryKey(),
+    outcomeId: text("outcome_id")
+      .notNull()
+      .references(() => reviewAuditOutcomes.id, { onDelete: "restrict" }),
+    findingType: text("finding_type", { enum: ["missed_event", "severity_difference"] }).notNull(),
+    category: text("category").notNull(),
+    targetObservationId: text("target_observation_id").references(() => observations.id, {
+      onDelete: "restrict",
+    }),
+    reviewerSeverity: integer("reviewer_severity"),
+    auditorSeverity: integer("auditor_severity").notNull(),
+    startSecond: integer("start_second"),
+    endSecond: integer("end_second"),
+    summary: text("summary").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("review_audit_findings_observation_unique").on(table.outcomeId, table.targetObservationId),
+    index("review_audit_findings_type_idx").on(table.findingType, table.createdAt),
+    check(
+      "review_audit_findings_type_check",
+      sql`${table.findingType} IN ('missed_event', 'severity_difference')`,
+    ),
+    check(
+      "review_audit_findings_category_check",
+      sql`${table.category} IN ('fear', 'violence', 'language', 'bullying', 'sexualContent', 'substances', 'discrimination', 'selfHarm', 'grief', 'flashingLights')`,
+    ),
+    check(
+      "review_audit_findings_auditor_severity_check",
+      sql`${table.auditorSeverity} BETWEEN 1 AND 4`,
+    ),
+    check(
+      "review_audit_findings_reviewer_severity_check",
+      sql`${table.reviewerSeverity} IS NULL OR ${table.reviewerSeverity} BETWEEN 1 AND 4`,
+    ),
+    check(
+      "review_audit_findings_summary_check",
+      sql`length(trim(${table.summary})) BETWEEN 5 AND 1000`,
     ),
   ],
 );
