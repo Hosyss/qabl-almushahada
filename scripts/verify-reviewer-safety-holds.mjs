@@ -203,15 +203,46 @@ db.prepare(
      (id, bundle_id, version_id, reviewer_id, assigned_by_user_id, state)
    VALUES ('manual-assignment', 'manual-bundle', 'safety-version', 'manual-target', 'safety-coordinator', 'assigned')`,
 ).run();
+db.prepare(
+  `INSERT INTO internal_audit_events
+     (id, actor_user_id, event_type, entity_type, entity_id, payload_json)
+   VALUES ('manual-target-evidence', 'safety-admin', 'manual_suspicion_evidence',
+           'reviewer', 'manual-target', ?)`,
+).run(JSON.stringify({ reviewerId: "manual-target", summary: "Stored operational anomaly for human investigation." }));
+const manualPayload = JSON.stringify({
+  source: "manual_collusion_suspicion",
+  policyVersion: "2026-08-12.v1",
+  triggerCodes: ["COLLUSION_SUSPICION"],
+  evidence: {
+    note: "Two independent operational anomalies require human investigation; no collusion conclusion is asserted.",
+    evidenceEventIds: ["manual-target-evidence"],
+  },
+});
 assert.throws(
   () => db.prepare(
     `INSERT INTO internal_audit_events
        (id, actor_user_id, event_type, entity_type, entity_id, payload_json)
      VALUES ('bad-manual-hold', 'safety-auditor-user', 'reviewer_safety_hold_placed',
              'reviewer', 'manual-target', ?)`,
-  ).run(JSON.stringify({ source: "manual_collusion_suspicion", policyVersion: "2026-08-12.v1", triggerCodes: ["COLLUSION_SUSPICION"], evidence: { note: "Requires investigation" } })),
+  ).run(manualPayload),
   /active admin/i,
   "A non-admin placed a manual collusion-suspicion hold.",
+);
+
+assert.throws(
+  () => db.prepare(
+    `INSERT INTO internal_audit_events
+       (id, actor_user_id, event_type, entity_type, entity_id, payload_json)
+     VALUES ('unrelated-manual-hold', 'safety-admin', 'reviewer_safety_hold_placed',
+             'reviewer', 'manual-target', ?)`,
+  ).run(JSON.stringify({
+    source: "manual_collusion_suspicion",
+    policyVersion: "2026-08-12.v1",
+    triggerCodes: ["COLLUSION_SUSPICION"],
+    evidence: { note: "Unrelated evidence must not be enough.", evidenceEventIds: ["good-resolution"] },
+  })),
+  /not linked to the target reviewer/i,
+  "Manual hold accepted audit evidence unrelated to the target reviewer.",
 );
 
 db.prepare(
@@ -219,7 +250,7 @@ db.prepare(
      (id, actor_user_id, event_type, entity_type, entity_id, payload_json)
    VALUES ('manual-hold', 'safety-admin', 'reviewer_safety_hold_placed',
            'reviewer', 'manual-target', ?)`,
-).run(JSON.stringify({ source: "manual_collusion_suspicion", policyVersion: "2026-08-12.v1", triggerCodes: ["COLLUSION_SUSPICION"], evidence: { note: "Two independent operational anomalies require human investigation; no collusion conclusion is asserted." } }));
+).run(manualPayload);
 assert.equal(db.prepare("SELECT status FROM reviewers WHERE id = 'manual-target'").get().status, "suspended");
 assert.equal(db.prepare("SELECT status FROM internal_users WHERE id = 'manual-target-user'").get().status, "suspended");
 assert.equal(
