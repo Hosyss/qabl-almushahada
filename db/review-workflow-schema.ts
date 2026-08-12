@@ -270,7 +270,9 @@ export const reviewerReferenceSets = sqliteTable(
     activatedAt: text("activated_at"),
   },
   (table) => [
-    uniqueIndex("reviewer_reference_sets_one_active_unique").on(table.status),
+    uniqueIndex("reviewer_reference_sets_one_active_unique")
+      .on(table.status)
+      .where(sql`${table.status} = 'active'`),
     check("reviewer_reference_sets_status_check", sql`${table.status} IN ('draft', 'active', 'retired')`),
     check("reviewer_reference_sets_minimum_cases_check", sql`${table.minimumCases} >= 10`),
     check("reviewer_reference_sets_revision_check", sql`${table.revision} >= 0`),
@@ -327,6 +329,9 @@ export const reviewerReferenceAttempts = sqliteTable(
     completedAt: text("completed_at"),
   },
   (table) => [
+    uniqueIndex("reviewer_reference_attempts_one_open_unique")
+      .on(table.reviewerId)
+      .where(sql`${table.status} = 'in_progress'`),
     index("reviewer_reference_attempts_reviewer_time_idx").on(table.reviewerId, table.completedAt),
     check(
       "reviewer_reference_attempts_purpose_check",
