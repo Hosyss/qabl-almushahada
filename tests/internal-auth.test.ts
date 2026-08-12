@@ -23,9 +23,10 @@ test("internal auth mode is mandatory and fails closed", async () => {
 });
 
 test("chatgpt auth is used only when explicitly configured", async () => {
+  const fullName = "مراجع مستقل";
   const headers = new Headers({
     "oai-authenticated-user-email": " Reviewer@Example.COM ",
-    "oai-authenticated-user-full-name": "مراجع%20مستقل",
+    "oai-authenticated-user-full-name": encodeURIComponent(fullName),
     "oai-authenticated-user-full-name-encoding": "percent-encoded-utf-8",
   });
 
@@ -35,7 +36,7 @@ test("chatgpt auth is used only when explicitly configured", async () => {
   });
   assert.equal(user.provider, "chatgpt");
   assert.equal(user.email, "reviewer@example.com");
-  assert.equal(user.fullName, "مراجع مستقل");
+  assert.equal(user.fullName, fullName);
 });
 
 test("cloudflare access mode ignores forged OpenAI identity when Access JWT is missing", async () => {
