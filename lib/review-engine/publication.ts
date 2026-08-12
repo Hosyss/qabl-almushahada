@@ -1,4 +1,4 @@
-import { assessReviewQuality } from "./quality.ts";
+import { assessReviewQuality } from "./quality-gated.ts";
 import type { QualityAssessment, ReviewBundle } from "./types.ts";
 
 export type PublicationPreparation =
