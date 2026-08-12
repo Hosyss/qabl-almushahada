@@ -33,13 +33,10 @@
 - المنسق يوزع المهمة باستخدام بريد حساب داخلي؛ reviewer والنسخة يُحلان من D1 والـbundle على الخادم.
 - SQLite triggers تمنع تبديل bundle/version/reviewer بعد إنشاء المهمة.
 - حفظ المسودة والإرسال يستخدمان optimistic revision locking؛ لا يوجد `assigned → submitted` مباشر.
-- الإرسال النهائي يقفل المهمة ويكتب نفس schema الذي يستهلكه الإنچين ويرفع revision الحزمة.
 - validation النهائي يرفض تغطية أقل من 95%، المحاور الناقصة/`uncertain`، التناقضات، enums/flags المجهولة، التوقيت الخاطئ وmass assignment.
-- `request changes` و`conflicted` لا ينفذهما إلا معتمد تحريري مستقل مع revision lock وسجل تدقيق.
 - الاعتماد التحريري يشغّل `assessReviewQuality` قبل الكتابة ويغطي كل المراجعات الحالية وspot checks وبصمة النسخة.
 - إعادة تفعيل الحساب الموقوف ممنوعة fail-closed حتى وجود سياسة معايرة/استئناف في P2Q.
 - `internal_audit_events` و`review_audit_events` append-only على مستوى SQLite.
-- 5 migrations تنشئ 17 جدولًا.
 - المصادقة الداخلية مستقلة عن الاستضافة: `INTERNAL_AUTH_MODE` إجباري، ووضع Cloudflare Access يتحقق من JWT RS256 وissuer/audience/expiry قبل الثقة في البريد.
 - `/internal` مكتملة حسب الدور: Admin / Coordinator / Reviewer / Editorial، مع نموذج مراجع منظم وقراءة D1 مقيدة على الخادم.
 
@@ -55,12 +52,24 @@
   - flag `flashing_sequence` من severity 1.
   - flags `blood` أو `weapon` أو `physical_bullying` من severity 3.
 - النقص في المراجع الثالث ينتج blocking issue باسم `THIRD_REVIEW_REQUIRED`، ونقص مجموعة استقلال ثالثة ينتج `THIRD_INDEPENDENT_REVIEW_REQUIRED`.
-- النقص هنا يُصنف `insufficient` وليس conflict ما لم تكن هناك مشكلة تعارض فعلية أخرى.
-- `decideForFamily` و`preparePublication` والاعتماد التحريري server-side كلها تمر عبر نفس risk-gated quality function؛ لا يوجد مسار UI يستطيع تجاوز الشرط.
+- `decideForFamily` و`preparePublication` والاعتماد التحريري server-side كلها تمر عبر نفس risk-gated quality function.
 - المراجع الموقوف أو غير النشط لا يحتسب ضمن شرط الثلاثة.
-- الاختبارات تثبت صراحة أن high-risk باثنين يعيد `insufficient_data` ويرفض خطة النشر، وأن ثلاثة مراجعين من مجموعتين فقط لا يكفون.
-- آخر checkpoint لـP2-03 نجح في **72/72 اختبارًا، 0 فشل**، ومعه `test:migrations` و`lint:local` و`build:local` ناجحة.
-- لم تحتج P2-03 migration جديدة لأنها بوابة ثقة فوق submissions الموجودة، والمنسق يستطيع بالفعل إضافة assignment ثالثة من نفس workflow المحمي.
+- checkpoint P2-03 المدموج على main اجتاز 72/72 اختبارًا، و`test:migrations` و`lint:local` و`build:local`.
+
+## P2-04 — revisions غير قابلة للمحو
+
+- مسار إعادة الإرسال لم يعد يمسح `observations` أو `review_category_checks` أو `observation_flags` ولم يعد يعمل UPSERT فوق نفس `review_submission`.
+- كل إرسال جديد ينشئ `review_submissions` جديدًا بمعرّف جديد و`revision` متزايد و`supersedes_submission_id` يشير مباشرة إلى revision السابقة لنفس assignment.
+- `review_assignments.submission_id` هو المؤشر الوحيد للمراجعة الحالية؛ المحرك يقرأ هذا المؤشر ولا يخلط revisions القديمة في القرار.
+- SQLite يفرض lineage المراجعات ويتحقق من تطابق assignment مع bundle/version/reviewer، ويرفض القفز فوق revision سابقة.
+- SQLite يمنع `UPDATE` و`DELETE` على `review_submissions` وعلى category checks والوقائع والflags المرتبطة بها؛ التصحيح يكون revision جديدة فقط.
+- الاعتماد التحريري أصبح append-only أيضًا: كل اعتماد جديد يحصل على `revision` متزايد و`supersedes_approval_id` مباشر.
+- `review_bundles.current_approval_id` يشير إلى الاعتماد التحريري الحالي فقط، بينما كل الاعتمادات السابقة تبقى محفوظة.
+- loader العام يقرأ الاعتماد الحالي من `current_approval_id` فقط؛ هذا يسمح لاحقًا في P2-05 بإسقاط الاعتماد الحالي عند تصحيح جوهري من غير محو أي تاريخ.
+- SQLite يمنع `UPDATE` و`DELETE` على الاعتمادات وروابط submissions وspot checks القديمة، ويتحقق أن `current_approval_id` تابع لنفس الحزمة.
+- migration `0005_immutable_review_revisions.sql` رفعت العدد إلى **6 migrations** مع بقاء **17 جدولًا**؛ لا نحتاج جدولًا إضافيًا لأن lineage محفوظ داخل الصفوف نفسها.
+- `scripts/verify-migrations.mjs` يثبت أن revisions القديمة غير قابلة للتعديل/الحذف، وأن revision 2 يجب أن تشير مباشرة إلى revision 1، ويرفض lineage المزورة للمراجعات والاعتمادات.
+- آخر CI على فرع P2-04 اجتاز `test:engine`, `test:migrations`, `lint:local`, `build:local` بنجاح. لا يُعتبر P2-04 مدموجًا إلى main قبل إتمام PR وCI الخاص به.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -91,8 +100,8 @@
 
 ## نقطة البدء التالية
 
-1. دمج checkpoint `P2-03` إلى `main` بعد CI النهائي.
-2. التالي: `P2-04` **حرج / Work** — revisions غير قابلة للمحو للمراجعات والاعتمادات بدل استبدال الصف السابق.
+1. إتمام PR وCI ودمج checkpoint `P2-04` إلى `main`.
+2. التالي بعد الدمج: `P2-05` **حرج / Work** — حسم البلاغات والتصحيح المرتبط بالنسخة وإجبار اعتماد جديد بعد التعديل الجوهري.
 3. عند توفر Cloudflare authentication: إنشاء D1 جديد لهذا المشروع، تطبيق migrations، deploy إلى Worker جديد، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 4. لا تبدأ تلميعًا بصريًا عامًا قبل حفظ checkpoint الأمني التالي.
 

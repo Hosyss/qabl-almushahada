@@ -125,13 +125,15 @@ export async function submitOwnReviewAssignment(input: {
     throw new ReviewWorkflowError("INVALID_DRAFT", "لا توجد مسودة محفوظة لإرسالها.");
   }
 
-  const stableSubmissionId = loaded.submissionId ?? `submission-${loaded.scope.id}`;
+  const submissionId = crypto.randomUUID();
+  const supersedesSubmissionId = loaded.submissionId;
+  const submissionRevision = await getNextSubmissionRevision(loaded.scope.id);
   const prepared = prepareLockedReviewSubmission({
     actor,
     assignment: loaded.scope,
     expectedRevision: input.expectedRevision,
     draft: loaded.draft,
-    submissionId: stableSubmissionId,
+    submissionId,
   });
   const submission = {
     ...prepared,
@@ -167,50 +169,17 @@ export async function submitOwnReviewAssignment(input: {
       input.expectedRevision,
     ),
     db.prepare(
-      `DELETE FROM observation_flags
-       WHERE observation_id IN (
-         SELECT observations.id
-         FROM observations
-         WHERE observations.submission_id = ?
-           AND EXISTS (
-             SELECT 1 FROM review_assignments
-             WHERE id = ? AND last_transition_id = ?
-           )
-       )`,
-    ).bind(submission.id, loaded.scope.id, transitionId),
-    db.prepare(
-      `DELETE FROM observations
-       WHERE submission_id = ?
-         AND EXISTS (
-           SELECT 1 FROM review_assignments
-           WHERE id = ? AND last_transition_id = ?
-         )`,
-    ).bind(submission.id, loaded.scope.id, transitionId),
-    db.prepare(
-      `DELETE FROM review_category_checks
-       WHERE submission_id = ?
-         AND EXISTS (
-           SELECT 1 FROM review_assignments
-           WHERE id = ? AND last_transition_id = ?
-         )`,
-    ).bind(submission.id, loaded.scope.id, transitionId),
-    db.prepare(
       `INSERT INTO review_submissions
-         (id, bundle_id, version_id, reviewer_id, started_at, completed_at,
-          watched_seconds, declared_complete, created_at, updated_at)
-       SELECT ?, bundle_id, version_id, reviewer_id, ?, ?, ?, 1, ?, ?
+         (id, bundle_id, version_id, reviewer_id, assignment_id, revision,
+          supersedes_submission_id, started_at, completed_at, watched_seconds,
+          declared_complete, created_at, updated_at)
+       SELECT ?, bundle_id, version_id, reviewer_id, id, ?, ?, ?, ?, ?, 1, ?, ?
        FROM review_assignments
-       WHERE id = ? AND last_transition_id = ?
-       ON CONFLICT(id) DO UPDATE SET
-         version_id = excluded.version_id,
-         reviewer_id = excluded.reviewer_id,
-         started_at = excluded.started_at,
-         completed_at = excluded.completed_at,
-         watched_seconds = excluded.watched_seconds,
-         declared_complete = excluded.declared_complete,
-         updated_at = excluded.updated_at`,
+       WHERE id = ? AND last_transition_id = ?`,
     ).bind(
       submission.id,
+      submissionRevision,
+      supersedesSubmissionId,
       submission.startedAt,
       submission.completedAt,
       submission.watchedSeconds,
@@ -275,16 +244,19 @@ export async function submitOwnReviewAssignment(input: {
     db.prepare(
       `INSERT INTO review_audit_events
          (id, bundle_id, actor_id, event_type, entity_type, entity_id, payload_json, created_at)
-       SELECT ?, bundle_id, ?, 'review_submitted_locked', 'review_assignment', id, ?, ?
+       SELECT ?, bundle_id, ?, 'review_submission_revision_created', 'review_submission', ?, ?, ?
        FROM review_assignments
        WHERE id = ? AND last_transition_id = ?`,
     ).bind(
       crypto.randomUUID(),
       actor.userId,
+      submission.id,
       JSON.stringify({
         assignmentId: loaded.scope.id,
-        fromRevision: input.expectedRevision,
-        toRevision: input.expectedRevision + 1,
+        assignmentFromRevision: input.expectedRevision,
+        assignmentToRevision: input.expectedRevision + 1,
+        submissionRevision,
+        supersedesSubmissionId,
         submission,
       }),
       now,
@@ -299,9 +271,27 @@ export async function submitOwnReviewAssignment(input: {
   return {
     assignmentId: loaded.scope.id,
     submissionId: submission.id,
+    submissionRevision,
+    supersedesSubmissionId,
     state: "submitted" as const,
     revision: input.expectedRevision + 1,
   };
+}
+
+async function getNextSubmissionRevision(assignmentId: string): Promise<number> {
+  const row = await requireD1()
+    .prepare(
+      `SELECT COALESCE(MAX(revision), 0) + 1 AS nextRevision
+       FROM review_submissions
+       WHERE assignment_id = ?`,
+    )
+    .bind(assignmentId)
+    .first<{ nextRevision: number }>();
+  const nextRevision = row?.nextRevision;
+  if (!Number.isInteger(nextRevision) || nextRevision < 1) {
+    throw new ReviewWorkflowError("INVALID_DRAFT", "تعذر تحديد revision المراجعة التالية بأمان.");
+  }
+  return nextRevision;
 }
 
 async function requireInternalActor(sessionEmail: string): Promise<InternalActor> {
