@@ -52,10 +52,26 @@ Wrangler authentication في الجهاز أو CI يستخدم `CLOUDFLARE_API_T
 
 - `npm run cloudflare:prepare` — يولد config فقط ويفشل إذا كان D1 ID/Name ناقصين أو placeholder.
 - `npm run cloudflare:build` — يولد config ثم يبني vinext/Vite مع نفس config الإنتاج؛ لا ينفذ remote writes.
-- `npm run cloudflare:migrate` — يطبق migrations على D1 remote عبر binding `DB`. هذا أمر remote write صريح.
+- `npm run cloudflare:migrate` — يطبق migrations على D1 remote عبر `scripts/cloudflare-migrate.mjs`. هذا أمر remote write صريح.
 - `npm run cloudflare:deploy` — يبني بإعداد الإنتاج ثم ينفذ `wrangler deploy`. يتطلب Wrangler authentication فعليًا.
 
 Cloudflare Vite plugin يولد output Worker configuration أثناء build؛ بعد نجاح build يستخدم `wrangler deploy` ذلك output تلقائيًا.
+
+### نقل migrations إلى D1
+
+مسار `wrangler d1 migrations apply --remote` يرسل نص migration كـinline command. أثناء أول نشر حقيقي، D1/Wrangler أعاد `SQLITE_ERROR: incomplete input` عند migration تحتوي SQLite triggers رغم نجاح الملف نفسه في SQLite المحلي. هذا النوع من أعطال trigger parsing موثق في `cloudflare/workers-sdk` (منه issues `#4998` و`#14991`).
+
+لذلك مسار الإنتاج لا يغيّر SQL الموثوق لتجاوز parser. بدلًا من ذلك `scripts/cloudflare-migrate.mjs`:
+
+1. ينشئ جدول Wrangler القياسي `d1_migrations` إن لم يكن موجودًا.
+2. يقرأ التاريخ المطبق ويرفض أي gap أو divergence عن ترتيب ملفات المستودع.
+3. يطبّع line endings إلى LF ويجهز كل migration معلقة كملف مؤقت.
+4. يضيف تسجيل اسم migration في `d1_migrations` **داخل نفس ملف الاستيراد**.
+5. ينفذ الملف عبر `wrangler d1 execute --remote --file`؛ مسار file ingestion يعيد القاعدة لحالتها الأصلية إذا فشل الاستيراد.
+6. يعيد قراءة سجل migrations بعد كل ملف، ويرفض الاستمرار إذا لم تُسجل migration نفسها وبالترتيب المتوقع.
+7. يحذف ملفات staging المؤقتة دائمًا ثم يتحقق أن كل migrations المحلية أصبحت مطبقة.
+
+بهذا يظل schema وسجل migrations في خطوة ذرية واحدة لكل migration، ولا يتم الادعاء بالنجاح لمجرد أن بعض statements نُفذت.
 
 ## ترتيب أول نشر
 
@@ -71,4 +87,4 @@ Cloudflare Vite plugin يولد output Worker configuration أثناء build؛ �
 
 ## حالة الاتصال الحالية
 
-المستودع أصبح قابلًا للبناء بإعداد Cloudflare إنتاج حقيقي، لكن هذه الجلسة لا تملك Cloudflare API/CLI authentication متصلًا لإنشاء D1 أو تنفيذ `wrangler deploy` باسم المستخدم. لذلك لا يجوز الادعاء بوجود URL Cloudflare جديد قبل تنفيذ الخطوات remote والحصول على الرابط من Cloudflare نفسها.
+GitHub Actions متصل الآن بحساب Cloudflare عبر Repository Secrets المخصصة للنشر. تم إنشاء D1 مخصصة باسم `qabl-almushahada-production`، ونجحت migrations من `0000` حتى `0008`. أول محاولتين للنشر توقفتا fail-closed عند `0009_reference_calibration_gate.sql` بسبب مسار parsing الخاص بـ`wrangler d1 migrations apply --remote`، قبل نشر أي Worker. المسار البديل بالـfile ingestion هو الإصلاح الحالي المطلوب قبل إعادة محاولة النشر.
