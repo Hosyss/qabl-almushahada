@@ -37,8 +37,8 @@
   - [x] `P2-02A` **حرج / Work** — الهوية والأدوار وفصل الواجبات، bootstrap/provisioning، توزيع المهمة من المنسق، server-side validation، revision locking، request changes/conflicted، اعتماد تحريري مستقل، وسجلات تدقيق append-only محمية في SQLite.
   - [x] `P2-02A-CF` **حرج / Work** — فصل المصادقة الداخلية عن الاستضافة: `INTERNAL_AUTH_MODE` إجباري، ووضع Cloudflare Access يتحقق server-side من توقيع `Cf-Access-Jwt-Assertion` وissuer/audience/expiry قبل الثقة في البريد. لا يوجد fallback صامت إلى هيدرز ChatGPT.
   - [x] `P2-02B` **خفيف / مجاني** — واجهة `/internal` حسب الدور: Admin provisioning/suspension وaudit، Coordinator assignment/status، Reviewer task list + structured draft/checklist/observations/save/submit، وEditorial request changes/conflict/spot checks/approval. القراءة والكتابة كلاهما مقيدان على الخادم، والواجهة لا تعيد تنفيذ سلطة الصلاحيات.
-- [ ] `P2-03` **حرج / Work — التالي** — فرض مراجعة ثالثة للمحاور عالية الحساسية وفق قواعد مخاطر صريحة.
-- [ ] `P2-04` **حرج / Work** — revisions غير قابلة للمحو للمراجعات والاعتمادات بدل استبدال الصف السابق.
+- [x] `P2-03` **حرج / Work** — فرض مراجعة بشرية ثالثة نشطة ومستقلة عندما تتحقق قواعد خطر صريحة: أي شدة 4، إيذاء النفس بأي شدة، المحتوى الجنسي/الوميض من شدة 2، العنف/المواد/التمييز/التنمر من شدة 3، وflags حساسة محددة. بوابة القرار والنشر والاعتماد كلها تفشل مغلقًا إذا بقي عدد المراجعين أو مجموعات الاستقلال أقل من 3.
+- [ ] `P2-04` **حرج / Work — التالي** — revisions غير قابلة للمحو للمراجعات والاعتمادات بدل استبدال الصف السابق.
 - [ ] `P2-05` **حرج / Work** — إغلاق البلاغ أو رفضه، ربط التصحيح بالنسخة الصحيحة، وإجبار اعتماد جديد بعد أي تعديل جوهري.
 
 معيار إتمام المرحلة: يمكن تتبع من أدخل كل واقعة، ومن راجعها، ومتى تغيرت، ولماذا.
