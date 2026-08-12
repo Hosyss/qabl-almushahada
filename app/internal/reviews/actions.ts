@@ -1,16 +1,14 @@
 "use server";
 
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { requireInternalSessionUser } from "@/app/internal-session";
 import { saveOwnReviewDraft, submitOwnReviewAssignment } from "@/db/review-assignment-service";
-import { ReviewWorkflowError } from "@/lib/internal-review-workflow";
 
 export async function saveReviewDraftAction(input: {
   assignmentId: string;
   expectedRevision: number;
   draft: unknown;
 }) {
-  const user = await getChatGPTUser();
-  if (!user) throw new ReviewWorkflowError("UNAUTHENTICATED", "يلزم تسجيل الدخول.");
+  const user = await requireInternalSessionUser();
 
   return saveOwnReviewDraft({
     sessionEmail: user.email,
@@ -24,8 +22,7 @@ export async function submitReviewAssignmentAction(input: {
   assignmentId: string;
   expectedRevision: number;
 }) {
-  const user = await getChatGPTUser();
-  if (!user) throw new ReviewWorkflowError("UNAUTHENTICATED", "يلزم تسجيل الدخول.");
+  const user = await requireInternalSessionUser();
 
   return submitOwnReviewAssignment({
     sessionEmail: user.email,

@@ -1,6 +1,6 @@
 "use server";
 
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { requireInternalSessionUser } from "@/app/internal-session";
 import {
   approveReviewBundleEditorially,
   bootstrapInitialAdmin,
@@ -10,12 +10,9 @@ import {
   requestReviewChanges,
   setInternalUserStatus,
 } from "@/db/internal-review-management-service";
-import { ReviewWorkflowError } from "@/lib/internal-review-workflow";
 
 async function requireSessionEmail(): Promise<string> {
-  const user = await getChatGPTUser();
-  if (!user) throw new ReviewWorkflowError("UNAUTHENTICATED", "يلزم تسجيل الدخول.");
-  return user.email;
+  return (await requireInternalSessionUser()).email;
 }
 
 export async function bootstrapInitialAdminAction() {

@@ -28,26 +28,32 @@
 
 ### P2-02 — الجزء الحرج / Work المنفذ
 
-- مصادقة ChatGPT موجودة، وهوية الدور والمراجع تُحمّل من D1 باستخدام بريد الجلسة المصادق عليه؛ لا يتم الوثوق بـ`role` أو `reviewerId` القادمين من المتصفح.
-- أدوار أقل صلاحية منفصلة: `admin`، `review_coordinator`، `reviewer`، `editorial_reviewer`.
-- Admin لا يرث صلاحيات المنسق أو المراجع أو المعتمد.
-- bootstrap للمشرف الأول لا يعمل إلا إذا كانت `internal_users` فارغة وكان بريد الجلسة يطابق `INTERNAL_BOOTSTRAP_ADMIN_EMAIL` في بيئة التشغيل.
+- أدوار أقل صلاحية منفصلة: `admin`، `review_coordinator`، `reviewer`، `editorial_reviewer`، وAdmin لا يرث صلاحيات الأدوار الأخرى.
+- bootstrap للمشرف الأول لا يعمل إلا إذا كانت `internal_users` فارغة وكان بريد الجلسة يطابق `INTERNAL_BOOTSTRAP_ADMIN_EMAIL`.
 - provisioning للحسابات الداخلية محمي server-side؛ حسابات المراجع/المعتمد تحصل على هوية `reviewers` يولدها الخادم، ولا يقبل المسار `reviewerId` من الطلب.
 - إنشاء المهمة من المنسق يحل هوية المراجع من بريد حساب داخلي نشط؛ النسخة تُؤخذ من الـbundle على الخادم، ولا يختارها المتصفح.
 - مهام المراجعة مرتبطة بـbundle ونسخة ومراجع ثابتين؛ SQLite triggers تمنع تبديل `bundle_id` أو `version_id` أو `reviewer_id` بعد التعيين.
 - حفظ المسودة والإرسال النهائي يستخدمان optimistic locking على revision، والإرسال لا يسمح بالقفز من `assigned` مباشرة إلى `submitted`.
 - `submitted` يقفل المهمة ويكتب نفس schema المنظم الذي يستهلكه الإنچين؛ trigger قاعدة البيانات يرفع revision الحزمة عند ظهور submission جديدة حتى لا يمر اعتماد/نشر على snapshot قديمة.
 - التحقق النهائي server-side يرفض تغطية أقل من 95%، المحاور الناقصة أو `uncertain`، `present` بلا واقعة، `none` مع وقائع، enums/flags المجهولة، التوقيت الخاطئ، والحقول غير المسموح بها.
-- `request changes` و`conflicted` أصبحا transitions محميين للمعتمد التحريري المستقل فقط، مع revision للحزمة والمهمة وسجل تدقيق.
-- الاعتماد التحريري الفعلي أصبح مربوطًا بـ`editorial_approvals` و`editorial_approval_submissions` و`editorial_spot_checks`، ولا يكتب `approved` قبل تشغيل `assessReviewQuality` على candidate bundle ونجاح كل بوابات الجودة.
+- `request changes` و`conflicted` transitions محمية للمعتمد التحريري المستقل فقط، مع revision للحزمة والمهمة وسجل تدقيق.
+- الاعتماد التحريري الفعلي مربوط بـ`editorial_approvals` و`editorial_approval_submissions` و`editorial_spot_checks`، ولا يكتب `approved` قبل تشغيل `assessReviewQuality` على candidate bundle ونجاح كل بوابات الجودة.
 - الاعتماد يجب أن يشمل كل المهام المرسلة بالـrevisions الحالية، يؤكد بصمة النسخة، ويمنع self-approval أو نفس مجموعة الاستقلال.
-- إيقاف الحساب الداخلي مسموح للـAdmin مع revision lock، لكن إعادة تفعيله محظورة fail-closed حاليًا حتى تنفيذ سياسة المعايرة والاستئناف في P2Q؛ لا تعود مراجعات قديمة للأهلية بمجرد زر تفعيل.
-- أضيف `internal_audit_events` للأحداث الأمنية غير المرتبطة بحزمة بعينها.
-- كل من `review_audit_events` و`internal_audit_events` محميان بـSQLite triggers تمنع `UPDATE` و`DELETE`؛ السجل append-only على مستوى قاعدة البيانات.
+- إيقاف الحساب الداخلي مسموح للـAdmin مع revision lock، لكن إعادة التفعيل محظورة fail-closed حتى تنفيذ سياسة المعايرة والاستئناف في P2Q.
+- `internal_audit_events` يسجل الأحداث الأمنية العامة، وكل من `review_audit_events` و`internal_audit_events` محميان بـSQLite triggers تمنع `UPDATE` و`DELETE`.
 - 5 migrations تنشئ حاليًا 17 جدولًا.
-- `test:engine` يحتوي 49 اختبارًا ناجحًا تشمل اختبارات الإنچين، IDOR، mass assignment، فصل الواجبات، provisioning، coordinator assignment، transitions التحريرية، الاعتماد، fingerprint/revision checks، منع reactivation غير المعايرة، والقيم المجهولة.
-- `test:migrations` يفحص migrations والقيود وimmutability، ويشغّل أيضًا `verify-workflow-transitions.mjs` لاختبار stale coordinator revision ورفع bundle revision عند `submitted`.
-- `lint:local` و`build:local` ناجحان على checkpoint الحالي للفرع.
+
+### Cloudflare — قرار النشر وحماية الهوية
+
+- هدف النشر النهائي أصبح Cloudflare Workers + D1 من نفس المستودع، لأن التطبيق ديناميكي ويستخدم Server Actions وD1.
+- اكتُشف أن `app/chatgpt-auth.ts` خاص باستضافة ChatGPT ويعتمد على هيدرز `oai-authenticated-user-*`، لذلك لم يعد مسموحًا للمسارات الداخلية الاعتماد عليه مباشرة.
+- أضيفت طبقة `lib/internal-auth.ts` بمزود مصادقة صريح عبر `INTERNAL_AUTH_MODE`؛ غياب الوضع أو قيمته المجهولة يفشل مغلقًا.
+- الوضع المؤقت `chatgpt` لا يقرأ هيدرز OpenAI إلا عند اختياره صراحة.
+- وضع `cloudflare_access` لا يثق في هيدر بريد؛ يتطلب `Cf-Access-Jwt-Assertion` ويثبت توقيع RS256 عبر Web Crypto بعد تحميل JWK المناسب، ويتحقق من `issuer` و`audience` و`exp` و`nbf`/`iat` قبل استخراج البريد.
+- كل Server Actions للمراجع والإدارة أصبحت تمر عبر `app/internal-session.ts` بدل قراءة `getChatGPTUser()` مباشرة.
+- أضيف `docs/CLOUDFLARE_DEPLOYMENT.md` لتثبيت متطلبات Worker/D1/Access قبل أول نشر إنتاجي.
+- اختبارات المصادقة الجديدة تغطي الوضع الإجباري، منع fallback، تزوير هيدر OpenAI في وضع Cloudflare، صحة التوقيع، التلاعب بالـpayload، audience خاطئ وtoken منتهي.
+- آخر CI قبل تحديث المستندات نجح في `test:engine` و`test:migrations` و`lint:local` و`build:local`.
 
 ## ما يزال تجريبيًا أو مؤجلًا
 
@@ -56,19 +62,28 @@
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
-- لم تُبن بعد واجهة `/internal` للمشرف والمنسق والمراجع والمعتمد. هذا الجزء **خفيف / مجاني** فوق server actions والخدمات المحمية الموجودة، ولا يجب إعادة بناء منطق الصلاحيات داخل الواجهة.
-- تفعيل/معايرة المراجعين ضد مجموعة مرجعية لم يبدأ بعد؛ هذا ضمن `P2Q-03`، وإعادة تفعيل أي حساب موقوف تبقى ممنوعة حتى وجود مسار استئناف صريح.
+- لم تُبن بعد واجهة `/internal` للمشرف والمنسق والمراجع والمعتمد. هذا الجزء **خفيف / مجاني** فوق server actions والخدمات المحمية الموجودة.
+- تفعيل/معايرة المراجعين ضد مجموعة مرجعية لم يبدأ بعد؛ إعادة تفعيل أي حساب موقوف تبقى ممنوعة حتى وجود مسار استئناف صريح.
+- Cloudflare production غير منشور بعد: لا يوجد حتى الآن Worker/D1 production وAccess configuration موثقين برابط إنتاج، لذلك لا يوجد رابط Cloudflare صالح للادعاء بأنه النسخة الجديدة.
+
+## الروابط الحالية
+
+- المستودع: `https://github.com/Hosyss/qabl-almushahada`
+- الموقع المنشور القديم على ChatGPT hosting: `https://qabl-almushahada.hosys.chatgpt.site`
+- هذا الرابط القديم لا يمثل آخر backend أمني ولا يُعتبر نشر Cloudflare النهائي.
 
 ## نقطة البدء التالية
 
-1. احفظ checkpoint الحالي على `main` بعد نجاح CI النهائي.
-2. نفّذ واجهة P2-02 الداخلية كجزء **خفيف / مجاني**: قوائم المهام، نموذج المراجع المنظم، وأشكال Admin/Coordinator/Editorial التي تستدعي server actions الحالية فقط.
-3. بعد اكتمال الواجهة واختبارها، اعتبر `P2-02` كاملًا وانتقل إلى `P2-03` للمراجعة الثالثة حسب المخاطر.
+1. دمج checkpoint الخاص بالمصادقة المحمولة إلى `main` بعد نجاح CI النهائي على رأس الفرع.
+2. تنفيذ `P2-02B`: واجهة `/internal` حسب الدور، قوائم المهام، نموذج المراجع المنظم، ونماذج Admin/Coordinator/Editorial التي تستدعي Server Actions الحالية فقط.
+3. تجهيز `wrangler.jsonc` للإنتاج بعد الحصول على D1 database ID الحقيقي وإعداد Cloudflare Access؛ لا توضع معرفات وهمية على أنها production.
+4. بعد وجود صلاحية Cloudflare الفعلية: تطبيق migrations، dry-run، deploy، ثم إعطاء المستخدم رابط `workers.dev` الحقيقي واختبار `/` و`/review` و`/internal`.
+5. بعد اكتمال واجهة P2-02 واختبارها، انتقل إلى `P2-03`.
 
-راجع `docs/P2-02_SECURITY_MODEL.md` قبل أي تعديل في الصلاحيات أو مسار المراجعين.
+راجع `docs/P2-02_SECURITY_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في المصادقة أو النشر.
 
 ## ترتيب يحافظ على الرصيد
 
 - استخدم Work للأجزاء المعمارية والأمنية والمعاملات والاختبارات الخطرة.
 - اترك CSS والمسافات والنصوص والواجهة الداخلية المباشرة للخطة المجانية طالما أنها لا تغير قواعد الخادم.
-- لا تخفّض أي قيد أمان لتسهيل الواجهة.
+- لا تخفّض أي قيد أمان لتسهيل الواجهة أو النشر.
