@@ -31,15 +31,16 @@ assert.deepEqual(foreignKeyErrors, [], "Foreign-key validation failed after appl
 const tables = database
   .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
   .all();
-assert.equal(tables.length, 17, "Unexpected number of product tables.");
+assert.equal(tables.length, 18, "Unexpected number of product tables.");
 const tableNames = new Set(tables.map((table) => table.name));
 for (const requiredTable of [
   "internal_users",
   "review_assignments",
   "review_assignment_drafts",
+  "review_audit_selections",
   "internal_audit_events",
 ]) {
-  assert.ok(tableNames.has(requiredTable), `Missing P2-02 table: ${requiredTable}`);
+  assert.ok(tableNames.has(requiredTable), `Missing workflow table: ${requiredTable}`);
 }
 
 const reviewBundleColumns = database.prepare("PRAGMA table_info('review_bundles')").all();
