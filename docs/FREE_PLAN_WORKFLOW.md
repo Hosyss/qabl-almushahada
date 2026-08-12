@@ -7,13 +7,15 @@
 ## حالة التسليم الحالية — 12 أغسطس 2026
 
 - مرحلة `P2-01` إلى `P2-05` الخاصة بقاعدة البيانات وسير المراجعة والثقة مكتملة على `main`.
-- `P2Q-01` منفذة ومختبرة على فرع checkpoint: اختيار audit بعد الإرسال المقفول بـCSPRNG server-side، **10% baseline / 50% high-risk** باستخدام نفس P2-03 thresholds، والنتيجة لا تُعاد للمراجع.
-- كل submission تحصل على `review_audit_selections` append-only، وSQLite تمنع خفض high-risk أو تزوير draw outcome أو الاعتماد بلا decision.
-- آخر checkpoint لـP2Q-01 قبل التوثيق اجتاز **83/83 اختبارًا** مع migrations وlint وbuild، وأصبح المشروع عند **8 migrations / 18 product tables**.
-- **التالي الحرج / Work بعد دمج P2Q-01:** `P2Q-02` — سجل نتيجة التدقيق والمعايرة: الأحداث الفائتة، فروق الشدة، تأكيد المدقق، وحجم العينة. لا تنشئ trust score قبل حد أدنى موثق للعينة.
+- `P2Q-01` مكتملة على `main`: اختيار audit بعد الإرسال المقفول بـCSPRNG server-side، **10% baseline / 50% high-risk** باستخدام نفس P2-03 thresholds، والنتيجة لا تُعاد للمراجع.
+- `P2Q-02` مكتملة تقنيًا على فرع checkpoint وجاهزة للدمج: outcome للتدقيق الفعلي + missed events + severity differences + independent auditor + calibration sample size.
+- selected audit تمنع الاعتماد حتى outcome = `confirmed`; وجود finding ينتج `correction_required` ويرجع الـassignment إلى `changes_requested`.
+- calibration summary تعرض raw counts دائمًا، لكن normalized rates تظل مخفية قبل **20 تدقيقًا مكتملًا**، ولا توجد `trustScore` مركبة أو ranking.
+- آخر checkpoint لـP2Q-02 اجتاز **95/95 اختبارًا** مع migrations وlint وbuild، وأصبح المشروع عند **9 migrations / 20 product tables**.
+- **التالي الحرج / Work بعد دمج P2Q-02:** `P2Q-03` — مجموعة معايرة مرجعية واختبار اتفاق المراجعين قبل التفعيل وبعد الانحراف.
 - البنود المناسبة للخطة المجانية عندما نريد توفير الرصيد: `P0-05`, `P3-02`, `P3-04`, `P3-05`, `P3-06`, `P4-01`، بشرط عدم تعديل إنچين الثقة أو schema أثناء تنفيذها.
 - البنود المتوسطة يمكن تنفيذها على دفعات صغيرة: `P3-01`, `P3-03`, `P4-02`, `P4-04`, `P4-05`.
-- لا تبدأ `P2Q-03` قبل إتمام `P2Q-02` واختبارها؛ ترتيب طبقات الثقة مقصود.
+- لا تبدأ `P2Q-04` قبل إتمام `P2Q-03` واختبارها؛ ترتيب طبقات الثقة مقصود.
 - نشر Cloudflare الفعلي ما زال يحتاج حساب Cloudflare مصادقًا وD1 حقيقية؛ لا تعتبر رابط `chatgpt.site` نشر الإنتاج النهائي.
 
 ## تجهيز الجهاز مرة واحدة
@@ -79,7 +81,8 @@ git push -u origin <your-branch>
 - لا تعدّل migrations قديمة تم دمجها على `main`؛ أي تغيير schema جديد يكون migration جديدة ومراجعة منفصلة.
 - لا تعتبر نجاح build وحده كافيًا؛ الأربع أوامر السابقة هي checkpoint الإلزامي.
 - لا تجعل audit-selection client-side، ولا تُظهر للمراجع هل تم اختياره؛ هذا يكسر هدف P2Q-01.
-- لا تحوّل `selected` إلى دليل ثقة أو عقوبة؛ outcome والمعايرة تنتمي إلى P2Q-02 وما بعدها.
+- لا تسمح للعميل بإرسال `reviewerSeverity` أو هوية المدقق/المراجع في P2Q-02؛ هذه قيم server-owned.
+- لا تعرض rates قبل 20 outcome مكتملة، ولا تحول counts/rates إلى trust score أو ترتيب تنافسي.
 
 ## لو لم يتوفر ربط GitHub داخل الخطة
 

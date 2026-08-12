@@ -10,6 +10,10 @@ import {
   requestReviewChanges,
   setInternalUserStatus,
 } from "@/db/internal-review-management-service";
+import {
+  getReviewerCalibrationSummary,
+  recordReviewAuditOutcome,
+} from "@/db/review-audit-outcome-service";
 import { resolveReviewReport } from "@/db/resolve-review-report";
 
 async function requireSessionEmail(): Promise<string> {
@@ -46,4 +50,15 @@ export async function approveReviewBundleEditoriallyAction(request: unknown) {
 
 export async function resolveReviewReportAction(request: unknown) {
   return resolveReviewReport({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function recordReviewAuditOutcomeAction(request: unknown) {
+  return recordReviewAuditOutcome({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function getReviewerCalibrationSummaryAction(reviewerId: string) {
+  return getReviewerCalibrationSummary({
+    sessionEmail: await requireSessionEmail(),
+    reviewerId,
+  });
 }
