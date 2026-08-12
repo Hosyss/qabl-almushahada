@@ -15,12 +15,12 @@ export type InternalAuthErrorCode =
   | "CONFIGURATION_ERROR";
 
 export class InternalAuthError extends Error {
-  constructor(
-    public readonly code: InternalAuthErrorCode,
-    message: string,
-  ) {
+  readonly code: InternalAuthErrorCode;
+
+  constructor(code: InternalAuthErrorCode, message: string) {
     super(message);
     this.name = "InternalAuthError";
+    this.code = code;
   }
 }
 
