@@ -14,12 +14,15 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 
   if (!bundleId) return <ReviewUnavailable />;
 
+  const review = await loadReviewFailClosed(bundleId);
+  return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
+}
+
+async function loadReviewFailClosed(bundleId: string) {
   try {
-    const review = await loadPublicReview({ bundleId });
-    if (!review) return <ReviewUnavailable />;
-    return <ReviewClient review={review} />;
+    return await loadPublicReview({ bundleId });
   } catch {
-    return <ReviewUnavailable />;
+    return null;
   }
 }
 
