@@ -131,6 +131,20 @@ test("submission identity and version come only from the server assignment", () 
   assert.equal(submission.versionId, "version-1");
 });
 
+test("assigned task cannot jump directly to submitted", () => {
+  expectCode(
+    () =>
+      prepareLockedReviewSubmission({
+        actor: reviewerActor,
+        assignment: { ...assignment, state: "assigned" },
+        expectedRevision: 3,
+        submissionId: "submission-direct",
+        draft: validDraft(),
+      }),
+    "ASSIGNMENT_LOCKED",
+  );
+});
+
 test("reviewer cannot edit after submitted lock", () => {
   expectCode(
     () => assertCanEditOwnDraft(reviewerActor, { ...assignment, state: "submitted" }, 3),
@@ -259,6 +273,21 @@ test("coverage under 95 percent is rejected before submission", () => {
       }),
     "INVALID_DRAFT",
   );
+});
+
+test("watch timestamps are ordered by actual instant rather than text", () => {
+  const draft = validDraft();
+  draft.startedAt = "2026-08-12T10:00:00+02:00";
+  draft.completedAt = "2026-08-12T09:50:00+00:00";
+  const submission = prepareLockedReviewSubmission({
+    actor: reviewerActor,
+    assignment,
+    expectedRevision: 3,
+    submissionId: "timezone-order",
+    draft,
+  });
+  assert.equal(submission.startedAt, draft.startedAt);
+  assert.equal(submission.completedAt, draft.completedAt);
 });
 
 test("state machine has no path from coordinator work directly to approval", () => {
