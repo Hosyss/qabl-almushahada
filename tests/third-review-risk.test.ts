@@ -2,17 +2,33 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CONTENT_CATEGORIES,
   assessReviewQuality,
   assessThirdReviewRequirement,
   createVerifiedDemoBundle,
+  decideForFamily,
+  preparePublication,
   type ContentCategory,
   type ContentFlag,
+  type FamilyProfile,
   type ObservedSeverity,
   type ReviewBundle,
+  type Severity,
 } from "../lib/review-engine/index.ts";
 
 function cloneBundle(): ReviewBundle {
   return structuredClone(createVerifiedDemoBundle());
+}
+
+function permissiveProfile(): FamilyProfile {
+  return {
+    id: "risk-test-family",
+    childAge: 10,
+    maxSeverity: Object.fromEntries(
+      CONTENT_CATEGORIES.map((category) => [category, 4]),
+    ) as Record<ContentCategory, Severity>,
+    blockedFlags: [],
+  };
 }
 
 function addConsistentObservation(
@@ -152,4 +168,24 @@ test("a suspended third reviewer never satisfies the high-risk gate", () => {
   const quality = assessReviewQuality(bundle);
   assert.equal(quality.publishable, false);
   assert.ok(quality.issues.some((issue) => issue.code === "THIRD_REVIEW_REQUIRED"));
+});
+
+test("family decision fails closed for high-risk content with only two reviewers", () => {
+  const bundle = cloneBundle();
+  addConsistentObservation(bundle, "selfHarm", 1);
+
+  const decision = decideForFamily(bundle, permissiveProfile());
+  assert.equal(decision.verdict, "insufficient_data");
+  assert.equal(decision.quality.publishable, false);
+  assert.ok(decision.quality.issues.some((issue) => issue.code === "THIRD_REVIEW_REQUIRED"));
+});
+
+test("publication preparation refuses high-risk content with only two reviewers", () => {
+  const bundle = cloneBundle();
+  addConsistentObservation(bundle, "selfHarm", 1);
+
+  const publication = preparePublication(bundle, 7);
+  assert.equal(publication.allowed, false);
+  assert.equal(publication.quality.publishable, false);
+  assert.ok(publication.quality.issues.some((issue) => issue.code === "THIRD_REVIEW_REQUIRED"));
 });
