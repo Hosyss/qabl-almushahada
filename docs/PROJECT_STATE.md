@@ -26,131 +26,101 @@
 - نشر ذري بقفل `revision` و`transition ID` وسجل تدقيق.
 - فتح بلاغ جوهري ذري يوقف النتيجة ويحوّل الحزمة إلى `conflicted` ويسقط الاعتماد الحالي من غير حذف التاريخ.
 
-## P2-02 — مكتمل على main
+## P2-02 — سير المراجعة الداخلي المحمي — مكتمل على main
 
 - أدوار أقل صلاحية منفصلة: `admin`، `review_coordinator`، `reviewer`، `editorial_reviewer`، وAdmin لا يرث صلاحيات الأدوار الأخرى.
-- bootstrap/provisioning للحسابات محميان server-side، والخادم يولد هوية reviewer ولا يقبل `reviewerId` من المتصفح.
-- المنسق يوزع المهمة باستخدام بريد حساب داخلي؛ reviewer والنسخة يُحلان من D1 والـbundle على الخادم.
-- SQLite triggers تمنع تبديل bundle/version/reviewer بعد إنشاء المهمة.
+- bootstrap/provisioning محميان server-side، والخادم يولد هوية reviewer ولا يقبل `reviewerId` من المتصفح.
+- المنسق يوزع المهمة باستخدام بريد حساب داخلي؛ reviewer والنسخة يُحلان من D1 على الخادم.
+- SQLite تمنع تبديل bundle/version/reviewer بعد إنشاء المهمة.
 - حفظ المسودة والإرسال يستخدمان optimistic revision locking؛ لا يوجد `assigned → submitted` مباشر.
-- validation النهائي يرفض تغطية أقل من 95%، المحاور الناقصة/`uncertain`، التناقضات، enums/flags المجهولة، التوقيت الخاطئ وmass assignment.
+- validation النهائي يرفض تغطية أقل من 95%، المحاور الناقصة/`uncertain`، التناقضات، القيم المجهولة، التوقيت الخاطئ وmass assignment.
 - الاعتماد التحريري يشغّل `assessReviewQuality` قبل الكتابة ويغطي كل المراجعات الحالية وspot checks وبصمة النسخة.
-- إعادة تفعيل الحساب الموقوف ممنوعة fail-closed حتى وجود سياسة معايرة/استئناف في P2Q.
 - `internal_audit_events` و`review_audit_events` append-only على مستوى SQLite.
 - المصادقة الداخلية مستقلة عن الاستضافة: `INTERNAL_AUTH_MODE` إجباري، ووضع Cloudflare Access يتحقق من JWT RS256 وissuer/audience/expiry قبل الثقة في البريد.
-- `/internal` مكتملة حسب الدور: Admin / Coordinator / Reviewer / Editorial، مع نموذج مراجع منظم وقراءة D1 مقيدة على الخادم.
+- `/internal` مكتملة حسب الدور: Admin / Coordinator / Reviewer / Editorial، والقراءة والكتابة مقيدتان على الخادم.
 
 ## P2-03 — المراجعة الثالثة حسب المخاطر — مكتمل على main
 
 - سياسة مخاطر deterministic في `lib/review-engine/risk-policy.ts`؛ لا توجد heuristics مخفية أو AI يقرر متى نطلب المراجع الثالث.
 - القاعدة العامة مراجعان نشطان مستقلان على الأقل.
-- يرتفع الحد إلى **3 مراجعين نشطين من 3 مجموعات استقلال مختلفة** عند:
-  - أي واقعة severity = 4.
-  - `selfHarm` من severity 1.
-  - `sexualContent` أو `flashingLights` من severity 2.
-  - `violence` أو `substances` أو `discrimination` أو `bullying` من severity 3.
-  - flag `flashing_sequence` من severity 1.
-  - flags `blood` أو `weapon` أو `physical_bullying` من severity 3.
+- يرتفع الحد إلى 3 مراجعين نشطين من 3 مجموعات استقلال مختلفة عند قواعد الخطر الصريحة: أي severity=4، `selfHarm` من 1، `sexualContent`/`flashingLights` من 2، `violence`/`substances`/`discrimination`/`bullying` من 3، وflags الحساسة المحددة.
 - النقص في المراجع الثالث أو مجموعة الاستقلال الثالثة يمنع القرار والنشر والاعتماد التحريري.
-- المراجع الموقوف أو غير النشط لا يحتسب.
-- checkpoint P2-03 المدموج على main اجتاز 72/72 اختبارًا، و`test:migrations` و`lint:local` و`build:local`.
 
 ## P2-04 — revisions غير قابلة للمحو — مكتمل على main
 
-- إعادة الإرسال لا تمسح facts القديمة ولا تعمل UPSERT فوق نفس submission.
-- كل إرسال جديد ينشئ `review_submissions` جديدًا بمعرّف و`revision` جديدين و`supersedes_submission_id` مباشر.
-- `review_assignments.submission_id` هو المؤشر للمراجعة الحالية فقط؛ revisions التاريخية تبقى محفوظة ولا تدخل القرار الحالي.
-- SQLite تمنع UPDATE/DELETE على submissions وcategory checks والوقائع والflags القديمة وتفرض lineage مباشرًا.
-- الاعتماد التحريري append-only أيضًا: كل approval جديدة تحمل revision متزايدة و`supersedes_approval_id` مباشر.
-- `review_bundles.current_approval_id` يشير إلى الاعتماد الحالي فقط، بينما كل الاعتمادات السابقة تبقى محفوظة.
-- P2-04 مدموج على `main` في commit `d32434356eeae46e51c0547fd46f430fa350e0a5`، وCI الخاص بـmain نجح.
+- كل إعادة إرسال تنشئ `review_submission` revision جديدة مرتبطة مباشرة بالسابقة، ولا تمسح facts القديمة.
+- `review_assignments.submission_id` يشير للمراجعة الحالية فقط؛ التاريخ يبقى محفوظًا.
+- كل اعتماد تحريري جديد ينشئ revision جديدة، و`review_bundles.current_approval_id` يشير للحالية فقط.
+- SQLite تمنع UPDATE/DELETE للتاريخ القديم وتفرض lineage مباشرًا.
+- P2-04 مدموجة على `main` في commit `d32434356eeae46e51c0547fd46f430fa350e0a5`.
 
 ## P2-05 — حسم البلاغ والتصحيح وإعادة الاعتماد — مكتمل على main
 
-- البلاغ الجوهري لا يُفتح إلا على حزمة `verified` لها current approval فعلية.
-- D1 تلتقط server-side snapshot غير قابل للتزوير: `version_id`، حالة الحزمة، revision، والاعتماد الجاري إبطاله.
-- فتح البلاغ يحول الحزمة إلى `conflicted` ويجعل `current_approval_id = NULL` فورًا من غير حذف التاريخ.
-- لا يسمح بأكثر من بلاغ `open/investigating` واحد للحزمة، ولا بإنشاء approval جديدة أثناء وجود بلاغ نشط.
-- حسم البلاغ محصور في `editorial_reviewer` نشط.
+- البلاغ الجوهري لا يفتح إلا على حزمة `verified` لها current approval فعلية، ويحفظ snapshot server-side للنسخة والحالة والrevision والاعتماد الجاري إبطاله.
+- فتح البلاغ يحول الحزمة إلى `conflicted` ويسقط `current_approval_id` فورًا من غير حذف التاريخ.
+- لا يسمح بأكثر من بلاغ نشط واحد للحزمة ولا باعتماد جديد أثناء البلاغ النشط.
+- الحسم محصور في `editorial_reviewer` نشط.
 - `no_issue` يعيد نفس الاعتماد الذي أبطله البلاغ فقط إذا لم تتغير الحالة.
-- `correction_required` يعيد assignments المعتمدة لنفس النسخة إلى `changes_requested`، ويجبر submission revisions جديدة واعتماد revision جديدة.
+- `correction_required` يعيد assignments إلى `changes_requested` ويجبر submission revisions واعتماد revision جديدين.
 - `different_version` المؤكد يسحب الحزمة بدل تعديل وقائع تحت هوية نسخة خاطئة.
-- SQLite تمنع إعادة approval أبطله تصحيح مؤكد، وتمنع أي approval تاريخية أقدم من أن تصبح current، وتمنع `verified` بلا current approval.
 - P2-05 مدموجة على `main` في commit `16a6a844f9636373df83a44204579e0164ae9cd8` عبر PR #8.
-- CI #142 على `main` بعد الدمج اجتاز **78/78 اختبارًا، 0 فشل**، ومعه migrations وlint وbuild ناجحة.
 
-## P2Q-01 — تدقيق عشوائي غير متوقع بعد الإرسال — مكتمل على main
+## P2Q-01 — تدقيق عشوائي غير متوقع — مكتمل على main
 
-- أضيفت policy مستقلة في `lib/review-audit-selection.ts` لاختيار عينة التدقيق **بعد اكتمال validation وتجميد payload الإرسال النهائي**.
-- القرعة تُولد على الخادم بـ`crypto.getRandomValues` كـCSPRNG؛ لا يأتي draw أو rate أو risk tier أو selected من المتصفح.
-- السياسة الأولية صريحة وقابلة للمراجعة:
-  - **10%** للحالات العادية (`1000 bps`).
-  - **50%** للحالات عالية الحساسية (`5000 bps`).
-- high-risk يعيد استخدام **نفس P2-03 thresholds**، فلا يوجد تعريف مخاطر موازٍ أو hidden heuristic.
-- المقارنة تتم مباشرة على نطاق uint32 بدل `%`، فتتجنب modulo bias.
-- high-risk ليست 100% عمدًا حتى لا يستطيع المراجع توقع أن كل حالة حساسة ستدخل تدقيقًا.
-- قرار الاختيار يُكتب في **نفس D1 batch** الخاصة بالإرسال المقفول، واستجابة submit للمراجع لا تحتوي نتيجة الاختيار.
-- جدول `review_audit_selections` يسجل قرارًا واحدًا لكل submission سواء selected أو لا: هوية submission/assignment/bundle/version/reviewer، risk tier، rate، draw، selected، triggers، ووقت الإنشاء.
-- القرارات append-only؛ SQLite تمنع UPDATE/DELETE.
-- SQLite تعيد التحقق من هوية submission الحالية، ومن high-risk thresholds، ومن 10%/50%، ومن أن `selected` يطابق draw الفعلي؛ down-rating أو تزوير نتيجة القرعة يُرفض.
-- SQLite تمنع انتقال assignment إلى `approved` إذا لم توجد audit-selection decision للمراجعة الحالية، وتمنع جعل bundle `verified` إذا كانت أي submission حالية بلا decision.
-- P2Q-01 تختار العينة وتسجل القرار فقط؛ تنفيذ التدقيق الفعلي وoutcome والمعايرة هي `P2Q-02`.
-- migration `0007_random_audit_selection.sql` رفعت الإجمالي إلى **8 migrations / 18 product tables**.
-- الاختبارات تشمل pure policy وSQLite guards للـrisk/rate/draw/immutability والاعتماد بلا decision.
-- P2Q-01 مدموجة على `main` في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd` عبر PR #10.
-- CI #159 على `main` بعد الدمج نجح في **83/83 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
+- اختيار العينة يحدث بعد تجميد الإرسال النهائي باستخدام CSPRNG على الخادم.
+- السياسة الأولية: 10% للحالات العادية و50% للحالات عالية الحساسية وفق نفس قواعد P2-03.
+- كل submission تحصل على decision append-only سواء اختيرت أم لا.
+- SQLite تعيد التحقق من risk tier والنسبة والdraw و`selected`، ولا اعتماد أو `verified` من دون decision للمراجعة الحالية.
+- P2Q-01 مدموجة عبر PR #10 في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd`.
 
 ## P2Q-02 — نتيجة التدقيق ومعايرة المراجع — مكتملة على main
 
-- أضيفت `review_audit_outcomes` و`review_audit_findings` كسجل append-only لنتيجة التدقيق الفعلي والـfindings.
-- لا يسجل outcome إلا `editorial_reviewer` نشط وله reviewer identity نشطة ومستقلة عن المراجع الأصلي؛ self-audit ونفس مجموعة الاستقلال مرفوضان.
-- selected submission تظل مانعة للاعتماد حتى يكتمل outcome بـ`confirmed`؛ SQLite تمنع editorial approval و`verified` قبل ذلك.
-- `confirmed` لا يقبل findings. وجود `missed_event` أو `severity_difference` ينتج `correction_required` ويرجع الـassignment ذريًا إلى `changes_requested`.
-- هوية المراجع والمدقق وشدة المراجع الأصلية تُحل من D1؛ العميل لا يستطيع إرسال أو تزوير `reviewerSeverity` أو server-owned identities.
-- findings تدعم الحدث الفائت بمحور/شدة/توقيت مضبوط، وفرق الشدة ضد observation موجودة داخل نفس submission فقط.
-- outcome النهائي والfindings محمية من UPDATE/DELETE بعد الإقفال؛ سجل audit يسجل confirmed أو correction_required.
-- `getReviewerCalibrationSummary` يحسب النتائج من outcomes المكتملة المخزنة، وليس من قيمة client-side أو UI state.
-- حجم العينة وraw counts متاحان للتدقيق، لكن normalized rates تظل `null` قبل **20 تدقيقًا مكتملًا** للمراجع؛ عند 20 تبدأ rates basis-points بالظهور.
-- لا توجد composite `trustScore` ولا ranking للمراجعين؛ P2Q-02 تقدم evidence/counts/rates فقط.
-- migration `0008_reviewer_calibration_outcomes.sql` رفعت الإجمالي إلى **9 migrations / 20 product tables**.
-- P2Q-02 مدموجة على `main` في commit `120a43d62517141a3ed0c14cd07d6128655303fa` عبر PR #12.
-- CI #178 على `main` بعد الدمج اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
+- `review_audit_outcomes` و`review_audit_findings` append-only.
+- التدقيق لا يسجله إلا `editorial_reviewer` نشط ومستقل؛ self-audit ونفس مجموعة الاستقلال مرفوضان.
+- `confirmed` يمر بلا findings، و`correction_required` يرجع assignment إلى `changes_requested`.
+- هوية المراجع والمدقق وشدة المراجع الأصلية تُحل من D1 server-side.
+- raw counts وحجم العينة متاحان دائمًا، لكن normalized rates تظل `null` قبل 20 تدقيقًا مكتملًا.
+- لا توجد composite `trustScore` ولا ranking للمراجعين.
+- P2Q-02 مدموجة عبر PR #12 في commit `120a43d62517141a3ed0c14cd07d6128655303fa`.
 
 ## P2Q-03 — المعايرة المرجعية قبل التفعيل — مكتملة على main
 
-- أضيفت `reviewer_reference_sets`, `reviewer_reference_cases`, `reviewer_reference_attempts`, و`reviewer_reference_case_results`؛ الإجمالي أصبح **10 migrations / 24 product tables**.
-- المراجع الجديد يبدأ `probation` على مستوى قاعدة البيانات ولا يمكن أن يصبح `active` قبل اجتياز معايرة مرجعية ناجحة على المجموعة النشطة.
-- سياسة Pass/Fail صريحة بلا trust score مركبة: **10 حالات على الأقل، ≥95% اتفاق المحاور، ≥90% recall، ≥90% precision، صفر واقعة عالية الحساسية فائتة، وأقصى فرق شدة = 1**.
-- مقارنة الوقائع deterministic حسب المحور والتوقيت، وتتطلب overlap مع فرق بداية لا يزيد عن 20 ثانية؛ لا يوجد AI/semantic matching في المعايرة.
-- الـAdmin وحده ينشئ/يفعّل المجموعة المرجعية، والمراجع يبدأ محاولته من حسابه من دون اختيار المجموعة أو رؤية الإجابات المرجعية.
-- SQLite تمنع أكثر من مجموعة مرجعية نشطة، وتمنع تفعيل مجموعة ناقصة، وتمنع إضافة/تعديل/حذف الحالات بعد التفعيل.
-- هوية attempt (`reviewer_id`, `set_id`, `purpose`, `started_at`) ثابتة بعد البداية، والنتائج append-only، والـPass النهائي يعيد حساب metrics من case results المخزنة بدل الثقة في summary من التطبيق.
-- reference case يجب أن تأتي من submission حالية معتمدة داخل bundle `verified`، وأن تكون مستقلة عن المراجع الجاري اختباره؛ self-reference ونفس مجموعة الاستقلال مرفوضان.
-- صلاحية المرجع يعاد التحقق منها عند بدء المحاولة، وعند كتابة كل case result، وعند الإقفال النهائي؛ سحب المرجع أو دخوله conflict أثناء المحاولة يفشل المسار مغلقًا.
-- تقاعد المجموعة ممنوع أثناء وجود attempts مفتوحة، وإعادة تفعيل reviewer موقوفة تحتاج Pass حديثًا بعد وقت الإيقاف.
-- `drizzle.config.ts` صار يقرأ `db/schema.ts` و`db/review-workflow-schema.ts` معًا، وتمت مطابقة partial unique indexes في Drizzle مع SQLite الفعلية.
-- P2Q-03 دُمجت على `main` عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`.
-- CI #199 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+- المراجع الجديد يبدأ `probation` ولا يصبح `active` قبل Pass مرجعي ناجح.
+- Pass/Fail صريح: 10 حالات على الأقل، ≥95% اتفاق المحاور، ≥90% recall، ≥90% precision، صفر حدث عالي الحساسية فائت، وأقصى فرق شدة = 1.
+- المقارنة deterministic ولا تستخدم AI/semantic matching.
+- الـAdmin وحده ينشئ/يفعّل المجموعة المرجعية، والمراجع لا يرى الإجابات المرجعية.
+- SQLite تمنع مجموعة نشطة ناقصة أو أكثر من مجموعة نشطة، وتمنع تعديل الحالات بعد التفعيل، وتعيد التحقق من صلاحية المرجع أثناء المحاولة حتى الإقفال.
+- إعادة تفعيل reviewer موقوفة تحتاج Pass حديثًا بعد وقت الإيقاف.
+- الإجمالي بعد P2Q-03: 10 migrations / 24 product tables.
+- P2Q-03 دُمجت عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`، وCI #199 على `main` نجح بالكامل.
 
 ## P2Q-04 — Safety Hold تلقائي وآمن — مكتملة على main
 
 - السياسة versioned في `lib/reviewer-safety-hold.ts` ولا تنتج trust score أو ranking.
-- Hold فوري مؤقت عند أحدث audit مستقلة إذا ظهر **حدث عالي الحساسية فائت** أو `maxSeverityDelta = 3`.
-- قواعد النمط المتكرر لا تعمل قبل **20 audit مكتملة في دورة المراجع الحالية**؛ داخل آخر 20: **5 correction_required** أو **3 audits بها missed events** أو **3 audits بها severity delta ≥2** تؤدي إلى Hold.
-- الـepoch الحالية مرتبطة بوقت آخر activation/reactivation، وSQLite تمنع timestamp-only update لمراجع active من تصفير النافذة بالخطأ.
-- hold/resolution تُسجل كأحداث append-only في `internal_audit_events`؛ لا يوجد جدول حالة موازٍ قابل للانحراف.
-- أي Hold صالح يعلق `reviewers.status` والحساب الداخلي المقابل، مع الحفاظ على الهوية والدور والتاريخ.
-- الـHold تسقط الثقة الحالية من أي bundle تعتمد على نفس الهوية **كمراجع أو كمدقق audit أو كمعتمد تحريري**، وتحولها إلى `conflicted` وتسقط `current_approval_id` من غير حذف التاريخ؛ الحزم غير المرتبطة تظل سليمة.
-- الحزمة التي أنتجت `correction_required` مستثناة من invalidation العام حتى يستطيع نفس transaction إكمال `changes_requested` و`under_review` بعد وضع الـHold.
-- الاشتباه اليدوي في التواطؤ Admin-only، ويتطلب 1–20 audit evidence IDs موجودة، ويجب أن يكون بعضها مرتبطًا بالمراجع المستهدف. `COLLUSION_SUSPICION` يعني تحقيقًا مطلوبًا وليس إثبات تواطؤ.
-- المتصفح لا يحدد reviewerId/source/policyVersion/triggerCodes/actor؛ الخادم يملك هذه الهوية والقيم.
-- unresolved hold يمنع activation ويمنع بدء reference reactivation/drift. الحسم البشري Admin-only ومرة واحدة، لكنه لا يعيد التفعيل وحده.
-- مسار العودة: **Human resolution → fresh P2Q-03 reference calibration → Admin activation**؛ لذلك لا قرار بشري وحده ولا calibration قديمة تكفي.
-- اختبارات SQLite تثبت 4/20 لا توقف و5/20 توقف، وأن الـ20th `confirmed` تقيّم النافذة، وأن Hold لا تكسر transaction التصحيح للحزمة التي كشفت الخطأ.
-- لم تُضف جداول منتج جديدة؛ checkpoint = **18 migration files / 24 product tables**.
-- P2Q-04 دُمجت على `main` عبر PR #16 في commit `70eeb381bdb834ff89b646ac20263602e531d61f`.
-- CI #234 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
-- آخر checkpoint قبل الدمج كان **122/122 اختبارًا، 0 فشل**؛ التفاصيل التشغيلية في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
+- Hold فوري مؤقت عند حدث عالي الحساسية فائت أو `maxSeverityDelta = 3`.
+- قواعد النمط لا تعمل قبل 20 audit مكتملة في دورة المراجع الحالية؛ داخل آخر 20: 5 `correction_required` أو 3 audits بها missed events أو 3 audits بها severity delta ≥2 تؤدي إلى Hold.
+- hold/resolution append-only في `internal_audit_events`.
+- الـHold يعلق reviewer والحساب الداخلي ويحافظ على الهوية والدور والتاريخ.
+- الـHold تسقط الثقة الحالية من أي bundle تعتمد على الهوية كمراجع أو مدقق أو معتمد تحريري، بينما الحزم غير المرتبطة تظل سليمة.
+- الاشتباه اليدوي في التواطؤ Admin-only ويتطلب audit evidence مخزنة مرتبطة بالمراجع، ويعني تحقيقًا لا إدانة.
+- العودة تتطلب: Human resolution → fresh P2Q-03 calibration → Admin activation.
+- checkpoint = 18 migration files / 24 product tables.
+- P2Q-04 دُمجت عبر PR #16 في commit `70eeb381bdb834ff89b646ac20263602e531d61f`، وCI #234 على `main` نجح بالكامل.
+
+## P2Q-05 — لوحة الجودة والأدلة — مكتملة على main
+
+- أضيفت صفحة داخلية مرئية `/internal/quality` لعرض أدلة الجودة الفعلية من D1.
+- الوصول محصور server-side في `admin` و`editorial_reviewer` النشطين؛ المراجع والمنسق لا يحصلان على هذه الرؤية.
+- الصفحة read-only ولا تحتوي أي mutation للـHold أو نتائج التدقيق أو المعايرة.
+- تعرض Safety Holds مع أسبابها وقرارات الحسم البشري، الحزم/البلاغات المتعارضة، Audit Calibration، وReference Calibration.
+- normalized audit rates لا تظهر قبل 20 تدقيقًا مكتملًا، بما يطابق P2Q-02.
+- لا توجد trust score أو ranking أو leaderboard للمراجعين.
+- أضيف مدخل مرئي من `/internal` للأدوار المصرح لها، مع إعادة التحقق من الصلاحية داخل الخدمة نفسها.
+- استعلامات لوحة الجودة تُختبر على SQLite بعد تطبيق جميع migrations، وليس بالـcompile فقط.
+- لا schema أو migrations جديدة في P2Q-05؛ الإجمالي يظل **18 migration files / 24 product tables**.
+- checkpoint التشغيلي موثق في `docs/P2Q-05_QUALITY_DASHBOARD_CHECKPOINT.md`.
+- P2Q-05 دُمجت عبر PR #18 في commit `f2bccaa7a92ba07bf73523139774c05c92f08b1d`.
+- CI #250 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
 
 ## Cloudflare — إعداد الإنتاج
 
@@ -159,7 +129,7 @@
 - `scripts/prepare-cloudflare-deploy.mjs` يولد config إنتاج بعد التحقق من D1 UUID/Name الحقيقيين؛ placeholder المحلي مرفوض.
 - config الإنتاج يربط `DB` و`IMAGES` ويستخدم `nodejs_compat` وWorkers observability.
 - Cloudflare Access عند تفعيله يتحقق server-side، والمسارات الداخلية تفشل مغلقًا إذا لم تكن المصادقة مضبوطة.
-- أضيفت أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy`، ولا تُنسخ API tokens أو Account IDs إلى Worker config.
+- أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy` موجودة، ولا تُنسخ API tokens أو Account IDs إلى Worker config.
 - **لم يحدث remote deploy بعد** لأن الجلسة لا تملك Cloudflare API/CLI authentication متصلًا لإنشاء D1 حقيقية أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل ذلك.
 
 ## ما يزال تجريبيًا أو مؤجلًا
@@ -169,18 +139,18 @@
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
-- لوحة الجودة الداخلية `P2Q-05` لم تُنفذ بعد.
 
 ## الروابط الحالية
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
+- آخر PR مكتمل: `https://github.com/Hosyss/qabl-almushahada/pull/18`
 - الموقع المنشور القديم: `https://qabl-almushahada.hosys.chatgpt.site`
 - الرابط القديم لا يحتوي آخر سير العمل ولا يُعتبر نشر Cloudflare النهائي.
 
 ## نقطة البدء التالية
 
-1. التالي: `P2Q-05` **متوسط** — لوحة جودة تعرض أسباب الوقف والتعارض ومؤشرات المعايرة من غير ranking تنافسي.
+1. التالي: `P3-01` **متوسط** — بحث عربي يدعم اختلافات الكتابة والاسم الأصلي.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
+3. أعمال الواجهة الخفيفة وربط البيانات العامة تستمر حسب ROADMAP من دون تخفيف بوابات الثقة المكتملة.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
