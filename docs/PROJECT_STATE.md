@@ -1,6 +1,6 @@
 # حالة مشروع «قبل المشاهدة»
 
-آخر تحديث: 12 أغسطس 2026
+آخر تحديث: 13 أغسطس 2026
 
 ## الرؤية الحالية
 
@@ -21,6 +21,7 @@
 - Hero عائلي برسمة أشجار، بحث حقيقي متصل بـD1، اقتراحات قابلة للنقر، وحدود أسرة تفاعلية.
 - صفحة `/search` حقيقية تعرض نتائج الدليل وحالة المراجعة من البيانات الفعلية، وتربط المراجعة الموثقة بالحزمة المنشورة نفسها.
 - صفحة `/review` حقيقية تقرأ مراجعة D1 موثقة محددة بـ`bundleId` وتفشل مغلقًا عند stale/invalid state بدل أي Demo fallback، مع وضع «من غير حرق» لا يؤلف وقائع بديلة.
+- حدود الأسرة تُحفظ محليًا في المتصفح بعقد صارم لا يحتوي اسم طفل أو تاريخ ميلاد، وتعود بعد إعادة فتح الصفحة عندما يكون التخزين المحلي متاحًا.
 - نواة إنچين قرار TypeScript مستقلة عن الواجهة، مع fail-safe يعيد `insufficient_data` عند نقص أو تعارض.
 - بوابات جودة تمنع المصدر الواحد، مجموعات الاستقلال غير الكافية، `uncertain`، اختلاف وجود المحور، وفروق الشدة الكبيرة.
 - محوّل صارم من صفوف D1 إلى schema الإنچين؛ القيم المجهولة تُرفض.
@@ -197,7 +198,7 @@
 - P3-02 دُمجت على `main` عبر PR #22 في commit `a34ae4c67305553b90a53b1b943ce8cad3cf040f`.
 - CI #271 على `main` بعد الدمج نجح في **146/146 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local` أيضًا.
 
-## P3-03 — صفحة المراجعة الحقيقية — مكتملة وظيفيًا
+## P3-03 — صفحة المراجعة الحقيقية — مكتملة على main
 
 - `/review` أصبحت Server Page تقرأ locator محددًا `bundleId` من الرابط وتطلب المراجعة عبر خدمة D1 الحقيقية؛ لا يوجد fallback إلى النموذج التجريبي عند missing/invalid/stale locator.
 - بوابة العرض العام تشترط حزمة `verified` منشورة، نسخة `active`، `current_approval_id` حالية وحالتها `approved`، وعدم وجود بلاغ `open` أو `investigating`.
@@ -208,39 +209,46 @@
 - وضع «من غير حرق» يخفي summary المخزنة عندما `spoilerLevel` ليس `none`، ولا يؤلف حدثًا بديلًا. الثقة تعرض label نوعيًا فقط ولا توجد numeric trust score جديدة.
 - `scripts/verify-public-review.mts` يطبق كل migrations على SQLite ويثبت: الحالة الصالحة تمر، report المفتوح/قيد التحقيق يمنع، bundle conflicted/withdrawn يمنع، version superseded/withdrawn يمنع، وإزالة/تغيير current approval يمنع stale request مع سلامة foreign keys.
 - لا schema أو migration جديدة في P3-03؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- CI #278 على feature checkpoint `7111959678d724873e8dd18bc53f4a82377adbcb` نجح في **155/155 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local`.
-- CI #279 بعد تحديث ROADMAP نجح كذلك في engine/migrations/lint/build بالكامل.
-- PR #24 هو مسار دمج P3-03 إلى `main`؛ لا تبدأ P3-04 قبل اكتمال الدمج ونجاح CI على `main` ثم تنفيذ أول Cloudflare deploy حقيقي.
+- P3-03 دُمجت إلى `main` عبر PR #24 في commit `adc037eafb5ac9ba6f9089f2ed503ef9084f82a7`.
+- قبل الدمج اجتاز checkpoint **155/155 اختبارًا، 0 فشل**، مع `test:migrations`, `lint:local`, و`build:local` ناجحة.
 
-## Cloudflare — إعداد الإنتاج
+## P3-04 — حفظ حدود الأسرة محليًا — مكتملة وظيفيًا
 
-- الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
-- `vite.config.ts` يفصل preview المحلي عن production، والـplaceholder D1 لا يُستخدم في production config.
-- `scripts/prepare-cloudflare-deploy.mjs` يولد config إنتاج بعد التحقق من D1 UUID/Name الحقيقيين؛ placeholder المحلي مرفوض.
-- config الإنتاج يربط `DB` و`IMAGES` ويستخدم `nodejs_compat` وWorkers observability.
-- Cloudflare Access عند تفعيله يتحقق server-side، والمسارات الداخلية تفشل مغلقًا إذا لم تكن المصادقة مضبوطة.
-- أضيفت أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy`، ولا تُنسخ API tokens أو Account IDs إلى Worker config.
-- **لم يحدث remote deploy بعد** لأن الجلسة لا تملك حتى هذه النقطة Cloudflare API/CLI authentication متصلًا لإنشاء D1 حقيقية أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل ذلك.
+- أضيف عقد تخزين versioned بالمفتاح `qabl-almushahada.family-settings.v1` داخل `lib/local-family-settings.ts`.
+- البيانات المحفوظة محصورة صراحة في `childAge`, `fearLimit`, و`avoidBullying` فقط؛ لا اسم طفل ولا تاريخ ميلاد ولا معرف شخصي.
+- parser يرفض JSON التالف، النسخة غير المعروفة، القيم خارج حدود الواجهة، وأي حقول إضافية بدل الاحتفاظ بها بصمت.
+- الصفحة الرئيسية تستعيد الإعدادات المحفوظة بعد التحميل، وتحفظ التغييرات عند تفاعل المستخدم. إذا كان `localStorage` غير متاح تستمر الإعدادات للجلسة الحالية فقط وتعرض الواجهة ذلك بدل ادعاء نجاح الحفظ.
+- لا تُرسل حدود الأسرة إلى D1 أو Worker، ولا توجد schema/migration جديدة؛ الإجمالي يظل **18 migration files / 24 product tables**.
+- اختبارات P3-04 تثبت round-trip للحقول المسموح بها، رفض `childName` و`dateOfBirth` كحقول إضافية، ورفض القيم malformed/stale/out-of-range.
+- checkpoint الفرع بعد إصلاح React synchronization نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+
+## Cloudflare — الإنتاج الفعلي
+
+- الإنتاج يعمل على Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
+- D1 الإنتاجية `qabl-almushahada-production` موجودة ومطبّق عليها **18/18 migrations**، والتحقق البعيد أكد وجود جداول المشروع المطلوبة.
+- Worker الإنتاج يملك bindings فعلية: `DB`, `IMAGES`, و`ASSETS`. إضافة `ASSETS` كانت مطلوبة لمنع 404 على المسارات العامة مع Vinext.
+- آخر نشر مؤكد على commit `1b58d4bd2a458bbf5a4fa5ea234597092195570f` نجح كاملًا، بما فيه smoke tests على `/`, `/review`, و`/search?q=nemo`.
+- رابط Worker العام: `https://qabl-almushahada.buildtools.workers.dev`.
+- Cloudflare Access للمسارات الداخلية يظل fail-closed ما لم تُضبط متغيرات Access الكاملة؛ لا يوجد fallback صامت لهوية غير موثقة.
+- لا تُنسخ API tokens أو Account IDs إلى Worker config.
 
 ## ما يزال تجريبيًا أو مؤجلًا
 
 - أسماء الأعمال والوقائع الموجودة داخل أقسام العرض التجريبية في الصفحة الرئيسية ما زالت أمثلة تصميمية وليست مراجعات منشورة.
-- إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
-- لا توجد بيانات إنتاج حقيقية في D1 منشورة حتى الآن.
+- لم تُزرع بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب bundle موثقة حقيقية يظل fail-closed.
+- P3-05 فلاتر البحث، P3-06 صفحات السياسة، ومراحل الجودة/الإطلاق ما زالت لاحقة حسب ROADMAP.
 
 ## الروابط الحالية
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
-- PR الحالي لـP3-03: `https://github.com/Hosyss/qabl-almushahada/pull/24`
-- الموقع المنشور القديم: `https://qabl-almushahada.hosys.chatgpt.site`
-- الرابط القديم لا يحتوي آخر سير العمل ولا يُعتبر نشر Cloudflare النهائي.
+- الموقع العام على Cloudflare: `https://qabl-almushahada.buildtools.workers.dev`
+- الموقع القديم `https://qabl-almushahada.hosys.chatgpt.site` ليس مصدر النشر الحالي.
 
 ## نقطة البدء التالية
 
-1. أكمل PR #24، وتأكد من CI على `main` بعد الدمج.
-2. بعدها مباشرة — وقبل P3-04 — نفّذ أول Cloudflare Workers + D1 deploy حقيقي: إنشاء/ربط D1، تطبيق migrations، deploy، واختبار URL العام الفعلي.
-3. لا تُدخل بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب مراجعة حقيقية يجب أن يظل fail-closed.
-4. بعد تثبيت النشر الفعلي فقط نعود لبقية ROADMAP، وأولها P3-04.
+1. ثبّت P3-04 على `main` فقط بعد CI أخضر وفحص الـdiff، ثم تحقق من Cloudflare deploy وsmoke tests بعد الدمج.
+2. لا تُدخل بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب مراجعة حقيقية يجب أن يظل fail-closed.
+3. بعد تثبيت P3-04، البند التالي في ROADMAP هو `P3-05` — فلاتر واضحة حسب النوع والعمر وحالة التحقق.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
