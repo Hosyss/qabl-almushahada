@@ -35,26 +35,29 @@ BEFORE INSERT ON `review_reports`
 FOR EACH ROW
 WHEN NEW.`version_id` IS NULL
   OR length(trim(NEW.`version_id`)) = 0
-  OR NEW.`previous_bundle_status` IS NULL
-  OR NEW.`previous_bundle_status` NOT IN ('draft', 'under_review', 'conflicted', 'verified')
+  OR NEW.`status` != 'open'
+  OR NEW.`previous_bundle_status` IS NOT 'verified'
   OR NEW.`previous_bundle_revision` IS NULL
   OR NEW.`previous_bundle_revision` < 0
+  OR NEW.`invalidated_approval_id` IS NULL
   OR NEW.`revision` != 0
   OR NEW.`resolution_kind` IS NOT NULL
+  OR NEW.`resolution_note` IS NOT NULL
   OR NEW.`resolved_by_user_id` IS NOT NULL
   OR NEW.`resolved_at` IS NOT NULL
+  OR NEW.`last_transition_id` IS NOT NULL
   OR NOT EXISTS (
     SELECT 1 FROM `review_bundles`
     WHERE `id` = NEW.`bundle_id`
       AND `version_id` = NEW.`version_id`
+      AND `status` = NEW.`previous_bundle_status`
+      AND `revision` = NEW.`previous_bundle_revision`
+      AND `current_approval_id` IS NEW.`invalidated_approval_id`
   )
-  OR (
-    NEW.`invalidated_approval_id` IS NOT NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM `editorial_approvals`
-      WHERE `id` = NEW.`invalidated_approval_id`
-        AND `bundle_id` = NEW.`bundle_id`
-    )
+  OR NOT EXISTS (
+    SELECT 1 FROM `editorial_approvals`
+    WHERE `id` = NEW.`invalidated_approval_id`
+      AND `bundle_id` = NEW.`bundle_id`
   )
 BEGIN
   SELECT RAISE(ABORT, 'review report opening snapshot is invalid');
