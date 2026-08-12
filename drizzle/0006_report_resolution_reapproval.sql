@@ -147,3 +147,27 @@ WHEN EXISTS (
 BEGIN
   SELECT RAISE(ABORT, 'active review report blocks current approval and verification');
 END;
+--> statement-breakpoint
+CREATE TRIGGER `review_bundles_verified_requires_current_approval`
+BEFORE UPDATE OF `current_approval_id`, `status` ON `review_bundles`
+FOR EACH ROW
+WHEN NEW.`status` = 'verified'
+  AND NEW.`current_approval_id` IS NULL
+BEGIN
+  SELECT RAISE(ABORT, 'verified bundle requires a current editorial approval');
+END;
+--> statement-breakpoint
+CREATE TRIGGER `review_bundles_no_invalidated_approval_restore_after_correction`
+BEFORE UPDATE OF `current_approval_id` ON `review_bundles`
+FOR EACH ROW
+WHEN NEW.`current_approval_id` IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM `review_reports`
+    WHERE `bundle_id` = NEW.`id`
+      AND `status` = 'resolved'
+      AND `resolution_kind` = 'correction_required'
+      AND `invalidated_approval_id` = NEW.`current_approval_id`
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'confirmed correction requires a new editorial approval revision');
+END;
