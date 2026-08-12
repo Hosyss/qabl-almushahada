@@ -22,6 +22,10 @@ import {
   startOwnReferenceCalibrationAttempt,
   submitOwnReferenceCalibrationCase,
 } from "@/db/reviewer-reference-calibration-service";
+import {
+  placeManualReviewerSafetyHold,
+  resolveReviewerSafetyHold,
+} from "@/db/reviewer-safety-hold-service";
 import { resolveReviewReport } from "@/db/resolve-review-report";
 
 async function requireSessionEmail(): Promise<string> {
@@ -93,4 +97,12 @@ export async function submitOwnReferenceCalibrationCaseAction(request: unknown) 
 
 export async function activateCalibratedReviewerAction(request: unknown) {
   return activateCalibratedReviewer({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function placeManualReviewerSafetyHoldAction(request: unknown) {
+  return placeManualReviewerSafetyHold({ sessionEmail: await requireSessionEmail(), request });
+}
+
+export async function resolveReviewerSafetyHoldAction(request: unknown) {
+  return resolveReviewerSafetyHold({ sessionEmail: await requireSessionEmail(), request });
 }
