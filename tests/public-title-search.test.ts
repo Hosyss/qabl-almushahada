@@ -44,6 +44,7 @@ test("exact canonical match outranks a verified prefix match", () => {
       kind: "movie",
       releaseYear: 2026,
       hasVerifiedReview: true,
+      hasReviewInProgress: false,
     },
     {
       id: "exact",
@@ -52,6 +53,7 @@ test("exact canonical match outranks a verified prefix match", () => {
       kind: "movie",
       releaseYear: 2003,
       hasVerifiedReview: false,
+      hasReviewInProgress: false,
     },
   ]);
   assert.equal(results[0]?.id, "exact");
@@ -68,6 +70,7 @@ test("original-name exact match works for English searches", () => {
       kind: "movie",
       releaseYear: 2003,
       hasVerifiedReview: true,
+      hasReviewInProgress: false,
     },
   ]);
   assert.equal(results[0]?.id, "nemo");
@@ -84,6 +87,7 @@ test("token matching can span canonical and original names without inventing fuz
       kind: "movie",
       releaseYear: 2003,
       hasVerifiedReview: true,
+      hasReviewInProgress: false,
     },
     {
       id: "other",
@@ -92,6 +96,7 @@ test("token matching can span canonical and original names without inventing fuz
       kind: "movie",
       releaseYear: 2016,
       hasVerifiedReview: true,
+      hasReviewInProgress: false,
     },
   ]);
   assert.deepEqual(results.map((item) => item.id), ["nemo"]);
@@ -107,12 +112,13 @@ test("public ranking is deterministically capped", () => {
     kind: "movie" as const,
     releaseYear: 2000 + index,
     hasVerifiedReview: false,
+    hasReviewInProgress: false,
   }));
   const results = rankPublicTitleSearchCandidates(parsed, candidates);
   assert.equal(results.length, MAX_PUBLIC_TITLE_SEARCH_RESULTS);
 });
 
-test("candidate SQL remains parameterized and bounded", () => {
+test("candidate SQL remains parameterized, bounded and distinguishes review progress", () => {
   const parsed = parsePublicTitleSearchRequest({ query: "نيمو finding" });
   const candidateQuery = buildPublicTitleCandidateQuery(parsed);
 
@@ -122,6 +128,7 @@ test("candidate SQL remains parameterized and bounded", () => {
   assert.match(candidateQuery.sql, /v\.status = 'active'/);
   assert.match(candidateQuery.sql, /b\.status = 'verified'/);
   assert.match(candidateQuery.sql, /b\.current_approval_id IS NOT NULL/);
+  assert.match(candidateQuery.sql, /b\.status IN \('draft', 'under_review', 'conflicted'\)/);
   assert.equal(candidateQuery.bindings.length, 8);
   assert.equal(candidateQuery.bindings[0], buildSqlSubsequencePattern("نيمو"));
   assert.equal(candidateQuery.bindings[1], buildSqlSubsequencePattern("نيمو"));

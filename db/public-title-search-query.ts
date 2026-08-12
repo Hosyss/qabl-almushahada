@@ -93,10 +93,18 @@ export function buildPublicTitleCandidateQuery(
             AND v.status = 'active'
             AND b.status = 'verified'
             AND b.current_approval_id IS NOT NULL
-        ) THEN 1 ELSE 0 END AS hasVerifiedReview
+        ) THEN 1 ELSE 0 END AS hasVerifiedReview,
+        CASE WHEN EXISTS (
+          SELECT 1
+          FROM title_versions v
+          INNER JOIN review_bundles b ON b.version_id = v.id
+          WHERE v.title_id = t.id
+            AND v.status = 'active'
+            AND b.status IN ('draft', 'under_review', 'conflicted')
+        ) THEN 1 ELSE 0 END AS hasReviewInProgress
       FROM titles t
     )
-    SELECT id, canonicalName, originalName, kind, releaseYear, hasVerifiedReview
+    SELECT id, canonicalName, originalName, kind, releaseYear, hasVerifiedReview, hasReviewInProgress
     FROM searchable_titles
     WHERE ${tokenPredicates.join(" AND ")}
     ORDER BY
@@ -108,6 +116,7 @@ export function buildPublicTitleCandidateQuery(
         ELSE 4
       END ASC,
       hasVerifiedReview DESC,
+      hasReviewInProgress DESC,
       releaseYear DESC,
       id ASC
     LIMIT ${MAX_PUBLIC_TITLE_SEARCH_CANDIDATES}`,

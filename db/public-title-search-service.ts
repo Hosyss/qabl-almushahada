@@ -16,6 +16,7 @@ interface CandidateRow {
   kind: string;
   releaseYear: number;
   hasVerifiedReview: number;
+  hasReviewInProgress: number;
 }
 
 export async function searchPublicTitles(input: unknown): Promise<PublicTitleSearchResult[]> {
@@ -47,6 +48,7 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
     return null;
   }
   if (row.hasVerifiedReview !== 0 && row.hasVerifiedReview !== 1) return null;
+  if (row.hasReviewInProgress !== 0 && row.hasReviewInProgress !== 1) return null;
 
   return {
     id: row.id,
@@ -55,6 +57,7 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
     kind,
     releaseYear: row.releaseYear,
     hasVerifiedReview: row.hasVerifiedReview === 1,
+    hasReviewInProgress: row.hasReviewInProgress === 1,
   };
 }
 

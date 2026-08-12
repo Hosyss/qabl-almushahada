@@ -100,16 +100,16 @@ export default function Home() {
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanQuery = query.trim();
-    setSearchMessage(
-      cleanQuery
-        ? `هنعرض لك نتيجة «${cleanQuery}» هنا بعد إضافة قاعدة العناوين.`
-        : "اكتب اسم فيلم أو مسلسل علشان نبحث عنه.",
-    );
+    if (!cleanQuery) {
+      setSearchMessage("اكتب اسم فيلم أو مسلسل علشان نبحث عنه.");
+      return;
+    }
+    window.location.assign(`/search?q=${encodeURIComponent(cleanQuery)}`);
   }
 
   function chooseSuggestion(value: string) {
     setQuery(value);
-    setSearchMessage(`اختيار ممتاز — «${value}» ضمن عينة المراجعة المقترحة.`);
+    setSearchMessage(`جاهز للبحث عن «${value}».`);
   }
 
   return (

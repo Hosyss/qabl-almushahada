@@ -39,6 +39,24 @@ db.prepare(
    VALUES (?, ?, ?, ?, ?)`,
 ).run("search-unrelated", "مدينة الغيم", "Cloud City", "series", 2025);
 
+db.prepare(
+  `INSERT INTO title_versions (
+     id, title_id, edition_label, platform, language, runtime_seconds, content_fingerprint, status
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+).run(
+  "search-version",
+  "search-original",
+  "نسخة اختبار",
+  "test",
+  "ar",
+  6000,
+  "search-fingerprint-0001",
+);
+db.prepare(
+  `INSERT INTO review_bundles (id, version_id, status)
+   VALUES (?, ?, 'under_review')`,
+).run("search-bundle", "search-version");
+
 function executeSearch(query: string) {
   const parsed = parsePublicTitleSearchRequest({ query });
   const candidateQuery = buildPublicTitleCandidateQuery(parsed);
@@ -49,6 +67,7 @@ function executeSearch(query: string) {
     kind: "movie" | "series" | "episode" | "special";
     releaseYear: number;
     hasVerifiedReview: number;
+    hasReviewInProgress: number;
   }>;
   const candidates: PublicTitleSearchCandidate[] = rows.map((row) => ({
     id: row.id,
@@ -57,6 +76,7 @@ function executeSearch(query: string) {
     kind: row.kind,
     releaseYear: row.releaseYear,
     hasVerifiedReview: row.hasVerifiedReview === 1,
+    hasReviewInProgress: row.hasReviewInProgress === 1,
   }));
   return rankPublicTitleSearchCandidates(parsed, candidates);
 }
@@ -65,10 +85,17 @@ const arabicResults = executeSearch("انسايد اوت 2");
 assert.equal(arabicResults[0]?.id, "search-arabic", "Arabic normalization candidate query missed the title.");
 assert.equal(arabicResults[0]?.matchKind, "canonical_exact");
 assert.equal(arabicResults[0]?.hasVerifiedReview, false);
+assert.equal(arabicResults[0]?.hasReviewInProgress, false);
 
 const originalResults = executeSearch("FINDING NEMO");
 assert.equal(originalResults[0]?.id, "search-original", "Original-name search missed the title.");
 assert.equal(originalResults[0]?.matchKind, "original_exact");
+assert.equal(originalResults[0]?.hasVerifiedReview, false);
+assert.equal(
+  originalResults[0]?.hasReviewInProgress,
+  true,
+  "Active under-review workflow was not exposed as in-progress.",
+);
 
 const unrelatedResults = executeSearch("نيمو finding");
 assert.deepEqual(unrelatedResults.map((row) => row.id), ["search-original"]);
@@ -80,4 +107,4 @@ const foreignKeyErrors = db.prepare("PRAGMA foreign_key_check").all();
 assert.deepEqual(foreignKeyErrors, [], "Public title-search verifier broke foreign keys.");
 
 db.close();
-console.log("Verified P3-01 public title-search SQL against the migrated SQLite schema.");
+console.log("Verified P3 public title-search SQL and review-progress state against the migrated SQLite schema.");
