@@ -45,6 +45,7 @@ test("exact canonical match outranks a verified prefix match", () => {
       releaseYear: 2026,
       hasVerifiedReview: true,
       hasReviewInProgress: false,
+      verifiedBundleId: "bundle-verified-prefix",
     },
     {
       id: "exact",
@@ -54,13 +55,14 @@ test("exact canonical match outranks a verified prefix match", () => {
       releaseYear: 2003,
       hasVerifiedReview: false,
       hasReviewInProgress: false,
+      verifiedBundleId: null,
     },
   ]);
   assert.equal(results[0]?.id, "exact");
   assert.equal(results[0]?.matchKind, "canonical_exact");
 });
 
-test("original-name exact match works for English searches", () => {
+test("original-name exact match works for English searches and keeps the exact bundle locator", () => {
   const parsed = parsePublicTitleSearchRequest({ query: "finding nemo" });
   const results = rankPublicTitleSearchCandidates(parsed, [
     {
@@ -71,10 +73,12 @@ test("original-name exact match works for English searches", () => {
       releaseYear: 2003,
       hasVerifiedReview: true,
       hasReviewInProgress: false,
+      verifiedBundleId: "bundle-nemo-ar",
     },
   ]);
   assert.equal(results[0]?.id, "nemo");
   assert.equal(results[0]?.matchKind, "original_exact");
+  assert.equal(results[0]?.verifiedBundleId, "bundle-nemo-ar");
 });
 
 test("token matching can span canonical and original names without inventing fuzzy similarity", () => {
@@ -88,6 +92,7 @@ test("token matching can span canonical and original names without inventing fuz
       releaseYear: 2003,
       hasVerifiedReview: true,
       hasReviewInProgress: false,
+      verifiedBundleId: "bundle-nemo-ar",
     },
     {
       id: "other",
@@ -97,6 +102,7 @@ test("token matching can span canonical and original names without inventing fuz
       releaseYear: 2016,
       hasVerifiedReview: true,
       hasReviewInProgress: false,
+      verifiedBundleId: "bundle-dory-ar",
     },
   ]);
   assert.deepEqual(results.map((item) => item.id), ["nemo"]);
@@ -113,12 +119,13 @@ test("public ranking is deterministically capped", () => {
     releaseYear: 2000 + index,
     hasVerifiedReview: false,
     hasReviewInProgress: false,
+    verifiedBundleId: null,
   }));
   const results = rankPublicTitleSearchCandidates(parsed, candidates);
   assert.equal(results.length, MAX_PUBLIC_TITLE_SEARCH_RESULTS);
 });
 
-test("candidate SQL remains parameterized, bounded and distinguishes review progress", () => {
+test("candidate SQL stays parameterized and returns a deterministic current public bundle locator", () => {
   const parsed = parsePublicTitleSearchRequest({ query: "نيمو finding" });
   const candidateQuery = buildPublicTitleCandidateQuery(parsed);
 
@@ -128,6 +135,11 @@ test("candidate SQL remains parameterized, bounded and distinguishes review prog
   assert.match(candidateQuery.sql, /v\.status = 'active'/);
   assert.match(candidateQuery.sql, /b\.status = 'verified'/);
   assert.match(candidateQuery.sql, /b\.current_approval_id IS NOT NULL/);
+  assert.match(candidateQuery.sql, /b\.published_at IS NOT NULL/);
+  assert.match(candidateQuery.sql, /ea\.status = 'approved'/);
+  assert.match(candidateQuery.sql, /rr\.status IN \('open', 'investigating'\)/);
+  assert.match(candidateQuery.sql, /AS verifiedBundleId/);
+  assert.match(candidateQuery.sql, /ORDER BY b\.published_at DESC, ea\.approved_at DESC, b\.id ASC/);
   assert.match(candidateQuery.sql, /b\.status IN \('draft', 'under_review', 'conflicted'\)/);
   assert.equal(candidateQuery.bindings.length, 8);
   assert.equal(candidateQuery.bindings[0], buildSqlSubsequencePattern("نيمو"));

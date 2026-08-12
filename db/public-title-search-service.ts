@@ -17,6 +17,7 @@ interface CandidateRow {
   releaseYear: number;
   hasVerifiedReview: number;
   hasReviewInProgress: number;
+  verifiedBundleId: string | null;
 }
 
 export async function searchPublicTitles(input: unknown): Promise<PublicTitleSearchResult[]> {
@@ -49,6 +50,15 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
   }
   if (row.hasVerifiedReview !== 0 && row.hasVerifiedReview !== 1) return null;
   if (row.hasReviewInProgress !== 0 && row.hasReviewInProgress !== 1) return null;
+  if (
+    row.verifiedBundleId !== null &&
+    (typeof row.verifiedBundleId !== "string" || !row.verifiedBundleId.trim())
+  ) {
+    return null;
+  }
+
+  const verifiedBundleId = row.verifiedBundleId?.trim() ?? null;
+  if ((row.hasVerifiedReview === 1) !== (verifiedBundleId !== null)) return null;
 
   return {
     id: row.id,
@@ -58,6 +68,7 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
     releaseYear: row.releaseYear,
     hasVerifiedReview: row.hasVerifiedReview === 1,
     hasReviewInProgress: row.hasReviewInProgress === 1,
+    verifiedBundleId,
   };
 }
 

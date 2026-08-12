@@ -44,6 +44,40 @@ db.prepare(
      id, title_id, edition_label, platform, language, runtime_seconds, content_fingerprint, status
    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
 ).run(
+  "search-public-version",
+  "search-arabic",
+  "نسخة عربية موثقة",
+  "test",
+  "ar",
+  5760,
+  "search-public-fingerprint-0001",
+);
+db.prepare(
+  "INSERT INTO reviewers (id, display_label, independence_group_id, status) VALUES (?, ?, ?, 'active')",
+).run("search-public-editor", "Public search editor", "search-public-editor-group");
+db.prepare(
+  `INSERT INTO review_bundles (id, version_id, status, revision, published_at)
+   VALUES (?, ?, 'verified', 1, ?)`,
+).run("search-public-bundle", "search-public-version", "2026-08-12T17:30:00.000Z");
+db.prepare(
+  `INSERT INTO editorial_approvals
+     (id, bundle_id, approver_id, status, revision, version_fingerprint_confirmed, approved_at)
+   VALUES (?, ?, ?, 'approved', 1, 1, ?)`,
+).run(
+  "search-public-approval",
+  "search-public-bundle",
+  "search-public-editor",
+  "2026-08-12T17:25:00.000Z",
+);
+db.prepare(
+  "UPDATE review_bundles SET current_approval_id = ? WHERE id = ?",
+).run("search-public-approval", "search-public-bundle");
+
+db.prepare(
+  `INSERT INTO title_versions (
+     id, title_id, edition_label, platform, language, runtime_seconds, content_fingerprint, status
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')`,
+).run(
   "search-version",
   "search-original",
   "نسخة اختبار",
@@ -68,6 +102,7 @@ function executeSearch(query: string) {
     releaseYear: number;
     hasVerifiedReview: number;
     hasReviewInProgress: number;
+    verifiedBundleId: string | null;
   }>;
   const candidates: PublicTitleSearchCandidate[] = rows.map((row) => ({
     id: row.id,
@@ -77,6 +112,7 @@ function executeSearch(query: string) {
     releaseYear: row.releaseYear,
     hasVerifiedReview: row.hasVerifiedReview === 1,
     hasReviewInProgress: row.hasReviewInProgress === 1,
+    verifiedBundleId: row.verifiedBundleId,
   }));
   return rankPublicTitleSearchCandidates(parsed, candidates);
 }
@@ -84,8 +120,13 @@ function executeSearch(query: string) {
 const arabicResults = executeSearch("انسايد اوت 2");
 assert.equal(arabicResults[0]?.id, "search-arabic", "Arabic normalization candidate query missed the title.");
 assert.equal(arabicResults[0]?.matchKind, "canonical_exact");
-assert.equal(arabicResults[0]?.hasVerifiedReview, false);
+assert.equal(arabicResults[0]?.hasVerifiedReview, true);
 assert.equal(arabicResults[0]?.hasReviewInProgress, false);
+assert.equal(
+  arabicResults[0]?.verifiedBundleId,
+  "search-public-bundle",
+  "Verified search result did not carry the exact public bundle locator.",
+);
 
 const originalResults = executeSearch("FINDING NEMO");
 assert.equal(originalResults[0]?.id, "search-original", "Original-name search missed the title.");
@@ -96,6 +137,7 @@ assert.equal(
   true,
   "Active under-review workflow was not exposed as in-progress.",
 );
+assert.equal(originalResults[0]?.verifiedBundleId, null);
 
 const unrelatedResults = executeSearch("نيمو finding");
 assert.deepEqual(unrelatedResults.map((row) => row.id), ["search-original"]);
@@ -107,4 +149,4 @@ const foreignKeyErrors = db.prepare("PRAGMA foreign_key_check").all();
 assert.deepEqual(foreignKeyErrors, [], "Public title-search verifier broke foreign keys.");
 
 db.close();
-console.log("Verified P3 public title-search SQL and review-progress state against the migrated SQLite schema.");
+console.log("Verified P3 public title-search SQL, bundle locator, and review-progress state against the migrated SQLite schema.");

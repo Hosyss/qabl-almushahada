@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { searchPublicTitles } from "@/db/public-title-search-service";
+import { buildPublicReviewHref } from "@/lib/public-review";
 import { classifyPublicSearchAvailability } from "@/lib/public-search-result-state";
 import type { PublicTitleKind, PublicTitleSearchResult } from "@/lib/public-title-search";
 
@@ -103,6 +104,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       <span>{KIND_LABELS[result.kind]}</span>
                       <span aria-hidden="true">•</span>
                       <span>{copy.description}</span>
+                      {availability === "verified" && result.verifiedBundleId ? (
+                        <>
+                          <span aria-hidden="true">•</span>
+                          <Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>
+                            فتح المراجعة الموثقة <span aria-hidden="true">←</span>
+                          </Link>
+                        </>
+                      ) : null}
                     </div>
                   </article>
                 );
