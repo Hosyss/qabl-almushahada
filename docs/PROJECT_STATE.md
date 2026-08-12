@@ -19,8 +19,8 @@
 
 - هوية «قبل المشاهدة» واتجاه عربي كامل وصفحة رئيسية متجاوبة.
 - Hero عائلي برسمة أشجار، بحث حقيقي متصل بـD1، اقتراحات قابلة للنقر، وحدود أسرة تفاعلية.
-- صفحة `/search` حقيقية تعرض نتائج الدليل وحالة المراجعة من البيانات الفعلية.
-- صفحة `/review` الكاملة مع وضع «من غير حرق»، المحاور، الوقائع، التوقيتات، سبب القرار، وحالة النسخة؛ لكنها ما زالت تستخدم نموذجًا ثابتًا حتى P3-03.
+- صفحة `/search` حقيقية تعرض نتائج الدليل وحالة المراجعة من البيانات الفعلية، وتربط المراجعة الموثقة بالحزمة المنشورة نفسها.
+- صفحة `/review` حقيقية تقرأ مراجعة D1 موثقة محددة بـ`bundleId` وتفشل مغلقًا عند stale/invalid state بدل أي Demo fallback، مع وضع «من غير حرق» لا يؤلف وقائع بديلة.
 - نواة إنچين قرار TypeScript مستقلة عن الواجهة، مع fail-safe يعيد `insufficient_data` عند نقص أو تعارض.
 - بوابات جودة تمنع المصدر الواحد، مجموعات الاستقلال غير الكافية، `uncertain`، اختلاف وجود المحور، وفروق الشدة الكبيرة.
 - محوّل صارم من صفوف D1 إلى schema الإنچين؛ القيم المجهولة تُرفض.
@@ -197,6 +197,21 @@
 - P3-02 دُمجت على `main` عبر PR #22 في commit `a34ae4c67305553b90a53b1b943ce8cad3cf040f`.
 - CI #271 على `main` بعد الدمج نجح في **146/146 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local` أيضًا.
 
+## P3-03 — صفحة المراجعة الحقيقية — مكتملة وظيفيًا
+
+- `/review` أصبحت Server Page تقرأ locator محددًا `bundleId` من الرابط وتطلب المراجعة عبر خدمة D1 الحقيقية؛ لا يوجد fallback إلى النموذج التجريبي عند missing/invalid/stale locator.
+- بوابة العرض العام تشترط حزمة `verified` منشورة، نسخة `active`، `current_approval_id` حالية وحالتها `approved`، وعدم وجود بلاغ `open` أو `investigating`.
+- القراءة تلتقط `bundle revision` و`current approval` قبل hydration ثم تعيد نفس البوابة بعده؛ أي تغيير بين القراءتين يفشل الطلب مغلقًا بدل خلط state قديمة بجديدة.
+- DTO العامة تتحقق كذلك من title/version/runtime/content fingerprint ووقت الاعتماد مقابل الحزمة المحملة، ولا تعرّض هوية المراجعين أو fingerprint للواجهة.
+- `/search` يعيد `verifiedBundleId` للحزمة المنشورة الفعلية، ويربط النتيجة الموثقة مباشرة بـ`/review?bundleId=...` بدل title id أو اختيار نسخة عشوائية.
+- Client المراجعة يستقبل `PublicReviewView` فقط ولا يقرأ D1. النصوص القديمة التي كانت تصدر قرار أسرة/عمرًا ثابتًا أو تفاصيل Demo حُذفت.
+- وضع «من غير حرق» يخفي summary المخزنة عندما `spoilerLevel` ليس `none`، ولا يؤلف حدثًا بديلًا. الثقة تعرض label نوعيًا فقط ولا توجد numeric trust score جديدة.
+- `scripts/verify-public-review.mts` يطبق كل migrations على SQLite ويثبت: الحالة الصالحة تمر، report المفتوح/قيد التحقيق يمنع، bundle conflicted/withdrawn يمنع، version superseded/withdrawn يمنع، وإزالة/تغيير current approval يمنع stale request مع سلامة foreign keys.
+- لا schema أو migration جديدة في P3-03؛ الإجمالي يظل **18 migration files / 24 product tables**.
+- CI #278 على feature checkpoint `7111959678d724873e8dd18bc53f4a82377adbcb` نجح في **155/155 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local`.
+- CI #279 بعد تحديث ROADMAP نجح كذلك في engine/migrations/lint/build بالكامل.
+- PR #24 هو مسار دمج P3-03 إلى `main`؛ لا تبدأ P3-04 قبل اكتمال الدمج ونجاح CI على `main` ثم تنفيذ أول Cloudflare deploy حقيقي.
+
 ## Cloudflare — إعداد الإنتاج
 
 - الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
@@ -205,11 +220,10 @@
 - config الإنتاج يربط `DB` و`IMAGES` ويستخدم `nodejs_compat` وWorkers observability.
 - Cloudflare Access عند تفعيله يتحقق server-side، والمسارات الداخلية تفشل مغلقًا إذا لم تكن المصادقة مضبوطة.
 - أضيفت أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy`، ولا تُنسخ API tokens أو Account IDs إلى Worker config.
-- **لم يحدث remote deploy بعد** لأن الجلسة لا تملك Cloudflare API/CLI authentication متصلًا لإنشاء D1 حقيقية أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل ذلك.
+- **لم يحدث remote deploy بعد** لأن الجلسة لا تملك حتى هذه النقطة Cloudflare API/CLI authentication متصلًا لإنشاء D1 حقيقية أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل ذلك.
 
 ## ما يزال تجريبيًا أو مؤجلًا
 
-- صفحة `/review` ما زالت تعرض النموذج الثابت ولا تُقرأ من bundle حقيقية؛ هذا نطاق P3-03 التالي.
 - أسماء الأعمال والوقائع الموجودة داخل أقسام العرض التجريبية في الصفحة الرئيسية ما زالت أمثلة تصميمية وليست مراجعات منشورة.
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
@@ -218,14 +232,15 @@
 ## الروابط الحالية
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
-- آخر PR مكتمل: `https://github.com/Hosyss/qabl-almushahada/pull/22`
+- PR الحالي لـP3-03: `https://github.com/Hosyss/qabl-almushahada/pull/24`
 - الموقع المنشور القديم: `https://qabl-almushahada.hosys.chatgpt.site`
 - الرابط القديم لا يحتوي آخر سير العمل ولا يُعتبر نشر Cloudflare النهائي.
 
 ## نقطة البدء التالية
 
-1. التالي: `P3-03` **متوسط** — ربط `/review` ببيانات فعلية بدل النموذج الثابت، مع عدم فتح مراجعة عامة إلا من bundle موثقة وحالية.
-2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-3. بقية أعمال الواجهة الخفيفة وربط البيانات العامة تتبع ROADMAP ولا تسبق checkpoints الجودة المطلوبة.
+1. أكمل PR #24، وتأكد من CI على `main` بعد الدمج.
+2. بعدها مباشرة — وقبل P3-04 — نفّذ أول Cloudflare Workers + D1 deploy حقيقي: إنشاء/ربط D1، تطبيق migrations، deploy، واختبار URL العام الفعلي.
+3. لا تُدخل بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب مراجعة حقيقية يجب أن يظل fail-closed.
+4. بعد تثبيت النشر الفعلي فقط نعود لبقية ROADMAP، وأولها P3-04.
 
 راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
