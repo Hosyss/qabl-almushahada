@@ -10,6 +10,6 @@ export default async function ReviewerAssignmentPage({
 }) {
   const sessionUser = await requireInternalSessionUser();
   const { assignmentId } = await params;
-  const data = await loadReviewerEditor(sessionUser.email, decodeURIComponent(assignmentId));
+  const data = await loadReviewerEditor(sessionUser.email, assignmentId);
   return <ReviewEditor data={data} />;
 }
