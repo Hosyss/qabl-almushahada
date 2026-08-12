@@ -132,6 +132,26 @@
 - P2Q-03 دُمجت على `main` عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`.
 - CI #199 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
 
+## P2Q-04 — Safety Hold تلقائي وآمن — مكتملة تقنيًا على الفرع وجاهزة للدمج
+
+- السياسة versioned في `lib/reviewer-safety-hold.ts` ولا تنتج trust score أو ranking.
+- Hold فوري مؤقت عند أحدث audit مستقلة إذا ظهر **حدث عالي الحساسية فائت** أو `maxSeverityDelta = 3`.
+- قواعد النمط المتكرر لا تعمل قبل **20 audit مكتملة في دورة المراجع الحالية**؛ داخل آخر 20: **5 correction_required** أو **3 audits بها missed events** أو **3 audits بها severity delta ≥2** تؤدي إلى Hold.
+- الـepoch الحالية مرتبطة بوقت آخر activation/reactivation، وSQLite تمنع timestamp-only update لمراجع active من تصفير النافذة بالخطأ.
+- hold/resolution تُسجل كأحداث append-only في `internal_audit_events`؛ لا يوجد جدول حالة موازٍ قابل للانحراف.
+- أي Hold صالح يعلق `reviewers.status` والحساب الداخلي المقابل، مع الحفاظ على الهوية والدور والتاريخ.
+- الـHold تسقط الثقة الحالية من أي bundle تعتمد على نفس الهوية **كمراجع أو كمدقق audit أو كمعتمد تحريري**، وتحولها إلى `conflicted` وتسقط `current_approval_id` من غير حذف التاريخ؛ الحزم غير المرتبطة تظل سليمة.
+- الحزمة التي أنتجت `correction_required` مستثناة من invalidation العام حتى يستطيع نفس transaction إكمال `changes_requested` و`under_review` بعد وضع الـHold.
+- الاشتباه اليدوي في التواطؤ Admin-only، ويتطلب 1–20 audit evidence IDs موجودة، ويجب أن يكون بعضها مرتبطًا بالمراجع المستهدف. `COLLUSION_SUSPICION` يعني تحقيقًا مطلوبًا وليس إثبات تواطؤ.
+- المتصفح لا يحدد reviewerId/source/policyVersion/triggerCodes/actor؛ الخادم يملك هذه الهوية والقيم.
+- unresolved hold يمنع activation ويمنع بدء reference reactivation/drift. الحسم البشري Admin-only ومرة واحدة، لكنه لا يعيد التفعيل وحده.
+- مسار العودة: **Human resolution → fresh P2Q-03 reference calibration → Admin activation**؛ لذلك لا قرار بشري وحده ولا calibration قديمة تكفي.
+- اختبارات SQLite تثبت 4/20 لا توقف و5/20 توقف، وأن الـ20th `confirmed` تقيّم النافذة، وأن Hold لا تكسر transaction التصحيح للحزمة التي كشفت الخطأ.
+- لم تُضف جداول منتج جديدة؛ checkpoint الحالي = **18 migration files / 24 product tables**.
+- آخر code checkpoint قبل التوثيق `1352b7274a2a879dee1d38cb82d7cb5ccfe0fb70` اجتاز **122/122 اختبارًا، 0 فشل**، وكل `test:migrations`, `lint:local`, و`build:local` بنجاح.
+- التفاصيل التشغيلية موثقة في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
+- الحالة الحالية: جاهزة لـCI التوثيق النهائي ثم PR مستقل؛ لا تُعتبر على `main` قبل الدمج وCI بعده.
+
 ## Cloudflare — إعداد الإنتاج
 
 - الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
@@ -149,7 +169,7 @@
 - إعدادات الأسرة تعيش داخل حالة الصفحة فقط.
 - زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ.
 - لا توجد بيانات إنتاج حقيقية.
-- الإيقاف التلقائي عند نمط أخطاء/تواطؤ لم يبدأ بعد؛ هذا هو P2Q-04.
+- لوحة الجودة الداخلية `P2Q-05` لم تُنفذ بعد.
 
 ## الروابط الحالية
 
@@ -159,7 +179,7 @@
 
 ## نقطة البدء التالية
 
-1. التالي: `P2Q-04` **حرج / Work** — إيقاف تلقائي آمن عند نمط أخطاء أو تواطؤ مشتبه، مع مراجعة بشرية للاستئناف.
+1. بعد دمج P2Q-04: `P2Q-05` **متوسط** — لوحة جودة تعرض أسباب الوقف والتعارض ومؤشرات المعايرة من غير ranking تنافسي.
 2. عند توفر Cloudflare authentication: إنشاء D1 حقيقية، تطبيق migrations، deploy إلى Worker، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 3. أعمال الواجهة الخفيفة والبحث وربط البيانات العامة تبقى مؤجلة حسب ROADMAP ولا تسبق checkpoints الثقة الحرجة.
 
