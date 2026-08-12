@@ -230,6 +230,12 @@ export function prepareLockedReviewSubmission(input: {
   if (!hasInternalPermission(input.actor, "submit_own_review")) {
     throw new ReviewWorkflowError("FORBIDDEN", "هذا الدور لا يملك صلاحية إرسال المراجعة.");
   }
+  if (input.assignment.state !== "in_progress") {
+    throw new ReviewWorkflowError(
+      "ASSIGNMENT_LOCKED",
+      "يجب بدء المهمة وحفظها كـ in_progress قبل الإرسال النهائي.",
+    );
+  }
 
   const parsed = parseDraftForSubmission(input.draft, input.assignment.version);
   return {
@@ -312,7 +318,7 @@ export function parseDraftForSubmission(
     errors.push("declaredComplete must be true");
   }
 
-  if (startedAt && completedAt && completedAt <= startedAt) {
+  if (startedAt && completedAt && Date.parse(completedAt) <= Date.parse(startedAt)) {
     errors.push("completedAt must be after startedAt");
   }
   if (watchedSeconds !== null) {
