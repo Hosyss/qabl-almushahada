@@ -94,6 +94,7 @@ export const reviewBundles = sqliteTable(
       .default("draft"),
     revision: integer("revision").notNull().default(0),
     publishedTransitionId: text("published_transition_id"),
+    workflowTransitionId: text("workflow_transition_id"),
     createdAt: createdAt(),
     publishedAt: text("published_at"),
     updatedAt: updatedAt(),
@@ -102,6 +103,7 @@ export const reviewBundles = sqliteTable(
     index("review_bundles_version_idx").on(table.versionId),
     index("review_bundles_status_idx").on(table.status),
     uniqueIndex("review_bundles_transition_unique").on(table.publishedTransitionId),
+    uniqueIndex("review_bundles_workflow_transition_unique").on(table.workflowTransitionId),
     check(
       "review_bundles_status_check",
       sql`${table.status} IN ('draft', 'under_review', 'conflicted', 'verified', 'withdrawn')`,
