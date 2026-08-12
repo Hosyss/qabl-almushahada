@@ -16,6 +16,8 @@ export const internalUsers = sqliteTable(
     }).notNull(),
     reviewerId: text("reviewer_id").references(() => reviewers.id, { onDelete: "restrict" }),
     status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
+    revision: integer("revision").notNull().default(0),
+    lastTransitionId: text("last_transition_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -28,6 +30,7 @@ export const internalUsers = sqliteTable(
       sql`${table.role} IN ('admin', 'review_coordinator', 'reviewer', 'editorial_reviewer')`,
     ),
     check("internal_users_status_check", sql`${table.status} IN ('active', 'suspended')`),
+    check("internal_users_revision_check", sql`${table.revision} >= 0`),
     check(
       "internal_users_reviewer_binding_check",
       sql`${table.role} NOT IN ('reviewer', 'editorial_reviewer') OR ${table.reviewerId} IS NOT NULL`,
@@ -99,4 +102,25 @@ export const reviewAssignmentDrafts = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [check("review_assignment_drafts_json_check", sql`json_valid(${table.payloadJson})`)],
+);
+
+/** Global internal-security audit log. Rows are made immutable by SQL triggers in migrations. */
+export const internalAuditEvents = sqliteTable(
+  "internal_audit_events",
+  {
+    id: text("id").primaryKey(),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => internalUsers.id, { onDelete: "restrict" }),
+    eventType: text("event_type").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("internal_audit_events_actor_time_idx").on(table.actorUserId, table.createdAt),
+    index("internal_audit_events_entity_idx").on(table.entityType, table.entityId),
+    check("internal_audit_events_json_check", sql`json_valid(${table.payloadJson})`),
+  ],
 );
