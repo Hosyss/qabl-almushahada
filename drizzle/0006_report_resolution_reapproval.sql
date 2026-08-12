@@ -55,9 +55,15 @@ WHEN NEW.`version_id` IS NULL
       AND `current_approval_id` IS NEW.`invalidated_approval_id`
   )
   OR NOT EXISTS (
-    SELECT 1 FROM `editorial_approvals`
-    WHERE `id` = NEW.`invalidated_approval_id`
-      AND `bundle_id` = NEW.`bundle_id`
+    SELECT 1 FROM `editorial_approvals` approval
+    WHERE approval.`id` = NEW.`invalidated_approval_id`
+      AND approval.`bundle_id` = NEW.`bundle_id`
+      AND approval.`status` = 'approved'
+      AND NOT EXISTS (
+        SELECT 1 FROM `editorial_approvals` newer
+        WHERE newer.`bundle_id` = approval.`bundle_id`
+          AND newer.`revision` > approval.`revision`
+      )
   )
 BEGIN
   SELECT RAISE(ABORT, 'review report opening snapshot is invalid');
@@ -138,6 +144,18 @@ BEGIN
   SELECT RAISE(ABORT, 'review reports cannot be deleted');
 END;
 --> statement-breakpoint
+CREATE TRIGGER `editorial_approvals_no_insert_with_active_report`
+BEFORE INSERT ON `editorial_approvals`
+FOR EACH ROW
+WHEN EXISTS (
+  SELECT 1 FROM `review_reports`
+  WHERE `bundle_id` = NEW.`bundle_id`
+    AND `status` IN ('open', 'investigating')
+)
+BEGIN
+  SELECT RAISE(ABORT, 'active review report blocks new editorial approvals');
+END;
+--> statement-breakpoint
 CREATE TRIGGER `review_bundles_no_current_approval_with_active_report`
 BEFORE UPDATE OF `current_approval_id`, `status` ON `review_bundles`
 FOR EACH ROW
@@ -158,6 +176,25 @@ WHEN NEW.`status` = 'verified'
   AND NEW.`current_approval_id` IS NULL
 BEGIN
   SELECT RAISE(ABORT, 'verified bundle requires a current editorial approval');
+END;
+--> statement-breakpoint
+CREATE TRIGGER `review_bundles_current_approval_must_be_latest_approved`
+BEFORE UPDATE OF `current_approval_id` ON `review_bundles`
+FOR EACH ROW
+WHEN NEW.`current_approval_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `editorial_approvals` approval
+    WHERE approval.`id` = NEW.`current_approval_id`
+      AND approval.`bundle_id` = NEW.`id`
+      AND approval.`status` = 'approved'
+      AND NOT EXISTS (
+        SELECT 1 FROM `editorial_approvals` newer
+        WHERE newer.`bundle_id` = approval.`bundle_id`
+          AND newer.`revision` > approval.`revision`
+      )
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'current approval must be the latest approved revision for its bundle');
 END;
 --> statement-breakpoint
 CREATE TRIGGER `review_bundles_no_invalidated_approval_restore_after_correction`
