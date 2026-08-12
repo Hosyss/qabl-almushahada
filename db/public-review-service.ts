@@ -7,9 +7,14 @@ import {
   type PublicReviewMetadata,
   type PublicReviewView,
 } from "@/lib/public-review";
+import {
+  buildPublicReviewGateQuery,
+  type PublicReviewGateExpectation,
+} from "@/db/public-review-query";
 
 interface PublicReviewMetadataRow {
   bundleId: string;
+  bundleRevision: number;
   titleId: string;
   canonicalName: string;
   originalName: string | null;
@@ -20,92 +25,90 @@ interface PublicReviewMetadataRow {
   platform: string;
   language: string;
   runtimeSeconds: number;
+  contentFingerprint: string;
   publishedAt: string;
+  approvalId: string;
   approvedAt: string;
+}
+
+interface PublicReviewGateSnapshot {
+  expectation: PublicReviewGateExpectation;
+  metadata: PublicReviewMetadata;
 }
 
 export async function loadPublicReview(input: unknown): Promise<PublicReviewView | null> {
   const { bundleId } = parsePublicReviewLocator(input);
+
+  // Capture the public state before hydration. The same revision and current approval
+  // must still be current after hydration or the request fails closed.
+  const initialGate = await loadCurrentPublicReviewGate(bundleId);
+  if (!initialGate) return null;
+
   const bundle = await loadReviewBundle(bundleId);
   if (!bundle) return null;
 
-  // This query runs after hydration and the engine quality assessment in buildPublicReviewView.
-  // It is deliberately the final database gate before returning public data, so stale URLs or
-  // a report/state transition that happened during loading fail closed on the next check.
-  const metadata = await loadCurrentPublicReviewMetadata(bundleId);
-  if (!metadata) return null;
+  const finalGate = await loadCurrentPublicReviewGate(bundleId, initialGate.expectation);
+  if (!finalGate) return null;
 
-  return buildPublicReviewView(metadata, bundle);
+  return buildPublicReviewView(finalGate.metadata, bundle);
 }
 
-async function loadCurrentPublicReviewMetadata(bundleId: string): Promise<PublicReviewMetadata | null> {
+async function loadCurrentPublicReviewGate(
+  bundleId: string,
+  expectation?: PublicReviewGateExpectation,
+): Promise<PublicReviewGateSnapshot | null> {
+  const query = buildPublicReviewGateQuery(bundleId, expectation);
   const result = await requireD1()
-    .prepare(
-      `SELECT
-         b.id AS bundleId,
-         t.id AS titleId,
-         t.canonical_name AS canonicalName,
-         t.original_name AS originalName,
-         t.kind AS kind,
-         t.release_year AS releaseYear,
-         v.id AS versionId,
-         v.edition_label AS editionLabel,
-         v.platform AS platform,
-         v.language AS language,
-         v.runtime_seconds AS runtimeSeconds,
-         b.published_at AS publishedAt,
-         ea.approved_at AS approvedAt
-       FROM review_bundles b
-       INNER JOIN title_versions v ON v.id = b.version_id
-       INNER JOIN titles t ON t.id = v.title_id
-       INNER JOIN editorial_approvals ea
-         ON ea.id = b.current_approval_id
-        AND ea.bundle_id = b.id
-       WHERE b.id = ?
-         AND b.status = 'verified'
-         AND b.current_approval_id IS NOT NULL
-         AND b.published_at IS NOT NULL
-         AND v.status = 'active'
-         AND ea.status = 'approved'
-         AND NOT EXISTS (
-           SELECT 1
-           FROM review_reports rr
-           WHERE rr.bundle_id = b.id
-             AND rr.status IN ('open', 'investigating')
-         )
-       LIMIT 1`,
-    )
-    .bind(bundleId)
+    .prepare(query.sql)
+    .bind(...query.bindings)
     .all<PublicReviewMetadataRow>();
 
   const row = result.results?.[0];
-  return row ? parseMetadataRow(row) : null;
+  return row ? parseGateRow(row) : null;
 }
 
-function parseMetadataRow(row: PublicReviewMetadataRow): PublicReviewMetadata | null {
+function parseGateRow(row: PublicReviewMetadataRow): PublicReviewGateSnapshot | null {
   if (!isNonEmptyString(row.bundleId) || !isNonEmptyString(row.titleId)) return null;
+  if (!Number.isInteger(row.bundleRevision) || row.bundleRevision < 0) return null;
+  if (!isNonEmptyString(row.approvalId)) return null;
   if (!isNonEmptyString(row.canonicalName) || !isNonEmptyString(row.versionId)) return null;
   if (row.originalName !== null && !isNonEmptyString(row.originalName)) return null;
   if (!isTitleKind(row.kind)) return null;
-  if (!Number.isInteger(row.releaseYear) || row.releaseYear < 1880 || row.releaseYear > 2200) return null;
-  if (!isNonEmptyString(row.editionLabel) || !isNonEmptyString(row.platform) || !isNonEmptyString(row.language)) return null;
+  if (!Number.isInteger(row.releaseYear) || row.releaseYear < 1880 || row.releaseYear > 2200) {
+    return null;
+  }
+  if (
+    !isNonEmptyString(row.editionLabel) ||
+    !isNonEmptyString(row.platform) ||
+    !isNonEmptyString(row.language)
+  ) {
+    return null;
+  }
   if (!Number.isInteger(row.runtimeSeconds) || row.runtimeSeconds <= 0) return null;
+  if (!isNonEmptyString(row.contentFingerprint)) return null;
   if (!isValidDate(row.publishedAt) || !isValidDate(row.approvedAt)) return null;
 
   return {
-    bundleId: row.bundleId,
-    titleId: row.titleId,
-    canonicalName: row.canonicalName.trim(),
-    originalName: row.originalName?.trim() ?? null,
-    kind: row.kind,
-    releaseYear: row.releaseYear,
-    versionId: row.versionId,
-    editionLabel: row.editionLabel.trim(),
-    platform: row.platform.trim(),
-    language: row.language.trim(),
-    runtimeSeconds: row.runtimeSeconds,
-    publishedAt: row.publishedAt,
-    approvedAt: row.approvedAt,
+    expectation: {
+      bundleRevision: row.bundleRevision,
+      approvalId: row.approvalId,
+    },
+    metadata: {
+      bundleId: row.bundleId,
+      titleId: row.titleId,
+      canonicalName: row.canonicalName.trim(),
+      originalName: row.originalName?.trim() ?? null,
+      kind: row.kind,
+      releaseYear: row.releaseYear,
+      versionId: row.versionId,
+      editionLabel: row.editionLabel.trim(),
+      platform: row.platform.trim(),
+      language: row.language.trim(),
+      runtimeSeconds: row.runtimeSeconds,
+      contentFingerprint: row.contentFingerprint,
+      publishedAt: row.publishedAt,
+      approvedAt: row.approvedAt,
+    },
   };
 }
 

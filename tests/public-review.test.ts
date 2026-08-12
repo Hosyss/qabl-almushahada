@@ -22,6 +22,7 @@ function metadata(): PublicReviewMetadata {
     platform: "example-platform",
     language: "ar",
     runtimeSeconds: 5538,
+    contentFingerprint: "demo-ar-2024-5538-v1",
     publishedAt: "2026-08-08T15:05:00.000Z",
     approvedAt: "2026-08-08T15:00:00.000Z",
   };
@@ -51,10 +52,10 @@ test("verified bundle becomes a public DTO without reviewer identities", () => {
 });
 
 test("public DTO refuses metadata that does not identify the hydrated bundle", () => {
-  assert.equal(
-    buildPublicReviewView({ ...metadata(), versionId: "stale-version" }, createVerifiedDemoBundle()),
-    null,
-  );
+  const bundle = createVerifiedDemoBundle();
+  assert.equal(buildPublicReviewView({ ...metadata(), versionId: "stale-version" }, bundle), null);
+  assert.equal(buildPublicReviewView({ ...metadata(), contentFingerprint: "stale-fingerprint" }, bundle), null);
+  assert.equal(buildPublicReviewView({ ...metadata(), approvedAt: "2026-08-08T16:00:00.000Z" }, bundle), null);
 });
 
 test("public DTO refuses a bundle after a blocking report appears", () => {

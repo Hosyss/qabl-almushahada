@@ -85,15 +85,28 @@ export function buildPublicTitleCandidateQuery(
         t.release_year AS releaseYear,
         ${canonicalExpression} AS canonicalSearch,
         ${originalExpression} AS originalSearch,
-        CASE WHEN EXISTS (
-          SELECT 1
+        (
+          SELECT b.id
           FROM title_versions v
           INNER JOIN review_bundles b ON b.version_id = v.id
+          INNER JOIN editorial_approvals ea
+            ON ea.id = b.current_approval_id
+           AND ea.bundle_id = b.id
           WHERE v.title_id = t.id
             AND v.status = 'active'
             AND b.status = 'verified'
             AND b.current_approval_id IS NOT NULL
-        ) THEN 1 ELSE 0 END AS hasVerifiedReview,
+            AND b.published_at IS NOT NULL
+            AND ea.status = 'approved'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM review_reports rr
+              WHERE rr.bundle_id = b.id
+                AND rr.status IN ('open', 'investigating')
+            )
+          ORDER BY b.published_at DESC, ea.approved_at DESC, b.id ASC
+          LIMIT 1
+        ) AS verifiedBundleId,
         CASE WHEN EXISTS (
           SELECT 1
           FROM title_versions v
@@ -103,9 +116,23 @@ export function buildPublicTitleCandidateQuery(
             AND b.status IN ('draft', 'under_review', 'conflicted')
         ) THEN 1 ELSE 0 END AS hasReviewInProgress
       FROM titles t
+    ),
+    classified_titles AS (
+      SELECT
+        *,
+        CASE WHEN verifiedBundleId IS NOT NULL THEN 1 ELSE 0 END AS hasVerifiedReview
+      FROM searchable_titles
     )
-    SELECT id, canonicalName, originalName, kind, releaseYear, hasVerifiedReview, hasReviewInProgress
-    FROM searchable_titles
+    SELECT
+      id,
+      canonicalName,
+      originalName,
+      kind,
+      releaseYear,
+      hasVerifiedReview,
+      hasReviewInProgress,
+      verifiedBundleId
+    FROM classified_titles
     WHERE ${tokenPredicates.join(" AND ")}
     ORDER BY
       CASE

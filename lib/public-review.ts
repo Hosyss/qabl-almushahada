@@ -27,6 +27,7 @@ export interface PublicReviewMetadata {
   platform: string;
   language: string;
   runtimeSeconds: number;
+  contentFingerprint: string;
   publishedAt: string;
   approvedAt: string;
 }
@@ -91,6 +92,11 @@ export function parsePublicReviewLocator(input: unknown): ParsedPublicReviewLoca
   return { bundleId };
 }
 
+export function buildPublicReviewHref(bundleId: string): string {
+  const locator = parsePublicReviewLocator({ bundleId });
+  return `/review?bundleId=${encodeURIComponent(locator.bundleId)}`;
+}
+
 export function buildPublicReviewView(
   metadata: PublicReviewMetadata,
   bundle: ReviewBundle,
@@ -98,6 +104,8 @@ export function buildPublicReviewView(
   if (metadata.bundleId !== bundle.id || metadata.versionId !== bundle.version.id) return null;
   if (metadata.titleId !== bundle.version.titleId) return null;
   if (metadata.runtimeSeconds !== bundle.version.runtimeSeconds) return null;
+  if (metadata.contentFingerprint !== bundle.version.contentFingerprint) return null;
+  if (!bundle.editorialApproval || metadata.approvedAt !== bundle.editorialApproval.approvedAt) return null;
 
   const quality = assessReviewQuality(bundle);
   if (!quality.publishable || quality.status !== "verified") return null;

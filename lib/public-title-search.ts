@@ -13,6 +13,7 @@ export interface PublicTitleSearchCandidate {
   releaseYear: number;
   hasVerifiedReview: boolean;
   hasReviewInProgress: boolean;
+  verifiedBundleId?: string | null;
 }
 
 export type PublicTitleMatchKind =
