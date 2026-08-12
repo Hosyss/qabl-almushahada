@@ -42,19 +42,36 @@
 - 5 migrations تنشئ 17 جدولًا.
 - المصادقة الداخلية مستقلة عن الاستضافة: `INTERNAL_AUTH_MODE` إجباري، ووضع Cloudflare Access يتحقق من JWT RS256 وissuer/audience/expiry قبل الثقة في البريد.
 - `/internal` مكتملة حسب الدور: Admin / Coordinator / Reviewer / Editorial، مع نموذج مراجع منظم وقراءة D1 مقيدة على الخادم.
-- `P2-02` دُمج كاملًا إلى `main` في commit `b10ff7a95bc2048a888fdb7b47f7e091fa7b7bee`، وCI على `main` نجح في الاختبارات والمigrations والlint والproduction build.
+
+## P2-03 — المراجعة الثالثة حسب المخاطر
+
+- أضيفت سياسة مخاطر مستقلة deterministic في `lib/review-engine/risk-policy.ts`؛ لا توجد heuristics مخفية أو AI يقرر متى نطلب المراجع الثالث.
+- القاعدة العامة تبقى مراجعَين نشطَين مستقلَين على الأقل للحالات العادية.
+- يرتفع الحد إلى **3 مراجعين نشطين من 3 مجموعات استقلال مختلفة** عند أي من الآتي:
+  - أي واقعة severity = 4 في أي محور.
+  - `selfHarm` من severity 1.
+  - `sexualContent` أو `flashingLights` من severity 2.
+  - `violence` أو `substances` أو `discrimination` أو `bullying` من severity 3.
+  - flag `flashing_sequence` من severity 1.
+  - flags `blood` أو `weapon` أو `physical_bullying` من severity 3.
+- النقص في المراجع الثالث ينتج blocking issue باسم `THIRD_REVIEW_REQUIRED`، ونقص مجموعة استقلال ثالثة ينتج `THIRD_INDEPENDENT_REVIEW_REQUIRED`.
+- النقص هنا يُصنف `insufficient` وليس conflict ما لم تكن هناك مشكلة تعارض فعلية أخرى.
+- `decideForFamily` و`preparePublication` والاعتماد التحريري server-side كلها تمر عبر نفس risk-gated quality function؛ لا يوجد مسار UI يستطيع تجاوز الشرط.
+- المراجع الموقوف أو غير النشط لا يحتسب ضمن شرط الثلاثة.
+- الاختبارات تثبت صراحة أن high-risk باثنين يعيد `insufficient_data` ويرفض خطة النشر، وأن ثلاثة مراجعين من مجموعتين فقط لا يكفون.
+- آخر checkpoint لـP2-03 نجح في **72/72 اختبارًا، 0 فشل**، ومعه `test:migrations` و`lint:local` و`build:local` ناجحة.
+- لم تحتج P2-03 migration جديدة لأنها بوابة ثقة فوق submissions الموجودة، والمنسق يستطيع بالفعل إضافة assignment ثالثة من نفس workflow المحمي.
 
 ## Cloudflare — إعداد الإنتاج
 
 - الهدف النهائي Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
-- `vite.config.ts` يفصل الآن preview المحلي عن production: الـplaceholder D1 لا يُستخدم عندما يُمرر `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH`.
+- `vite.config.ts` يفصل preview المحلي عن production: الـplaceholder D1 لا يُستخدم عندما يُمرر `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH`.
 - `scripts/prepare-cloudflare-deploy.mjs` يولد config إنتاج داخل `.wrangler/production/` بعد التحقق من D1 UUID/Name الحقيقيين؛ placeholder المحلي مرفوض.
 - config الإنتاج يربط `DB` و`IMAGES` ويستخدم `nodejs_compat` وWorkers observability.
 - Cloudflare Access اختياري في أول نشر عام؛ إذا لم يُضبط لا توضع vars داخل Worker، وبالتالي `/internal` يفشل مغلقًا بينما `/` و`/review` يمكن نشرهما.
 - عند تفعيل Access يجب تمرير Team Domain وAUD معًا؛ bootstrap admin اختياري لأول مرة فقط.
 - أضيفت أوامر `cloudflare:prepare`, `cloudflare:build`, `cloudflare:migrate`, `cloudflare:deploy`، ولا تنسخ API token أو Account ID إلى Worker config.
 - اختبارات Cloudflare config تغطي منع placeholder، اكتمال Access pair، عدم تسريب credentials، وربط D1/Images.
-- آخر CI على فرع إعداد Cloudflare نجح في `test:engine`, `test:migrations`, `lint:local`, `build:local`.
 - **لم يحدث remote deploy بعد** لأن أدوات هذه الجلسة لا تحتوي Cloudflare API/CLI authentication متصلًا لإنشاء D1 جديد أو تنفيذ `wrangler deploy`. لا يوجد URL Cloudflare جديد يجوز ادعاؤه قبل تنفيذ ذلك والحصول على الرابط الحقيقي.
 
 ## ما يزال تجريبيًا أو مؤجلًا
@@ -70,13 +87,13 @@
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
 - الموقع المنشور القديم: `https://qabl-almushahada.hosys.chatgpt.site`
-- الرابط القديم لا يحتوي آخر P2-02 ولا يُعتبر نشر Cloudflare النهائي.
+- الرابط القديم لا يحتوي آخر سير العمل ولا يُعتبر نشر Cloudflare النهائي.
 
 ## نقطة البدء التالية
 
-1. دمج checkpoint إعداد Cloudflare الإنتاج إلى `main` بعد CI النهائي.
-2. عند توفر Cloudflare authentication: إنشاء D1 جديد لهذا المشروع، تطبيق migrations، deploy إلى Worker جديد، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
-3. بالتوازي بعد حفظ checkpoint: `P2-03` **حرج / Work** — قواعد صريحة للمراجعة الثالثة في المحاور عالية الحساسية.
+1. دمج checkpoint `P2-03` إلى `main` بعد CI النهائي.
+2. التالي: `P2-04` **حرج / Work** — revisions غير قابلة للمحو للمراجعات والاعتمادات بدل استبدال الصف السابق.
+3. عند توفر Cloudflare authentication: إنشاء D1 جديد لهذا المشروع، تطبيق migrations، deploy إلى Worker جديد، اختبار URL الفعلي، ثم إعداد Access للمسارات الداخلية.
 4. لا تبدأ تلميعًا بصريًا عامًا قبل حفظ checkpoint الأمني التالي.
 
-راجع `docs/P2-02_SECURITY_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في المصادقة أو النشر.
+راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
