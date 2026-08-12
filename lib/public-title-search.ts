@@ -12,6 +12,7 @@ export interface PublicTitleSearchCandidate {
   kind: PublicTitleKind;
   releaseYear: number;
   hasVerifiedReview: boolean;
+  hasReviewInProgress: boolean;
 }
 
 export type PublicTitleMatchKind =
