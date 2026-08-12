@@ -19,7 +19,10 @@
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "lint:local": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "cloudflare:prepare": "node scripts/prepare-cloudflare-deploy.mjs"
+    "cloudflare:prepare": "node scripts/prepare-cloudflare-deploy.mjs",
+    "cloudflare:build": "node scripts/cloudflare-build.mjs",
+    "cloudflare:migrate": "npm run cloudflare:prepare && wrangler d1 migrations apply DB --remote --config .wrangler/production/wrangler.jsonc",
+    "cloudflare:deploy": "npm run cloudflare:build && wrangler deploy"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
