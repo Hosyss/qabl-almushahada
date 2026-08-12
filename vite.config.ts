@@ -10,6 +10,9 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const hasExternalWranglerConfig = Boolean(
+  process.env.CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH?.trim(),
+);
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -57,7 +60,11 @@ export default defineConfig(async () => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
-        config: localBindingConfig,
+        // ChatGPT/Sites preview keeps using the isolated local placeholder.
+        // Production must set CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH to the
+        // generated config with a real D1 id; programmatic config would
+        // otherwise override the Wrangler file.
+        ...(hasExternalWranglerConfig ? {} : { config: localBindingConfig }),
       }),
     ],
   };
