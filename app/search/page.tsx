@@ -35,12 +35,12 @@ const AVAILABILITY_COPY = {
     description: "توجد مراجعة منشورة لنسخة نشطة من هذا العنوان.",
   },
   in_review: {
-    label: "قيد المراجعة",
+    label: "موجود — قيد المراجعة",
     description: "هناك دورة مراجعة قائمة ولم تُنشر نتيجة موثقة بعد.",
   },
   catalog_only: {
-    label: "موجود في الدليل",
-    description: "العنوان مسجل، لكن لا توجد مراجعة نشطة أو منشورة حاليًا.",
+    label: "موجود — لم يُراجع بعد",
+    description: "العنوان موجود في الدليل، لكن لا توجد مراجعة منشورة أو دورة مراجعة قائمة حاليًا.",
   },
 } as const;
 
@@ -90,7 +90,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
         <form className={styles.searchForm} action="/search" method="get" role="search">
           <label className="sr-only" htmlFor="search-query">اسم الفيلم أو المسلسل</label>
-          <input id="search-query" name="q" defaultValue={query} placeholder="مثال: البحث عن نيمو أو Finding Nemo" autoComplete="off" />
+          <input id="search-query" name="q" defaultValue={query} placeholder="اكتب اسم فيلم أو مسلسل" autoComplete="off" />
           {filters.kind !== "all" ? <input type="hidden" name="kind" value={filters.kind} /> : null}
           {filters.age !== null ? <input type="hidden" name="age" value={filters.age} /> : null}
           {filters.status !== "all" ? <input type="hidden" name="status" value={filters.status} /> : null}
@@ -150,7 +150,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   <option value="all">كل الحالات</option>
                   <option value="verified">مراجعة موثقة</option>
                   <option value="in_review">قيد المراجعة</option>
-                  <option value="catalog_only">موجود في الدليل</option>
+                  <option value="catalog_only">لم يُراجع بعد</option>
                 </select>
               </label>
 
