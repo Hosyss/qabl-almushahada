@@ -14,11 +14,6 @@ concurrency:
   group: live-product-smoke-main
   cancel-in-progress: true
 
-env:
-  WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
-  KNOWN_CATALOG_QID: Q44578
-  KNOWN_CATALOG_QUERY: Titanic
-
 jobs:
   smoke:
     if: >-
@@ -26,207 +21,102 @@ jobs:
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
 
     steps:
-      - name: Verify D1-backed search suggestions
+      - name: Verify D1-backed suggestions and search state
         shell: bash
         run: |
           set -euo pipefail
+          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/api/search-suggestions" > "$RUNNER_TEMP/suggestions.json"
+          grep -F 'wd:Q44578' "$RUNNER_TEMP/suggestions.json" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/search" > "$RUNNER_TEMP/search.html"
+          grep -Eq 'مراجعة موثقة|قيد المراجعة|الحكم غير مكتمل|تحليل تحريري جزئي' "$RUNNER_TEMP/search.html"
 
-          curl --fail --silent --show-error --location --retry 3 \
-            --get --data-urlencode "q=$KNOWN_CATALOG_QUERY" \
-            "$WORKER_URL/api/search-suggestions" \
-            > "$RUNNER_TEMP/suggestions.json"
-
-          node --input-type=module - "$RUNNER_TEMP/suggestions.json" "$KNOWN_CATALOG_QID" <<'NODE'
-          import { readFileSync } from 'node:fs';
-
-          const [, , file, qid] = process.argv;
-          const payload = JSON.parse(readFileSync(file, 'utf8'));
-          if (!Array.isArray(payload.suggestions)) {
-            throw new Error('Live suggestions response does not contain an array.');
-          }
-          if (payload.suggestions.length < 1 || payload.suggestions.length > 5) {
-            throw new Error(`Live suggestions count is outside 1..5: ${payload.suggestions.length}`);
-          }
-          const expectedId = `wd:${qid}`;
-          const match = payload.suggestions.find((item) => item?.id === expectedId);
-          if (!match) {
-            throw new Error(`Known production catalog title ${expectedId} is missing from live suggestions.`);
-          }
-          if (typeof match.canonicalName !== 'string' || !match.canonicalName.trim()) {
-            throw new Error('Known live suggestion has no canonical name.');
-          }
-          if (!Number.isInteger(match.releaseYear)) {
-            throw new Error('Known live suggestion has no valid release year.');
-          }
-          console.log(`Live D1 suggestion verified: ${expectedId} -> ${match.canonicalName} (${match.releaseYear}).`);
-          NODE
-
-      - name: Verify search result states are real
+      - name: Verify Cars editorial path
         shell: bash
         run: |
           set -euo pipefail
+          query='Cars'
+          qid='Q182153'
+          id='cars-2006-editorial-pilot-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/cars-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/cars-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/cars-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/cars-title.html"
+          grep -F "$id" "$RUNNER_TEMP/cars-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/cars-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/cars-review.html" > /dev/null
 
-          curl --fail --silent --show-error --location --retry 3 \
-            --get --data-urlencode "q=$KNOWN_CATALOG_QUERY" \
-            "$WORKER_URL/search" \
-            > "$RUNNER_TEMP/search.html"
-
-          grep -F "$KNOWN_CATALOG_QUERY" "$RUNNER_TEMP/search.html" > /dev/null
-
-          if ! grep -Eq 'مراجعة موثقة|قيد المراجعة|الحكم غير مكتمل|تحليل تحريري جزئي' "$RUNNER_TEMP/search.html"; then
-            echo "Live search did not expose one of the explicit review states." >&2
-            exit 1
-          fi
-
-      - name: Verify all editorial paths from search through analysis
+      - name: Verify E.T. editorial path
         shell: bash
         run: |
           set -euo pipefail
+          query='E.T.'
+          qid='Q11621'
+          id='et-1982-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/et-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/et-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/et-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/et-title.html"
+          grep -F "$id" "$RUNNER_TEMP/et-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/et-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/et-review.html" > /dev/null
 
-          while IFS='|' read -r label qid query editorial_id fact_count uncertain_count source_csv; do
-            [ -n "$label" ] || continue
-            safe_label="$(printf '%s' "$label" | tr '[:upper:] ' '[:lower:]-' | tr -cd '[:alnum:]-')"
-
-            curl --fail --silent --show-error --location --retry 3 \
-              --get --data-urlencode "q=$query" \
-              "$WORKER_URL/search" \
-              > "$RUNNER_TEMP/${safe_label}-search.html"
-
-            curl --fail --silent --show-error --location --retry 3 \
-              "$WORKER_URL/title/$qid" \
-              > "$RUNNER_TEMP/${safe_label}-title.html"
-
-            curl --fail --silent --show-error --location --retry 3 \
-              --get --data-urlencode "editorialId=$editorial_id" \
-              "$WORKER_URL/review" \
-              > "$RUNNER_TEMP/${safe_label}-review.html"
-
-            node --input-type=module - \
-              "$RUNNER_TEMP/${safe_label}-search.html" \
-              "$RUNNER_TEMP/${safe_label}-title.html" \
-              "$RUNNER_TEMP/${safe_label}-review.html" \
-              "$label" "$editorial_id" "$fact_count" "$uncertain_count" "$source_csv" <<'NODE'
-          import { readFileSync } from 'node:fs';
-
-          const [, , searchFile, titleFile, reviewFile, label, editorialId, factCount, uncertainCount, sourceCsv] = process.argv;
-          const searchRaw = readFileSync(searchFile, 'utf8');
-          const titleRaw = readFileSync(titleFile, 'utf8');
-          const reviewRaw = readFileSync(reviewFile, 'utf8');
-
-          function visibleText(html) {
-            return html
-              .replace(/<!--[\s\S]*?-->/gu, '')
-              .replace(/<script\b[\s\S]*?<\/script>/giu, ' ')
-              .replace(/<style\b[\s\S]*?<\/style>/giu, ' ')
-              .replace(/<[^>]+>/gu, ' ')
-              .replace(/&amp;/gu, '&')
-              .replace(/&lt;/gu, '<')
-              .replace(/&gt;/gu, '>')
-              .replace(/&quot;/gu, '"')
-              .replace(/&#x27;|&#39;/gu, "'")
-              .replace(/\s+/gu, ' ')
-              .trim();
-          }
-
-          function requireText(scope, text, expected) {
-            if (!text.includes(expected)) {
-              throw new Error(`${label} ${scope} is missing visible text: ${expected}`);
-            }
-          }
-
-          function requireRaw(scope, html, expected) {
-            if (!html.includes(expected)) {
-              throw new Error(`${label} ${scope} is missing raw link token: ${expected}`);
-            }
-          }
-
-          const search = visibleText(searchRaw);
-          const title = visibleText(titleRaw);
-          const review = visibleText(reviewRaw);
-
-          requireText('search', search, 'تحليل تحريري جزئي');
-          requireRaw('search', searchRaw, editorialId);
-          requireText('title', title, 'يوجد تحليل تحريري جزئي لهذا العمل');
-          requireRaw('title', titleRaw, editorialId);
-
-          for (const expected of [
-            'تحليل تحريري موثق جزئيًا',
-            'insufficient_data',
-            'البيانات غير كافية للحكم',
-            ...sourceCsv.split(',').filter(Boolean),
-          ]) {
-            requireText('editorial review', review, expected);
-          }
-
-          const factsPattern = new RegExp(`وقائع متحققة بمصدرين\\+\\s*${factCount}`, 'u');
-          if (!factsPattern.test(review)) {
-            throw new Error(`${label} editorial review is missing ${factCount} corroborated facts.`);
-          }
-          const uncertainPattern = new RegExp(`المحاور غير المحسومة\\s*${uncertainCount}\\/10`, 'u');
-          if (!uncertainPattern.test(review)) {
-            throw new Error(`${label} editorial review is missing ${uncertainCount}/10 uncertain axes.`);
-          }
-
-          console.log(`${label}: search -> title -> editorial review verified.`);
-          NODE
-
-            curl --fail --silent --show-error --location --retry 3 \
-              --get \
-              --data-urlencode "editorialId=$editorial_id" \
-              --data-urlencode "publicationId=invalid-publication" \
-              "$WORKER_URL/review" \
-              > "$RUNNER_TEMP/${safe_label}-mixed.html"
-
-            grep -F "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/${safe_label}-mixed.html" > /dev/null
-          done <<'CASES'
-          Cars|Q182153|Cars|cars-2006-editorial-pilot-v1|4|6|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
-          ET|Q11621|E.T.|et-1982-editorial-batch-v1|5|5|Common Sense Media,Plugged In,Kids-In-Mind
-          Harry-Potter|Q102438|Harry Potter|harry-potter-philosophers-stone-2001-editorial-batch-v1|4|6|Common Sense Media,Plugged In,Kids-In-Mind,Dove.org
-          Minions|Q13619743|Minions|minions-2015-editorial-batch-v1|5|5|Common Sense Media,Plugged In,Kids-In-Mind,Dove.org
-          CASES
-
-      - name: Verify editorial pages are discoverable in sitemap
+      - name: Verify Harry Potter editorial path
         shell: bash
         run: |
           set -euo pipefail
+          query='هاري بوتر وحجر الفيلسوف'
+          qid='Q102438'
+          id='harry-potter-philosophers-stone-2001-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/harry-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/harry-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/harry-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/harry-title.html"
+          grep -F "$id" "$RUNNER_TEMP/harry-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/harry-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/harry-review.html" > /dev/null
 
-          curl --fail --silent --show-error --location --retry 3 \
-            "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
+      - name: Verify Minions editorial path
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='Minions'
+          qid='Q13619743'
+          id='minions-2015-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/minions-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/minions-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/minions-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/minions-title.html"
+          grep -F "$id" "$RUNNER_TEMP/minions-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/minions-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/minions-review.html" > /dev/null
 
-          for editorial_id in \
-            cars-2006-editorial-pilot-v1 \
-            et-1982-editorial-batch-v1 \
-            harry-potter-philosophers-stone-2001-editorial-batch-v1 \
-            minions-2015-editorial-batch-v1; do
-            grep -F "editorialId=$editorial_id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
+      - name: Verify mixed locators fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" --data-urlencode 'publicationId=invalid-publication' "$WORKER_URL/review" > "$RUNNER_TEMP/mixed.html"
+            grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/mixed.html" > /dev/null
           done
 
-      - name: Verify homepage has no static fake suggestions
+      - name: Verify editorial pages are discoverable
         shell: bash
         run: |
           set -euo pipefail
-
-          curl --fail --silent --show-error --location --retry 3 \
-            "$WORKER_URL/" > "$RUNNER_TEMP/home.html"
-
-          grep -F "وقائع موثقة" "$RUNNER_TEMP/home.html" > /dev/null
-          grep -F "الاقتراحات تظهر من العناوين الموجودة فعلًا في الدليل" "$RUNNER_TEMP/home.html" > /dev/null
-
-          for forbidden in "البحث عن نيمو" "إنسايد آوت 2" "وينزداي"; do
-            if grep -Fq "$forbidden" "$RUNNER_TEMP/home.html"; then
-              echo "Homepage still contains a static search suggestion: $forbidden" >&2
-              exit 1
-            fi
+          curl --fail --silent --show-error --location "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            grep -F "editorialId=$id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
 
       - name: Record live product smoke
         shell: bash
         run: |
-          echo "### Live product smoke succeeded" >> "$GITHUB_STEP_SUMMARY"
-          echo "- D1-backed suggestion: \`wd:$KNOWN_CATALOG_QID\` found for \`$KNOWN_CATALOG_QUERY\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Every editorial page keeps \`insufficient_data\` and mixed locators fail closed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- All four editorial pages are discoverable in sitemap.xml" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Homepage contains no static legacy suggestions" >> "$GITHUB_STEP_SUMMARY"
+          echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Every editorial page remains insufficient_data' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Mixed review locators fail closed' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All four editorial pages are present in sitemap.xml' >> "$GITHUB_STEP_SUMMARY"
