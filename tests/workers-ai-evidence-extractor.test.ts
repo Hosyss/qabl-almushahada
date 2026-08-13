@@ -63,8 +63,11 @@ function validClaims(options: {
 
 class FakeAi implements WorkersAiRunner {
   calls: Array<{ model: string; input: Record<string, unknown> }> = [];
+  private readonly responses: unknown[];
 
-  constructor(private readonly responses: unknown[]) {}
+  constructor(responses: unknown[]) {
+    this.responses = responses;
+  }
 
   async run(model: string, input: Record<string, unknown>): Promise<unknown> {
     this.calls.push({ model, input });
@@ -104,6 +107,10 @@ test("model-assisted extraction is schema-bound, positive-only and never fabrica
   assert.equal(extraction.facts.length, 1);
   assert.equal(extraction.facts[0].startSecond, null);
   assert.equal(extraction.facts[0].endSecond, null);
+
+  const uncertain = extraction.assertions.find((item) => item.category === "sexualContent");
+  assert.equal(uncertain?.result, "uncertain");
+  assert.match(uncertain?.sourceLocator ?? "", /^chunk:P\d{4}-P\d{4}$/);
 });
 
 test("Wikipedia prose extraction alone cannot turn silence into complete coverage", async () => {
@@ -129,6 +136,11 @@ test("Wikipedia prose extraction alone cannot turn silence into complete coverag
     assessment.issues.some(
       (issue) => issue.code === "CATEGORY_NOT_COVERED" && issue.category === "sexualContent",
     ),
+  );
+  assert.equal(
+    assessment.issues.some((issue) => issue.code === "ASSERTION_INVALID"),
+    false,
+    "uncertain model claims should be valid unknown coverage, not malformed assertions",
   );
 });
 
@@ -192,7 +204,10 @@ test("paragraph markers are deterministic and long evidence is chunked without s
   );
 
   const longParagraphs = markEvidenceParagraphs(
-    ["أ".repeat(Math.floor(WORKERS_AI_EVIDENCE_CHUNK_MAX_CHARS * 0.6)), "ب".repeat(Math.floor(WORKERS_AI_EVIDENCE_CHUNK_MAX_CHARS * 0.6))].join("\n\n"),
+    [
+      "أ".repeat(Math.floor(WORKERS_AI_EVIDENCE_CHUNK_MAX_CHARS * 0.6)),
+      "ب".repeat(Math.floor(WORKERS_AI_EVIDENCE_CHUNK_MAX_CHARS * 0.6)),
+    ].join("\n\n"),
   );
   const chunks = chunkMarkedParagraphs(longParagraphs);
   assert.equal(chunks.length, 2);
