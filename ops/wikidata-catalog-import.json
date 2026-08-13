@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "requestId": "p3s-08-first-known-200-2026-08-13",
+  "source": "wikidata",
+  "limit": 200,
+  "offset": 0,
+  "minimumValidated": 100,
+  "apply": true,
+  "approved": true
+}

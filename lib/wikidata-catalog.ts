@@ -51,21 +51,28 @@ export function buildWikidataCatalogQuery(options: {
     throw new RangeError("offset must be an integer between 0 and 1000000");
   }
 
-  return `SELECT DISTINCT ?item ?itemLabel ?kind ?date WHERE {
-  {
-    ?item wdt:P31/wdt:P279* wd:Q11424 .
-    BIND("movie" AS ?kind)
+  return `SELECT ?item ?arLabel ?enLabel ?kind (MIN(?rawDate) AS ?date) (MAX(?rawSitelinks) AS ?sitelinks) WHERE {
+  VALUES (?class ?kind) {
+    (wd:Q11424 "movie")
+    (wd:Q5398426 "series")
   }
-  UNION
-  {
-    ?item wdt:P31/wdt:P279* wd:Q5398426 .
-    BIND("series" AS ?kind)
+  ?item wdt:P31 ?class .
+  ?item wdt:P577 ?rawDate .
+  ?item wikibase:sitelinks ?rawSitelinks .
+  FILTER(YEAR(?rawDate) >= 1880 && YEAR(?rawDate) <= 2200)
+  FILTER(?rawSitelinks >= 20)
+  OPTIONAL {
+    ?item rdfs:label ?arLabel .
+    FILTER(LANG(?arLabel) = "ar")
   }
-  ?item wdt:P577 ?date .
-  FILTER(YEAR(?date) >= 1880 && YEAR(?date) <= 2200)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "ar,en". }
+  OPTIONAL {
+    ?item rdfs:label ?enLabel .
+    FILTER(LANG(?enLabel) = "en")
+  }
+  FILTER(BOUND(?arLabel) || BOUND(?enLabel))
 }
-ORDER BY DESC(?date) ?item
+GROUP BY ?item ?arLabel ?enLabel ?kind
+ORDER BY DESC(?sitelinks) ASC(?date) ?item
 LIMIT ${limit}
 OFFSET ${offset}`;
 }
@@ -77,41 +84,57 @@ export function parseWikidataCatalogResponse(payload: unknown): WikidataCatalogT
     throw new TypeError("Invalid Wikidata SPARQL response");
   }
 
-  const seen = new Set<string>();
-  const titles: WikidataCatalogTitle[] = [];
+  const titlesById = new Map<string, WikidataCatalogTitle>();
+  const conflictedIds = new Set<string>();
 
   for (const rawBinding of payload.results.bindings) {
     if (!isPlainObject(rawBinding)) continue;
     const binding = rawBinding as SparqlBinding;
     const itemUrl = readValue(binding.item);
-    const label = readValue(binding.itemLabel)?.trim();
+    const arLabel = cleanLabel(readValue(binding.arLabel));
+    const enLabel = cleanLabel(readValue(binding.enLabel));
+    const fallbackLabel = cleanLabel(readValue(binding.itemLabel));
     const kind = readValue(binding.kind);
     const date = readValue(binding.date);
 
     const entityId = itemUrl?.match(/^https:\/\/www\.wikidata\.org\/entity\/(Q\d+)$/u)?.[1];
-    if (!entityId || !label || label === entityId || !date) continue;
+    const canonicalName = arLabel ?? enLabel ?? fallbackLabel;
+    if (!entityId || !canonicalName || canonicalName === entityId || !date) continue;
     if (kind !== "movie" && kind !== "series") continue;
 
     const releaseYear = Number(date.slice(0, 4));
     if (!Number.isInteger(releaseYear) || releaseYear < 1880 || releaseYear > 2200) continue;
 
     const id = `wd:${entityId}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
+    if (conflictedIds.has(id)) continue;
 
-    titles.push({
+    const title: WikidataCatalogTitle = {
       id,
       wikidataEntityId: entityId,
-      canonicalName: label,
-      originalName: null,
+      canonicalName,
+      originalName:
+        arLabel && enLabel && arLabel.localeCompare(enLabel, "en", { sensitivity: "base" }) !== 0
+          ? enLabel
+          : null,
       kind,
       releaseYear,
       sourceUrl: `https://www.wikidata.org/wiki/${entityId}`,
       sourceLicense: "CC0 1.0",
-    });
+    };
+
+    const existing = titlesById.get(id);
+    if (!existing) {
+      titlesById.set(id, title);
+      continue;
+    }
+
+    if (existing.kind !== title.kind) {
+      titlesById.delete(id);
+      conflictedIds.add(id);
+    }
   }
 
-  return titles;
+  return [...titlesById.values()];
 }
 
 export function buildWikidataTitleUpsertSql(titles: readonly WikidataCatalogTitle[]): string {
@@ -292,6 +315,11 @@ function assertValidWikidataCatalogTitle(title: WikidataCatalogTitle): void {
   if (!Number.isInteger(title.releaseYear) || title.releaseYear < 1880 || title.releaseYear > 2200) {
     throw new TypeError("Invalid Wikidata release year");
   }
+}
+
+function cleanLabel(value: string | undefined): string | undefined {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : undefined;
 }
 
 function readValue(value: SparqlBindingValue | undefined): string | undefined {

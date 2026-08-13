@@ -45,37 +45,39 @@ test("commercially restricted or wrong-scope sources remain fail-closed", () => 
   assert.throws(() => assertAutomatedSourceUseAllowed("wikimediaCommons", "media"), /not allowed/i);
 });
 
-test("Wikidata query is bounded and identifies the bot", () => {
-  const query = buildWikidataCatalogQuery({ limit: 50, offset: 100 });
-  assert.match(query, /LIMIT 50/);
-  assert.match(query, /OFFSET 100/);
-  assert.match(query, /wikibase:language "ar,en"/);
+test("Wikidata query is bounded, popularity-ranked, bilingual and identifies the bot", () => {
+  const query = buildWikidataCatalogQuery({ limit: 200, offset: 0 });
+  assert.match(query, /LIMIT 200/);
+  assert.match(query, /OFFSET 0/);
+  assert.match(query, /wikibase:sitelinks/);
+  assert.match(query, /FILTER\(\?rawSitelinks >= 20\)/);
+  assert.match(query, /rdfs:label \?arLabel/);
+  assert.match(query, /rdfs:label \?enLabel/);
+  assert.match(query, /ORDER BY DESC\(\?sitelinks\)/);
+  assert.match(query, /MIN\(\?rawDate\)/);
   assert.match(WIKIDATA_USER_AGENT, /QablAlmushahadaBot/);
   assert.throws(() => buildWikidataCatalogQuery({ limit: 201, offset: 0 }), /limit/);
   assert.throws(() => buildWikidataCatalogQuery({ limit: 10, offset: -1 }), /offset/);
 });
 
-test("Wikidata parser accepts only bounded movie/series facts and keeps source provenance", () => {
+test("Wikidata parser prefers Arabic label and keeps a distinct English lookup name", () => {
   const parsed = parseWikidataCatalogResponse({
     results: {
       bindings: [
         {
           item: { value: "https://www.wikidata.org/entity/Q123" },
-          itemLabel: { value: "فيلم تجريبي" },
+          arLabel: { value: "فيلم تجريبي" },
+          enLabel: { value: "Example Film" },
           kind: { value: "movie" },
           date: { value: "2025-01-01T00:00:00Z" },
+          sitelinks: { value: "120" },
         },
         {
-          item: { value: "https://www.wikidata.org/entity/Q123" },
-          itemLabel: { value: "Duplicate" },
-          kind: { value: "movie" },
-          date: { value: "2025-01-01T00:00:00Z" },
-        },
-        {
-          item: { value: "https://www.wikidata.org/entity/Q999" },
-          itemLabel: { value: "Q999" },
+          item: { value: "https://www.wikidata.org/entity/Q456" },
+          enLabel: { value: "English Only Series" },
           kind: { value: "series" },
           date: { value: "2024-01-01T00:00:00Z" },
+          sitelinks: { value: "90" },
         },
       ],
     },
@@ -86,13 +88,46 @@ test("Wikidata parser accepts only bounded movie/series facts and keeps source p
       id: "wd:Q123",
       wikidataEntityId: "Q123",
       canonicalName: "فيلم تجريبي",
-      originalName: null,
+      originalName: "Example Film",
       kind: "movie",
       releaseYear: 2025,
       sourceUrl: "https://www.wikidata.org/wiki/Q123",
       sourceLicense: "CC0 1.0",
     },
+    {
+      id: "wd:Q456",
+      wikidataEntityId: "Q456",
+      canonicalName: "English Only Series",
+      originalName: null,
+      kind: "series",
+      releaseYear: 2024,
+      sourceUrl: "https://www.wikidata.org/wiki/Q456",
+      sourceLicense: "CC0 1.0",
+    },
   ]);
+});
+
+test("Wikidata parser rejects ambiguous entities classified as both movie and series", () => {
+  const parsed = parseWikidataCatalogResponse({
+    results: {
+      bindings: [
+        {
+          item: { value: "https://www.wikidata.org/entity/Q777" },
+          arLabel: { value: "عمل متعارض" },
+          kind: { value: "movie" },
+          date: { value: "2020-01-01T00:00:00Z" },
+        },
+        {
+          item: { value: "https://www.wikidata.org/entity/Q777" },
+          arLabel: { value: "عمل متعارض" },
+          kind: { value: "series" },
+          date: { value: "2020-01-01T00:00:00Z" },
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(parsed, []);
 });
 
 test("generated D1 upsert escapes source labels and never changes review state", () => {
@@ -101,7 +136,7 @@ test("generated D1 upsert escapes source labels and never changes review state",
       id: "wd:Q7",
       wikidataEntityId: "Q7",
       canonicalName: "طفل 'آمن'",
-      originalName: null,
+      originalName: "Safe Child",
       kind: "series",
       releaseYear: 2026,
       sourceUrl: "https://www.wikidata.org/wiki/Q7",
@@ -111,5 +146,6 @@ test("generated D1 upsert escapes source labels and never changes review state",
 
   assert.match(sql, /INSERT INTO titles/);
   assert.match(sql, /طفل ''آمن''/);
+  assert.match(sql, /Safe Child/);
   assert.doesNotMatch(sql, /review_bundles|review_submissions|verified|editorial_approvals/);
 });
