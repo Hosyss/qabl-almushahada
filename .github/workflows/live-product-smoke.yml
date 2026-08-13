@@ -18,6 +18,9 @@ env:
   WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
   KNOWN_CATALOG_QID: Q44578
   KNOWN_CATALOG_QUERY: Titanic
+  EDITORIAL_QID: Q182153
+  EDITORIAL_QUERY: Cars
+  EDITORIAL_ID: cars-2006-editorial-pilot-v1
 
 jobs:
   smoke:
@@ -75,10 +78,60 @@ jobs:
 
           grep -F "$KNOWN_CATALOG_QUERY" "$RUNNER_TEMP/search.html" > /dev/null
 
-          if ! grep -Eq 'مراجعة موثقة|قيد المراجعة|لم يُراجع بعد' "$RUNNER_TEMP/search.html"; then
+          if ! grep -Eq 'مراجعة موثقة|قيد المراجعة|الحكم غير مكتمل|تحليل تحريري جزئي' "$RUNNER_TEMP/search.html"; then
             echo "Live search did not expose one of the explicit review states." >&2
             exit 1
           fi
+
+      - name: Verify Cars editorial path is public but decision stays insufficient
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --retry 3 \
+            --get --data-urlencode "q=$EDITORIAL_QUERY" \
+            "$WORKER_URL/search" \
+            > "$RUNNER_TEMP/editorial-search.html"
+
+          grep -F "تحليل تحريري جزئي" "$RUNNER_TEMP/editorial-search.html" > /dev/null
+          grep -F "$EDITORIAL_ID" "$RUNNER_TEMP/editorial-search.html" > /dev/null
+
+          curl --fail --silent --show-error --location --retry 3 \
+            "$WORKER_URL/title/$EDITORIAL_QID" \
+            > "$RUNNER_TEMP/editorial-title.html"
+
+          grep -F "يوجد تحليل تحريري جزئي لهذا العمل" "$RUNNER_TEMP/editorial-title.html" > /dev/null
+          grep -F "$EDITORIAL_ID" "$RUNNER_TEMP/editorial-title.html" > /dev/null
+
+          curl --fail --silent --show-error --location --retry 3 \
+            --get --data-urlencode "editorialId=$EDITORIAL_ID" \
+            "$WORKER_URL/review" \
+            > "$RUNNER_TEMP/editorial-review.html"
+
+          grep -F "تحليل تحريري موثق جزئيًا" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "insufficient_data" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "البيانات غير كافية للحكم" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "4" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "6/10" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "Common Sense Media" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "Plugged In" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "BBFC" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "Kids-In-Mind" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          grep -F "Dove.org" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+
+      - name: Verify mixed review locators fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --retry 3 \
+            --get \
+            --data-urlencode "editorialId=$EDITORIAL_ID" \
+            --data-urlencode "publicationId=invalid-publication" \
+            "$WORKER_URL/review" \
+            > "$RUNNER_TEMP/mixed-review.html"
+
+          grep -F "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/mixed-review.html" > /dev/null
 
       - name: Verify homepage has no static fake suggestions
         shell: bash
@@ -104,4 +157,6 @@ jobs:
           echo "### Live product smoke succeeded" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1-backed suggestion: \`wd:$KNOWN_CATALOG_QID\` found for \`$KNOWN_CATALOG_QUERY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Search result exposes an explicit review state" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cars editorial path is public with \`insufficient_data\` decision status" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mixed review locators fail closed" >> "$GITHUB_STEP_SUMMARY"
           echo "- Homepage contains no static legacy suggestions" >> "$GITHUB_STEP_SUMMARY"
