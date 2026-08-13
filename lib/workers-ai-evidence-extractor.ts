@@ -131,6 +131,7 @@ export async function extractEvidenceWithWorkersAi(options: {
 
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
     const chunk = chunks[chunkIndex];
+    const chunkTraceLocator = buildChunkTraceLocator(chunk);
     const allowedLocators = new Set(chunk.map((paragraph) => paragraph.id));
     const rawResponse = await options.ai.run(WORKERS_AI_EVIDENCE_MODEL, {
       messages: [
@@ -165,7 +166,8 @@ export async function extractEvidenceWithWorkersAi(options: {
         result: claim.result,
         extractionMethod: "model_assisted",
         extractorVersion: WORKERS_AI_EVIDENCE_EXTRACTOR_VERSION,
-        sourceLocator: claim.sourceLocators.join(","),
+        sourceLocator:
+          claim.result === "uncertain" ? chunkTraceLocator : claim.sourceLocators.join(","),
         summaryAr: claim.summaryAr,
       });
 
@@ -253,6 +255,15 @@ export function chunkMarkedParagraphs(paragraphs: readonly MarkedParagraph[]): M
   }
 
   return chunks;
+}
+
+function buildChunkTraceLocator(chunk: readonly MarkedParagraph[]): string {
+  const first = chunk[0]?.id;
+  const last = chunk.at(-1)?.id;
+  if (!first || !last) {
+    throw new TypeError("Evidence chunk must contain at least one marked paragraph");
+  }
+  return `chunk:${first}-${last}`;
 }
 
 function buildSystemPrompt(): string {
