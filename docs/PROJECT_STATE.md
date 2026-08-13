@@ -179,6 +179,46 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 
 **P3S-06 = 100% ومغلقة إنتاجيًا.**
 
+## P3S-07 — taxonomy عربية موضوعية — مكتملة ومنشورة على production
+
+P3S-07 دُمجت عبر PR #40 إلى main commit `8b8ae4d535881d439c9097f2729df421b787c879`.
+
+### ما تغير
+
+- أضيف عقد مركزي للـtaxonomy في `lib/review-engine/content-taxonomy.ts` تستخدمه مسارات المراجعة البشرية والأدلة وWorkers AI والواجهة.
+- أضيفت وقائع وصفية دقيقة: `nudity`, `kissing`, `intimate_touching`, `sexual_dialogue`, `smoking_or_vaping`, `alcohol_use`, `drug_use`, `gambling_activity`, و`religious_reference_or_practice`.
+- العري/التقبيل/اللمس الحميمي/الحوار الجنسي تبقى subtypes موضوعية داخل `sexualContent`، والتدخين/الكحول/المخدرات/القمار تبقى وقائع منفصلة داخل `substances`.
+- `religious_reference_or_practice` marker وصفي cross-cutting، ولا يصبح تلقائيًا حكم خطر أو ملاءمة.
+- human review وevidence assessment وWorkers AI parser تفشل مغلقًا إذا رُبط subtype بمحور غير متوافق.
+- Review Editor لا يعرض إلا flags المناسبة للمحور الحالي، والـpublic evidence DTO لا يسقط flags المنشورة.
+- لا أضيفت top-level categories جديدة، ولا rating عمري أجنبي، ولا trust score.
+
+### D1 والحماية
+
+- migration `0019_objective_content_taxonomy.sql` أعادت بناء جدولي flags فقط لتوسيع CHECKs؛ لم تضف product tables جديدة.
+- category-compatibility triggers موجودة في D1 لكل من `observation_flags` و`evidence_publication_fact_flags`.
+- append-only protections بقيت محفوظة بعد إعادة البناء.
+- P2Q-01 `review_audit_selections_insert_guard` أُعيد بنفس منطق الاختيار بعد rebuild وتم التحقق من وجوده وسلوكه.
+- production workflow يقرأ `sqlite_master` بعد migration ويتأكد من الـCHECKs والـcategory guards قبل نشر Worker.
+
+### الإغلاق الإنتاجي المؤكد
+
+- branch Checkpoint Run `31685621212` نجح، وPR #40 CI Run `31685982134` نجح.
+- main Checkpoint verification Run `31686061646` نجح بالكامل.
+- Cloudflare production Run `31686061613` نجح بالكامل.
+- **227/227 tests، 0 fail**.
+- `test:migrations`: **22 migration files / 33 product tables** محليًا.
+- migration `0019_objective_content_taxonomy.sql` نُفذت remote بنجاح عبر atomic file ingestion.
+- D1 production أصبحت **22/22 migrations**.
+- remote schema verification نجح.
+- remote taxonomy verification أكد وجود الـ9 subtypes في CHECKs وcategory-compatibility triggers على production.
+- bindings بعد النشر: `DB`, `IMAGES`, `AI`, `ASSETS`.
+- Worker Version ID: `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`.
+- Worker: `https://qabl-almushahada.buildtools.workers.dev`.
+- smoke tests نجحت لـ`/`, `/review`, `/review?publicationId=missing-publication`, `/search?q=nemo`, `/review-policy`, `/privacy`, `/corrections`.
+
+**P3S-07 = 100% ومغلقة إنتاجيًا.**
+
 ## الإنچين والثقة — الحالة الحالية
 
 - القرار deterministic وقابل لإعادة الإنتاج.
@@ -186,6 +226,7 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 - Workers AI لا يملك سلطة القرار أو النشر.
 - P3S-05 يحول الأدلة إلى وقائع وcoverage/conflict assessment.
 - P3S-06 فقط يسمح بتحويل snapshot evidence-ready إلى publication current، بعد إعادة التحقق في التطبيق وفي D1.
+- P3S-07 يضيف وصفًا أدق للوقائع من غير تحويل الـsubtypes إلى أحكام مستقلة.
 - المسار البشري P2/P2Q محفوظ كاملًا مع independence, revisions, audit, calibration, safety holds, corrections.
 
 راجع `docs/ENGINE_TRUST_MODEL.md`.
@@ -197,6 +238,7 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 - فلاتر النوع والعمر وحالة التحقق.
 - `/review?bundleId=...` للمراجعات البشرية الموثقة القديمة.
 - `/review?publicationId=...` للمراجعات evidence-based بعد وجود snapshot منشورة فعلية.
+- العرض evidence-based يحافظ على الـobjective subtype flags المنشورة ويعرضها كأوصاف، لا كحكم ملاءمة مستقل.
 - حدود الأسرة محفوظة محليًا من غير اسم طفل أو تاريخ ميلاد.
 - `/review-policy`, `/privacy`, `/corrections` موجودة ومربوطة من الموقع.
 - search لم يُربط بعد تلقائيًا بـevidence publications؛ ذلك يدخل مع ingestion/SEO في P3S-08.
@@ -205,12 +247,15 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
-- آخر production feature commit مؤكد: `d914b223c9db1d8622c4ba33a5681b7436842cf9` (P3S-06).
-- Cloudflare Run: `31679684634`.
-- D1: **21/21 migrations**.
+- آخر production feature commit مؤكد: `8b8ae4d535881d439c9097f2729df421b787c879` (P3S-07).
+- Cloudflare Run: `31686061613`.
+- main Checkpoint verification Run: `31686061646`.
+- D1: **22/22 migrations**.
+- product tables محليًا بعد كل migrations: **33**.
+- remote taxonomy CHECKs وcategory guards: verified.
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`.
-- remote schema وsmoke tests نجحا بعد migration رقم 21.
+- Worker Version ID: `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`.
+- remote schema وsmoke tests نجحا بعد migration رقم 22.
 
 ## ما لا نفعله
 
@@ -228,7 +273,6 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 
 - بعض أمثلة الصفحة الرئيسية ما زالت تصميمية وليست مراجعات production.
 - زر البلاغ العام غير موصول بعد.
-- taxonomy العربية تحتاج توسعة موضوعية في P3S-07.
 - لا posters غير مرخصة.
 - لا bulk production catalog import حتى P3S-08.
 - لا صفحات SEO production واسعة قبل catalog/evidence صالحين فعليًا.
@@ -236,9 +280,9 @@ migration `0018_evidence_publication_gate.sql` أضافت:
 
 ## نقطة البدء التالية
 
-1. ابدأ `P3S-07` فقط — توسيع taxonomy العربية بوقائع موضوعية قابلة للرصد والاختبار.
-2. لا تدخل bulk catalog أو SEO ingestion في نفس PR.
-3. بعد P3S-07: `P3S-08` أول catalog production من Wikidata وصفحات SEO حقيقية من البيانات القانونية.
+1. ابدأ `P3S-08` فقط — أول catalog production من Wikidata إلى D1 ثم أول صفحات SEO حقيقية من البيانات القانونية.
+2. لا تزرع مراجعات موثقة أو evidence publications مصطنعة لملء صفحات SEO.
+3. catalog metadata يظل منفصلًا عن review/evidence state، وأي كتابة production يجب أن تمر preview/validation/provenance أولًا.
 4. بعد تثبيت المحتوى الحقيقي، انتقل إلى P4-03 لاختبار 20 مراجعة evidence-based يدويًا قبل التوسع.
 
 راجع قبل تعديل المصدر/الثقة/النشر:
