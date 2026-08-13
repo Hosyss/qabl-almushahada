@@ -11,8 +11,11 @@ export function HomeSearchUpgrade() {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const scheduleTarget = (value: HTMLDivElement | null) => {
+      window.setTimeout(() => setTarget(value), 0);
+    };
     if (pathname !== "/") {
-      setTarget(null);
+      scheduleTarget(null);
       return;
     }
 
@@ -23,10 +26,10 @@ export function HomeSearchUpgrade() {
     mount.className = "home-search-upgrade";
     panel.classList.add("search-panel--b3");
     panel.appendChild(mount);
-    setTarget(mount);
+    scheduleTarget(mount);
 
     return () => {
-      setTarget(null);
+      scheduleTarget(null);
       mount.remove();
       panel.classList.remove("search-panel--b3");
     };
