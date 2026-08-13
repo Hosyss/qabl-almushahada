@@ -94,6 +94,28 @@ jobs:
           curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/minions-review.html"
           grep -F 'insufficient_data' "$RUNNER_TEMP/minions-review.html" > /dev/null
 
+      - name: Verify P4-03B2 editorial quality markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          for slug in cars et harry minions; do
+            file="$RUNNER_TEMP/$slug-review.html"
+            grep -F 'البيانات غير كافية — لا نصدر حكمًا نهائيًا بعد' "$file" > /dev/null
+            grep -F 'اتفاق مستقل' "$file" > /dev/null
+            grep -F 'مصدر واحد فقط' "$file" > /dev/null
+            grep -F 'أساس الاستخدام' "$file" > /dev/null
+            grep -F 'CC BY-SA 4.0' "$file" > /dev/null
+            grep -F 'لا ندّعي ترخيص إعادة نشر' "$file" > /dev/null
+            grep -F 'application/ld+json' "$file" > /dev/null
+            grep -F 'rel="canonical"' "$file" > /dev/null
+            for forbidden in 'Common Sense Media' 'Plugged In' 'BBFC' 'Dove.org'; do
+              if grep -Fq "$forbidden" "$file"; then
+                echo "$slug still exposes excluded source: $forbidden" >&2
+                exit 1
+              fi
+            done
+          done
+
       - name: Verify mixed locators fail closed
         shell: bash
         run: |
@@ -117,6 +139,7 @@ jobs:
         run: |
           echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
           echo '- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Every editorial page remains insufficient_data' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Mixed review locators fail closed' >> "$GITHUB_STEP_SUMMARY"
+          echo '- P4-03B2 Arabic evidence strength, source-rights markers, JSON-LD, and canonical metadata are live' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Excluded source publishers are absent from all four editorial pages' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Every editorial page remains insufficient_data and mixed locators fail closed' >> "$GITHUB_STEP_SUMMARY"
           echo '- All four editorial pages are present in sitemap.xml' >> "$GITHUB_STEP_SUMMARY"

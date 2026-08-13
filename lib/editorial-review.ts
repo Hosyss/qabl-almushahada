@@ -1,13 +1,15 @@
+import { PUBLIC_SITE_ORIGIN } from "./public-catalog.ts";
 import {
   CATEGORY_LABELS_AR,
   CONTENT_CATEGORIES,
   type ContentCategory,
 } from "./review-engine/index.ts";
 
-export const EDITORIAL_REVIEW_POLICY_VERSION = "2026-08-13.1";
+export const EDITORIAL_REVIEW_POLICY_VERSION = "2026-08-13.2";
 export const MAX_EDITORIAL_REVIEW_ID_LENGTH = 160;
 
-export type EditorialSourceType = "published_review" | "official_classification";
+export type EditorialSourceType = "published_review" | "official_classification" | "open_encyclopedia";
+export type EditorialSourceUsageBasis = "open_license" | "link_only_factual_reference";
 export type EditorialClaimVerification = "corroborated" | "single_source";
 
 export interface EditorialSourceReference {
@@ -17,6 +19,11 @@ export interface EditorialSourceReference {
   sourceUrl: string;
   accessedOn: string;
   independenceGroupId: string;
+  usageBasis: EditorialSourceUsageBasis;
+  rightsLabel: string;
+  rightsUrl: string;
+  usageNoteAr: string;
+  sourceVersion?: string;
   supportedClaimIds: string[];
 }
 
@@ -129,10 +136,15 @@ export function assessEditorialReviewPublication(
     if (
       !isBoundedText(source.id, 1, 160) ||
       !isBoundedText(source.publisher, 2, 160) ||
-      !["published_review", "official_classification"].includes(source.sourceType) ||
+      !["published_review", "official_classification", "open_encyclopedia"].includes(source.sourceType) ||
       !isHttpsUrl(source.sourceUrl) ||
       !isIsoDate(source.accessedOn) ||
       !isBoundedText(source.independenceGroupId, 2, 160) ||
+      !["open_license", "link_only_factual_reference"].includes(source.usageBasis) ||
+      !isBoundedText(source.rightsLabel, 3, 240) ||
+      !isHttpsUrl(source.rightsUrl) ||
+      !isBoundedText(source.usageNoteAr, 20, 900) ||
+      (source.sourceVersion !== undefined && !isBoundedText(source.sourceVersion, 1, 160)) ||
       source.supportedClaimIds.length === 0 ||
       new Set(source.supportedClaimIds).size !== source.supportedClaimIds.length ||
       source.supportedClaimIds.some((id) => !isBoundedText(id, 1, 160))
@@ -140,7 +152,7 @@ export function assessEditorialReviewPublication(
       issues.push({
         code: "SOURCE_INVALID",
         sourceId: source.id,
-        messageAr: "بيانات مصدر تحريري أو تاريخ الوصول أو قائمة الادعاءات غير صالحة.",
+        messageAr: "بيانات المصدر أو أساس الاستخدام أو قائمة الادعاءات غير صالحة.",
       });
     }
   }
@@ -196,7 +208,7 @@ export function assessEditorialReviewPublication(
         code: "CORROBORATION_INVALID",
         claimId: claim.id,
         category: claim.category,
-        messageAr: "وصف مستوى التحقق لا يطابق عدد المصادر المستقلة التي تدعم الواقعة.",
+        messageAr: "وصف مستوى التحقق لا يطابق عدد مجموعات الاستقلال التي تدعم الواقعة.",
       });
     }
   }
@@ -274,6 +286,16 @@ export function parseEditorialReviewId(value: unknown): string {
 
 export function buildPublicEditorialReviewHref(editorialId: string): string {
   return `/review?editorialId=${encodeURIComponent(parseEditorialReviewId(editorialId))}`;
+}
+
+export function buildPublicEditorialReviewCanonicalUrl(editorialId: string): string {
+  return `${PUBLIC_SITE_ORIGIN}${buildPublicEditorialReviewHref(editorialId)}`;
+}
+
+export function buildEditorialReviewDescription(
+  review: Pick<EditorialReviewPublication, "titleLabel" | "releaseYear" | "uncertainCategories">,
+): string {
+  return `${review.titleLabel} (${review.releaseYear}) — تحليل عربي يوضح الوقائع المدعومة ومصادرها وما لم يُحسم بعد. لا يصدر حكم ملاءمة نهائيًا لأن ${review.uncertainCategories.length} من 10 محاور ما زالت غير محسومة.`;
 }
 
 export function getEditorialCategoryLabelAr(category: ContentCategory): string {
