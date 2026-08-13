@@ -3,23 +3,14 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
-import { getEditorialPublicationPresentation } from "@/lib/editorial-publication-presentation";
-import {
-  buildEditorialReviewDescription,
-  buildPublicEditorialReviewCanonicalUrl,
-} from "@/lib/editorial-review";
-import { getEditorialReviewPublicationById } from "@/lib/editorial-review-registry";
+import { buildEditorialReviewDescription, buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
+import { loadEditorialPublicationById } from "@/lib/public-editorial-read";
 
 import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
 import ReviewClient from "./review-client";
 
-type ReviewSearchParams = {
-  bundleId?: string | string[];
-  publicationId?: string | string[];
-  editorialId?: string | string[];
-};
-
+type ReviewSearchParams = { bundleId?: string | string[]; publicationId?: string | string[]; editorialId?: string | string[] };
 type ReviewPageProps = { searchParams: Promise<ReviewSearchParams> };
 
 const UNAVAILABLE_METADATA: Metadata = {
@@ -33,39 +24,25 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
   const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
-  const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
-
-  if (locatorCount !== 1) return UNAVAILABLE_METADATA;
-
-  if (editorialId) {
-    const review = loadEditorialReviewFailClosed(editorialId);
-    if (!review) return UNAVAILABLE_METADATA;
-
-    const presentation = getEditorialPublicationPresentation(review);
-    const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
-    const description = buildEditorialReviewDescription(review);
-    const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
-
-    return {
-      title,
-      description,
-      alternates: { canonical },
-      robots: { index: true, follow: true },
-      openGraph: {
-        title,
-        description,
-        type: "article",
-        url: canonical,
-        locale: "ar_EG",
-        publishedTime: review.publishedAt,
-        modifiedTime: presentation.updatedAt,
-        authors: ["قبل المشاهدة"],
-      },
-      twitter: { card: "summary", title, description },
-    };
-  }
-
-  return {};
+  if ([bundleId, publicationId, editorialId].filter(Boolean).length !== 1) return UNAVAILABLE_METADATA;
+  if (!editorialId) return {};
+  const persisted = await loadEditorialReviewFailClosed(editorialId);
+  if (!persisted) return UNAVAILABLE_METADATA;
+  const { review, presentation } = persisted;
+  const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
+  const description = buildEditorialReviewDescription(review);
+  const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: { index: true, follow: true },
+    openGraph: {
+      title, description, type: "article", url: canonical, locale: "ar_EG",
+      publishedTime: review.publishedAt, modifiedTime: presentation.updatedAt, authors: ["قبل المشاهدة"],
+    },
+    twitter: { card: "summary", title, description },
+  };
 }
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
@@ -73,59 +50,42 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
   const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
-  const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
-
-  if (locatorCount !== 1) return <ReviewUnavailable />;
-
+  if ([bundleId, publicationId, editorialId].filter(Boolean).length !== 1) return <ReviewUnavailable />;
   if (bundleId) {
     const review = await loadHumanReviewFailClosed(bundleId);
     return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
   }
-
   if (publicationId) {
-    const evidenceReview = await loadEvidenceReviewFailClosed(publicationId);
-    return evidenceReview ? <EvidenceReviewClient review={evidenceReview} /> : <ReviewUnavailable />;
+    const review = await loadEvidenceReviewFailClosed(publicationId);
+    return review ? <EvidenceReviewClient review={review} /> : <ReviewUnavailable />;
   }
-
-  const editorialReview = loadEditorialReviewFailClosed(editorialId);
-  return editorialReview ? <EditorialReviewView review={editorialReview} /> : <ReviewUnavailable />;
+  const persisted = await loadEditorialReviewFailClosed(editorialId);
+  return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
 }
 
 async function loadHumanReviewFailClosed(bundleId: string) {
   try { return await loadPublicReview({ bundleId }); } catch { return null; }
 }
-
 async function loadEvidenceReviewFailClosed(publicationId: string) {
   try { return await loadPublicEvidenceReview({ publicationId }); } catch { return null; }
 }
-
-function loadEditorialReviewFailClosed(editorialId: string) {
-  try { return getEditorialReviewPublicationById(editorialId); } catch { return null; }
+async function loadEditorialReviewFailClosed(editorialId: string) {
+  try { return await loadEditorialPublicationById(editorialId); } catch { return null; }
 }
 
 function ReviewUnavailable() {
   return (
     <main className="review-page">
       <header className="review-header">
-        <Link className="review-brand" href="/" aria-label="قبل المشاهدة — الرئيسية">
-          <ReviewLogo />
-          <span><strong>قبل المشاهدة</strong><small>قرار أهدى لكل بيت</small></span>
-        </Link>
+        <Link className="review-brand" href="/" aria-label="قبل المشاهدة — الرئيسية"><ReviewLogo /><span><strong>قبل المشاهدة</strong><small>قرار أهدى لكل بيت</small></span></Link>
         <Link className="review-back" href="/search">الرجوع للبحث <span aria-hidden="true">←</span></Link>
       </header>
       <section className="review-end" aria-labelledby="review-unavailable-title">
         <span aria-hidden="true">◎</span>
-        <div>
-          <small>حالة آمنة</small>
-          <h1 id="review-unavailable-title">المراجعة غير متاحة حاليًا.</h1>
-          <p>قد يكون الرابط قديمًا أو غير مكتمل، أو تغيّرت حالة المراجعة. لن نعرض بيانات بديلة أو مثالًا تجريبيًا مكان مراجعة غير متاحة.</p>
-        </div>
+        <div><small>حالة آمنة</small><h1 id="review-unavailable-title">المراجعة غير متاحة حاليًا.</h1><p>قد يكون الرابط قديمًا أو غير مكتمل، أو تغيّرت حالة المراجعة. لن نعرض بيانات بديلة أو مثالًا تجريبيًا مكان مراجعة غير متاحة.</p></div>
         <Link href="/search">ابحث عن العمل <span aria-hidden="true">←</span></Link>
       </section>
     </main>
   );
 }
-
-function ReviewLogo() {
-  return <span className="review-logo" aria-hidden="true"><i /><b /><em /></span>;
-}
+function ReviewLogo() { return <span className="review-logo" aria-hidden="true"><i /><b /><em /></span>; }
