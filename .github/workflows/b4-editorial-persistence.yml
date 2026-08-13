@@ -1,0 +1,20 @@
+name: B4 editorial persistence
+
+on:
+  push:
+    branches: ["agent/p4-03-b4-editorial-persistence-v2", main]
+  pull_request:
+
+jobs:
+  verify-editorial-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/editorial-bootstrap-parity.test.ts
+      - run: node --experimental-strip-types --test tests/editorial-persistence-immutability.test.ts tests/editorial-persistence-head-lock.test.ts
+      - run: npm run test:migrations
