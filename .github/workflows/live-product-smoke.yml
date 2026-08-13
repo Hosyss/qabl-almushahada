@@ -18,9 +18,6 @@ env:
   WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
   KNOWN_CATALOG_QID: Q44578
   KNOWN_CATALOG_QUERY: Titanic
-  EDITORIAL_QID: Q182153
-  EDITORIAL_QUERY: Cars
-  EDITORIAL_ID: cars-2006-editorial-pilot-v1
 
 jobs:
   smoke:
@@ -83,33 +80,37 @@ jobs:
             exit 1
           fi
 
-      - name: Verify Cars editorial path is public but decision stays insufficient
+      - name: Verify all editorial paths from search through analysis
         shell: bash
         run: |
           set -euo pipefail
 
-          curl --fail --silent --show-error --location --retry 3 \
-            --get --data-urlencode "q=$EDITORIAL_QUERY" \
-            "$WORKER_URL/search" \
-            > "$RUNNER_TEMP/editorial-search.html"
+          while IFS='|' read -r label qid query editorial_id fact_count uncertain_count source_csv; do
+            [ -n "$label" ] || continue
+            safe_label="$(printf '%s' "$label" | tr '[:upper:] ' '[:lower:]-' | tr -cd '[:alnum:]-')"
 
-          curl --fail --silent --show-error --location --retry 3 \
-            "$WORKER_URL/title/$EDITORIAL_QID" \
-            > "$RUNNER_TEMP/editorial-title.html"
+            curl --fail --silent --show-error --location --retry 3 \
+              --get --data-urlencode "q=$query" \
+              "$WORKER_URL/search" \
+              > "$RUNNER_TEMP/${safe_label}-search.html"
 
-          curl --fail --silent --show-error --location --retry 3 \
-            --get --data-urlencode "editorialId=$EDITORIAL_ID" \
-            "$WORKER_URL/review" \
-            > "$RUNNER_TEMP/editorial-review.html"
+            curl --fail --silent --show-error --location --retry 3 \
+              "$WORKER_URL/title/$qid" \
+              > "$RUNNER_TEMP/${safe_label}-title.html"
 
-          node --input-type=module - \
-            "$RUNNER_TEMP/editorial-search.html" \
-            "$RUNNER_TEMP/editorial-title.html" \
-            "$RUNNER_TEMP/editorial-review.html" \
-            "$EDITORIAL_ID" <<'NODE'
+            curl --fail --silent --show-error --location --retry 3 \
+              --get --data-urlencode "editorialId=$editorial_id" \
+              "$WORKER_URL/review" \
+              > "$RUNNER_TEMP/${safe_label}-review.html"
+
+            node --input-type=module - \
+              "$RUNNER_TEMP/${safe_label}-search.html" \
+              "$RUNNER_TEMP/${safe_label}-title.html" \
+              "$RUNNER_TEMP/${safe_label}-review.html" \
+              "$label" "$editorial_id" "$fact_count" "$uncertain_count" "$source_csv" <<'NODE'
           import { readFileSync } from 'node:fs';
 
-          const [, , searchFile, titleFile, reviewFile, editorialId] = process.argv;
+          const [, , searchFile, titleFile, reviewFile, label, editorialId, factCount, uncertainCount, sourceCsv] = process.argv;
           const searchRaw = readFileSync(searchFile, 'utf8');
           const titleRaw = readFileSync(titleFile, 'utf8');
           const reviewRaw = readFileSync(reviewFile, 'utf8');
@@ -129,21 +130,15 @@ jobs:
               .trim();
           }
 
-          function requireText(label, text, expected) {
+          function requireText(scope, text, expected) {
             if (!text.includes(expected)) {
-              throw new Error(`${label} is missing expected visible text: ${expected}`);
+              throw new Error(`${label} ${scope} is missing visible text: ${expected}`);
             }
           }
 
-          function requireRaw(label, html, expected) {
+          function requireRaw(scope, html, expected) {
             if (!html.includes(expected)) {
-              throw new Error(`${label} is missing expected raw HTML/link token: ${expected}`);
-            }
-          }
-
-          function requirePattern(label, text, pattern, description) {
-            if (!pattern.test(text)) {
-              throw new Error(`${label} is missing expected visible pattern: ${description}`);
+              throw new Error(`${label} ${scope} is missing raw link token: ${expected}`);
             }
           }
 
@@ -151,53 +146,62 @@ jobs:
           const title = visibleText(titleRaw);
           const review = visibleText(reviewRaw);
 
-          requireText('Cars search', search, 'تحليل تحريري جزئي');
-          requireRaw('Cars search', searchRaw, editorialId);
-          requireText('Cars title', title, 'يوجد تحليل تحريري جزئي لهذا العمل');
-          requireRaw('Cars title', titleRaw, editorialId);
+          requireText('search', search, 'تحليل تحريري جزئي');
+          requireRaw('search', searchRaw, editorialId);
+          requireText('title', title, 'يوجد تحليل تحريري جزئي لهذا العمل');
+          requireRaw('title', titleRaw, editorialId);
 
           for (const expected of [
             'تحليل تحريري موثق جزئيًا',
             'insufficient_data',
             'البيانات غير كافية للحكم',
-            'Common Sense Media',
-            'Plugged In',
-            'BBFC',
-            'Kids-In-Mind',
-            'Dove.org',
+            ...sourceCsv.split(',').filter(Boolean),
           ]) {
-            requireText('Cars editorial review', review, expected);
+            requireText('editorial review', review, expected);
           }
 
-          requirePattern(
-            'Cars editorial review',
-            review,
-            /وقائع متحققة بمصدرين\+\s*4/u,
-            '4 corroborated facts',
-          );
-          requirePattern(
-            'Cars editorial review',
-            review,
-            /المحاور غير المحسومة\s*6\/10/u,
-            '6/10 uncertain categories',
-          );
+          const factsPattern = new RegExp(`وقائع متحققة بمصدرين\\+\\s*${factCount}`, 'u');
+          if (!factsPattern.test(review)) {
+            throw new Error(`${label} editorial review is missing ${factCount} corroborated facts.`);
+          }
+          const uncertainPattern = new RegExp(`المحاور غير المحسومة\\s*${uncertainCount}\\/10`, 'u');
+          if (!uncertainPattern.test(review)) {
+            throw new Error(`${label} editorial review is missing ${uncertainCount}/10 uncertain axes.`);
+          }
 
-          console.log('Cars editorial live path verified with visible-text semantics and raw-link checks.');
+          console.log(`${label}: search -> title -> editorial review verified.`);
           NODE
 
-      - name: Verify mixed review locators fail closed
+            curl --fail --silent --show-error --location --retry 3 \
+              --get \
+              --data-urlencode "editorialId=$editorial_id" \
+              --data-urlencode "publicationId=invalid-publication" \
+              "$WORKER_URL/review" \
+              > "$RUNNER_TEMP/${safe_label}-mixed.html"
+
+            grep -F "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/${safe_label}-mixed.html" > /dev/null
+          done <<'CASES'
+          Cars|Q182153|Cars|cars-2006-editorial-pilot-v1|4|6|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
+          ET|Q11621|E.T.|et-1982-editorial-batch-v1|5|5|Common Sense Media,Plugged In,BBFC,Kids-In-Mind
+          Harry-Potter|Q102438|Harry Potter|harry-potter-philosophers-stone-2001-editorial-batch-v1|4|6|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
+          Minions|Q13619743|Minions|minions-2015-editorial-batch-v1|5|5|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
+          CASES
+
+      - name: Verify editorial pages are discoverable in sitemap
         shell: bash
         run: |
           set -euo pipefail
 
           curl --fail --silent --show-error --location --retry 3 \
-            --get \
-            --data-urlencode "editorialId=$EDITORIAL_ID" \
-            --data-urlencode "publicationId=invalid-publication" \
-            "$WORKER_URL/review" \
-            > "$RUNNER_TEMP/mixed-review.html"
+            "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
 
-          grep -F "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/mixed-review.html" > /dev/null
+          for editorial_id in \
+            cars-2006-editorial-pilot-v1 \
+            et-1982-editorial-batch-v1 \
+            harry-potter-philosophers-stone-2001-editorial-batch-v1 \
+            minions-2015-editorial-batch-v1; do
+            grep -F "editorialId=$editorial_id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
+          done
 
       - name: Verify homepage has no static fake suggestions
         shell: bash
@@ -222,7 +226,7 @@ jobs:
         run: |
           echo "### Live product smoke succeeded" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1-backed suggestion: \`wd:$KNOWN_CATALOG_QID\` found for \`$KNOWN_CATALOG_QUERY\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Search result exposes an explicit review state" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Cars editorial path is public with 4 corroborated facts, 6/10 uncertain axes, and \`insufficient_data\` decision status" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Mixed review locators fail closed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Every editorial page keeps \`insufficient_data\` and mixed locators fail closed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- All four editorial pages are discoverable in sitemap.xml" >> "$GITHUB_STEP_SUMMARY"
           echo "- Homepage contains no static legacy suggestions" >> "$GITHUB_STEP_SUMMARY"
