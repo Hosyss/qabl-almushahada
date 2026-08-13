@@ -132,7 +132,7 @@ jobs:
           npx wrangler d1 execute DB \
             --remote \
             --config .wrangler/production/wrangler.jsonc \
-            --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('titles','title_versions','review_bundles','internal_users','reviewer_reference_sets') ORDER BY name;" \
+            --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('titles','title_versions','review_bundles','internal_users','reviewer_reference_sets','content_source_policy_snapshots','title_catalog_sources','version_evidence_sources') ORDER BY name;" \
             --json > "$RUNNER_TEMP/d1-schema.json"
 
           node --input-type=module - "$RUNNER_TEMP/d1-schema.json" <<'NODE'
@@ -141,13 +141,22 @@ jobs:
           const [, , file] = process.argv;
           const payload = JSON.parse(readFileSync(file, 'utf8'));
           const text = JSON.stringify(payload);
-          const required = ['titles', 'title_versions', 'review_bundles', 'internal_users', 'reviewer_reference_sets'];
+          const required = [
+            'titles',
+            'title_versions',
+            'review_bundles',
+            'internal_users',
+            'reviewer_reference_sets',
+            'content_source_policy_snapshots',
+            'title_catalog_sources',
+            'version_evidence_sources',
+          ];
           const missing = required.filter((name) => !text.includes(`\"${name}\"`));
           if (missing.length) {
             console.error(`Remote D1 schema is missing required tables: ${missing.join(', ')}`);
             process.exit(1);
           }
-          console.log('Remote D1 schema contains the required project tables.');
+          console.log('Remote D1 schema contains the required project and provenance tables.');
           NODE
 
       - name: Deploy Worker
