@@ -14,48 +14,49 @@
 
 المصادر الخارجية لا تصبح مراجعتنا ولا ننسخ Parents Guide أو مراجعة أجنبية ثم نعيد صياغتها على أنها رأينا. دور المصدر الخارجي هو تقديم **بيانات كتالوجية أو دليل قابل للتتبع** عندما تسمح الرخصة والشروط بذلك. بعد ذلك نطبّق taxonomy ومعايير الأسرة العربية والإنچين الخاص بنا.
 
-المسار القابل للتوسع المستهدف أصبح:
+المسار القابل للتوسع الحالي:
 
 1. **Catalog قانوني** لتعريف العمل والنسخة من مصدر يسمح بالاستخدام التجاري.
 2. **Evidence مرخص وقابل للتتبع** لكل معلومة محتوى نستخدمها.
-3. **استخراج وقائع منظمة**: المحور، الشدة، التكرار، السياق، والتوقيت عندما يسمح الدليل بذلك.
-4. **فحص coverage والتعارض**؛ نقص الدليل لا يتحول إلى «مناسب».
+3. **استخراج وقائع منظمة** مع إبقاء النموذج الآلي طبقة استخراج غير موثوقة لا تملك صلاحية النشر.
+4. **فحص coverage والتعارض**؛ نقص الدليل أو عدم اليقين لا يتحول إلى «مناسب».
 5. **معايير الأسرة العربية** versioned وقابلة للتخصيص، وليست ترجمة لتصنيف أجنبي.
 6. **Engine مستقل** يطبق حدود الأسرة على الوقائع المقبولة ويُرجع القرار والأسباب.
-7. **Corrections/feedback** تحفظ التصحيح والتاريخ بدل تبديل النتيجة بصمت.
+7. **بوابة نشر مستقلة** هي P3S-06 التالية؛ P3S-05 لا تنشر مراجعة عامة بمفردها.
+8. **Corrections/feedback** تحفظ التصحيح والتاريخ بدل تبديل النتيجة بصمت.
 
-سير المراجعين البشر المبني في P2/P2Q **يبقى موجودًا ولا يُحذف** لأنه مفيد كمسار جودة يدوي أو تصعيد للحالات المهمة، لكنه لن يكون شرطًا لتغطية آلاف الأفلام ولا سننشئ مراجعين وهميين لتمرير بواباته.
+سير المراجعين البشر المبني في P2/P2Q **يبقى موجودًا ولا يُحذف** لأنه مفيد كمسار جودة يدوي أو تصعيد للحالات المهمة، لكنه لم يعد شرطًا لتغطية آلاف الأفلام ولا توجد هويات مراجعين وهمية لتمرير بواباته.
 
 ## هدف التشغيل التجاري
 
 - الموقع مستهدف لتحقيق دخل من الإعلانات؛ لذلك نتعامل معه كمشروع **تجاري** عند اختيار API أو dataset أو صورة.
 - لا نعتمد على توظيف فريق يشاهد كل فيلم لكي يستطيع الموقع التوسع.
-- لا نستخدم مصدرًا لمجرد أنه متاح على الإنترنت؛ كل source يبدأ blocked إلى أن يراجع ترخيصه وشروط استخدامه.
+- لا نستخدم مصدرًا لمجرد أنه متاح على الإنترنت؛ كل source/use يبدأ blocked إلى أن تراجَع الرخصة وشروط الاستخدام ويُضاف عقد صريح ومختبر.
 - لا نزرع مراجعات موثقة مصطنعة بغرض ملء الموقع أو SEO.
 
 ## مصادر المحتوى — الحالة القانونية الحالية
 
 راجع `docs/CONTENT_SOURCE_POLICY.md` و`lib/content-source-policy.ts`.
 
-### مسموح آليًا الآن
+### Wikidata
 
-**Wikidata**
-
-- الاستخدام الحالي: `catalog_metadata` فقط.
+- الاستخدام: `catalog_metadata` فقط.
 - الرخصة: CC0 1.0 للبيانات المنظمة.
 - الاستيراد يحمل QID ثابتًا ومصدر السجل والرخصة.
 - عقد الطلب محدود، ويستخدم User-Agent واضحًا ولا يحاول تجاوز rate limits.
-- لا تُحوّل metadata من Wikidata تلقائيًا إلى مراجعة موثقة أو حكم مشاهدة.
+- metadata لا تتحول تلقائيًا إلى مراجعة موثقة أو حكم مشاهدة.
 
-### مسموح من حيث الرخصة لكن الأتمتة وحفظ evidence موقوفان حتى اكتمال compliance الخاص بالمصدر
+### Wikipedia — مفعلة في كود P3S-05 كـanalysis evidence، والنشر الإنتاجي ينتظر إصلاح الـdeploy الحالي
 
-**Wikipedia**
+- المصدر الأول لمسار `analysis_evidence` هو Wikipedia عبر **Action API الرسمي فقط** وليس scraping للواجهة.
+- المضيفان المسموحان في هذا المسار هما `ar.wikipedia.org` و`en.wikipedia.org`.
+- عقد الاستخدام يسجل CC BY-SA 4.0 والعزو وlicense URL وrevision ووقت الجلب وSHA-256.
+- missing/disambiguation/non-main-namespace تُرفض.
+- 429/Retry-After و`maxlag` تفشل بصورة محافظة بدل retry عدواني.
+- نص المقالة مدخل عابر للاستخراج؛ لا ننشر فقرات طويلة منها كأنها كتابتنا ولا نحول المقالة نفسها إلى «مراجعة قبل المشاهدة».
+- هذه السياسة موجودة في كود P3S-05 وmigration `0017_enable_wikipedia_analysis_evidence.sql`، لكنها **لن تُعتبر production-active** حتى ينجح deploy الإصلاح وتصل D1 إلى 20/20 migrations.
 
-- النص يسمح بالاستخدام التجاري ضمن شروط CC BY-SA والعزو والترخيص بالمثل حسب الصفحة/المحتوى.
-- ingestion النصي الآلي وحفظه كـanalysis evidence معطلان حاليًا حتى توجد policy مخصوصة تسجل source URL/revision/license/attribution وتفصل الحقائق عن النص المنسوخ.
-- لا ننشر فقرات طويلة كأنها كتابتنا الأصلية.
-
-**Wikimedia Commons**
+### Wikimedia Commons
 
 - كل ملف له شروطه الخاصة؛ لا نفترض أن كل صورة تحمل نفس الرخصة.
 - لا تستخدم صورة حتى نسجل المؤلف والرخصة والعزو المطلوب لكل ملف.
@@ -71,23 +72,21 @@
 
 ## P3S-01 — Allowlist للمصادر التجارية — مدموج ومنشور
 
-- أضيف `lib/content-source-policy.ts` كعقد fail-closed.
-- المصدر الآلي الوحيد حاليًا هو `wikidata:catalog_metadata`.
+- `lib/content-source-policy.ts` عقد fail-closed.
 - استخدام المصدر مقسم إلى `catalog_metadata`, `analysis_evidence`, و`media` حتى لا يتحول حق استخدام الكتالوج تلقائيًا إلى حق نسخ مراجعة أو صورة.
 - TMDB وIMDb ومواقع أدلة الآباء تبقى blocked بدون commercial license.
 - `assertAutomatedSourceUseAllowed` يرفض أي source/use غير مسموح صراحة.
 
 ## P3S-02 — عقد Wikidata للكتالوج — مدموج ومنشور
 
-- أضيف `lib/wikidata-catalog.ts`.
-- endpoint: Wikidata Query Service الرسمي.
+- `lib/wikidata-catalog.ts` يستخدم Wikidata Query Service الرسمي.
 - User-Agent: `QablAlmushahadaBot/0.1 (+https://github.com/Hosyss/qabl-almushahada)`.
 - query محدودة بـ200 نتيجة كحد أقصى في الطلب، مع offset bounded.
 - تقبل أفلامًا ومسلسلات فقط، QID صالحًا، سنة منطقية، وlabel صالحًا.
 - parser يفشل عند payload غير صحيح ويزيل التكرار.
 - SQL generator يحدث جدول `titles` فقط ولا يلمس `review_bundles` أو submissions أو approvals.
-- أضيف `scripts/preview-wikidata-catalog.mts` و`npm run content:wikidata:preview` للمعاينة قبل أي كتابة production.
-- **لم يتم استيراد catalog production بعد**؛ الاستيراد الفعلي ينتظر اكتمال وربط provenance بالكتابة الإنتاجية.
+- `scripts/preview-wikidata-catalog.mts` و`npm run content:wikidata:preview` للمعاينة قبل أي كتابة production.
+- **لم يتم استيراد catalog production بعد**؛ ذلك مؤجل إلى P3S-08.
 
 ## P3S-03 — معايير الأسرة العربية — مدموجة ومنشورة
 
@@ -98,7 +97,6 @@
 - القرار لا يأخذ رقم age rating أجنبي ويعيد تسميته؛ لكل محور حد مستقل.
 - السياسة الحالية أشد افتراضيًا في `sexualContent`, `language`, `substances`, و`selfHarm` من الحد العام للعمر.
 - `fearLimit` وخيار تجنب التنمر يظلان قابلين لتعديل الأسرة محليًا.
-- helper القديم `createExampleFamilyProfile` أصبح يستخدم السياسة العربية الجديدة مع الحفاظ على واجهته الحالية.
 - coarse age helper في فلتر البحث يبقى فلترًا استكشافيًا فقط ولا يمثل قرار الأسرة أو rating رسميًا.
 
 ### الحدود العربية الافتراضية الحالية
@@ -113,25 +111,57 @@
 
 هذه نقطة بداية وليست حكمًا دينيًا أو أخلاقيًا مطلقًا على العمل.
 
-## P3S-04 — provenance قانوني غير قابل للتعديل — مكتمل وظيفيًا على الفرع الحالي
+## P3S-04 — provenance قانوني غير قابل للتعديل — مكتمل ومنشور على production
 
-- migration الجديدة `drizzle/0016_content_source_provenance.sql` ترفع checkpoint إلى **19 migration files / 27 product tables**.
-- `content_source_policy_snapshots` تحفظ نسخة policy قانونية ثابتة: source/use/decision/license URLs/attribution/share-alike/automated/commercial/verified-on.
-- قاعدة البيانات نفسها تسمح في النسخة الحالية فقط بالـsnapshot القانونية لـ**Wikidata + catalog_metadata + CC0 1.0**؛ محاولة زرع policy تجارية مزورة لـTMDB أو مصدر آخر تُرفض على مستوى SQLite/D1.
-- `title_catalog_sources` تحفظ provenance الكتالوج بشكل append-only: العنوان، policy snapshot، QID، URL، revision إن وجدت، وقت الجلب، SHA-256، وطريقة الإدخال.
-- Wikidata provenance لا تقبل URL على domain آخر أو QID غير صالح، ولا يمكن UPDATE/DELETE للسجل بعد كتابته.
-- `version_evidence_sources` منفصلة عن catalog ومربوطة بـ`title_versions` حتى لا تتحول metadata إلى evidence ضمنيًا.
-- جدول evidence موجود الآن، لكن **لا توجد analysis-evidence policy مسموحة حاليًا**؛ لذلك كل محاولة لحفظ evidence تظل fail-closed إلى أن تُراجع وتُفعّل policy مصدر محدد في P3S-05.
-- `lib/source-provenance.ts` يطابق نفس السياسة في TypeScript ويشترط HTTPS وSHA-256 lowercase ووقتًا صالحًا وQID/URL متطابقين.
-- `db/index.ts` و`drizzle.config.ts` يشملان schema الجديدة.
-- `scripts/verify-content-source-provenance.mjs` يطبق جميع migrations على SQLite ويثبت: منع policy مزورة، immutability، الفصل بين catalog/evidence، FK guards، وعدم حذف title له provenance محفوظة.
-- Cloudflare workflow في هذا الفرع صار يرفض النشر إذا لم تظهر الجداول الثلاثة الجديدة في D1 البعيدة بعد migration.
-- branch checkpoint عند `179d0d4db0754ce2edd2132d4a1b3be854c12683` اجتاز **183/183 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local`.
-- هذا البند **لم يُنشر على production بعد**؛ لا يصبح P3S-04 مكتملًا إنتاجيًا إلا بعد PR/merge ونجاح remote migration/schema verification/Cloudflare smoke tests.
+- P3S-04 دُمجت عبر PR #35 في main commit `709355bd6a9d0aaccb703837bff3b744a77da90b`.
+- Cloudflare production deploy Run `31667069022` نجح كاملًا.
+- migration `0016_content_source_provenance.sql` طُبقت فعليًا، وأصبحت D1 عند **19/19 migrations** في هذا checkpoint.
+- remote schema verification أكد وجود `content_source_policy_snapshots`, `title_catalog_sources`, و`version_evidence_sources` قبل Worker deploy.
+- `content_source_policy_snapshots` تحفظ نسخة policy قانونية ثابتة، و`title_catalog_sources` تفصل provenance الكتالوج، و`version_evidence_sources` تحفظ evidence على نسخة محددة.
+- provenance وpolicy snapshots append-only، وWikidata QID/URL/HTTPS/SHA-256/FK guards تُفرض على مستوى SQLite/D1.
+- Worker نشر بنجاح ثم نجحت smoke tests العامة وصفحات السياسات.
+- Worker Version ID لهذا checkpoint: `af408645-e45d-4144-b59a-a137950d2c3a`.
+
+## P3S-05 — evidence-based review pipeline — مكتمل وظيفيًا، إعادة النشر قيد الإغلاق
+
+PR #36 دُمجت إلى `main` في commit `77f2d4c6d074435cb6b6310713d0a00b931cd528` وبنت المسار التالي:
+
+- Wikipedia Action API كمصدر evidence مرخص ومحدد بالنسخة القانونية المسجلة.
+- migration `0017_enable_wikipedia_analysis_evidence.sql` تسمح فقط بحالتي policy persistable المعروفتين: Wikidata catalog/CC0 وWikipedia analysis evidence/CC BY-SA 4.0 مع attribution وShareAlike.
+- Cloudflare Workers AI binding باسم `AI`، والنموذج الحالي `@cf/meta/llama-3.1-8b-instruct-fast`.
+- النموذج **طبقة استخراج غير موثوقة** ولا يملك publish authority.
+- الاستخراج الآلي من prose يسمح فقط بـ`present` أو `uncertain`؛ لا يسمح بـ`none` لأن غياب الذكر ليس دليلًا على عدم الوجود.
+- `present` يتطلب fact منظمة وlocator حقيقي `P####`.
+- لا تُختلق runtime timestamps من نص Wikipedia.
+- chunking bounded/sequential ولا يوجد silent truncation.
+- `assessEvidenceReview` يفشل مغلقًا عند محور غير مغطى، `uncertain`، present بلا fact، تعارض وجود، فرق شدة >=2، أو cross-version evidence.
+- `buildWikipediaEvidenceReviewCandidate()` يجمع fetch → provenance → extraction → validation → coverage/conflict، لكنه يعيد دائمًا `publishable: false`؛ النشر العام هو P3S-06.
+
+### فشل deploy الأول بعد PR #36 ولماذا لم نعتبره نشرًا ناجحًا
+
+- Cloudflare Run `31669752116` فشل في **Verify engine** قبل تطبيق migration رقم 20 وقبل Worker deploy؛ لذلك لم يحدث تغيير remote من هذا التشغيل.
+- 205 من 207 اختبارات نجحت، وفشل اختباران كشفا أن `uncertain` كان ينتج `sourceLocator` فارغًا.
+- هذا لم يكن مجرد test formatting: عقد evidence نفسه يرفض locator فارغًا، لذلك كان يمكن أن يحول «عدم اليقين الآمن» إلى `ASSERTION_INVALID` بدل coverage unknown واضحة.
+
+### إصلاح P3S-05 الحالي
+
+- الفرع: `agent/p3s-05-fix-uncertain-locators`.
+- functional fix checkpoint: `ae5a46b60a531b29381b2752853419837f03856d`.
+- الـ`uncertain` لا تنسب واقعة إلى فقرة داعمة مزعومة، لكنها تسجل نطاق الجزء الذي تم فحصه بصيغة `chunk:P0001-P0004` مثلًا.
+- `present` ما زالت تتطلب locators فعلية `P####`، لذلك لم تُخفف أي بوابة ثقة أو coverage.
+- branch CI بعد الإصلاح نجح في **207/207 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local`.
+- local schema verifier يؤكد **20 migration files / 27 product tables**.
+- لا schema/migration جديدة في الإصلاح نفسه؛ migration رقم 20 هي نفسها P3S-05 الموجودة من PR #36.
+
+### حالة الإنتاج الآن
+
+- آخر production deployment المؤكد الناجح ما زال P3S-04 عند commit `709355bd6a9d0aaccb703837bff3b744a77da90b`.
+- D1 production المؤكدة حاليًا: **19/19 migrations**.
+- Worker bindings المؤكدة في آخر deploy ناجح: `DB`, `IMAGES`, `ASSETS`.
+- `AI` binding وWikipedia analysis-evidence policy وmigration رقم 20 **لا نعتبرها production-active بعد**.
+- لإغلاق P3S-05 إنتاجيًا: merge للإصلاح بعد PR CI أخضر، ثم Cloudflare deploy ناجح يثبت 20/20 migrations، source-policy verification، ظهور `env.AI` في deploy output، ونجاح smoke tests.
 
 ## الإنچين — الحالة الحالية
-
-الإنچين نفسه مبني ويعمل:
 
 - TypeScript domain schema للنسخة والوقائع والمحاور وحدود الأسرة.
 - fail-closed: نقص أو تعارض حرج يعيد `insufficient_data` بدل «مناسب».
@@ -139,8 +169,7 @@
 - الأسباب مرتبطة بالوقائع التي فعّلت القرار.
 - قواعد الخطر والحساسية منفصلة ومختبرة.
 - P3S-03 غيّرت default family profile إلى معايير عربية category-specific من غير تغيير مبدأ fail-closed.
-
-الـengine لا يخترع الوقائع. P3S-04 وفرت مخزن provenance قانوني؛ P3S-05 سيبني طبقة evidence-to-facts والـcoverage/conflict التي تمد الإنچين بوقائع قابلة للتتبع من غير تزوير reviewer identity.
+- P3S-05 تضيف evidence-to-facts وcoverage/conflict قبل الوصول لمسار النشر؛ لا تمنح Workers AI سلطة القرار أو النشر.
 
 ## سير المراجعين البشر — موجود لكنه لم يعد نموذج التوسع الإجباري
 
@@ -155,7 +184,7 @@
 - Safety Holds ولوحة الجودة.
 - correction workflow وحماية current approval.
 
-لا نحذف هذا العمل، لكن P3S-05/P3S-06 سيضيفان **مسار evidence-based مستقل** للنشر العام. المسار البشري يبقى اختياريًا للحالات ذات القيمة أو النزاع أو التحقق اليدوي.
+لا نحذف هذا العمل. المسار البشري يبقى اختياريًا للحالات ذات القيمة أو النزاع أو التحقق اليدوي، بينما P3S يوفر مسار evidence-based قابلًا للتوسع من غير synthetic reviewers.
 
 ## تجربة المستخدم العامة — المنجز
 
@@ -167,35 +196,23 @@
 - `/review-policy`, `/privacy`, `/corrections` موجودة ومربوطة من الموقع.
 - سياسة التصحيح لا تدعي أن public report intake موصول وهو غير موصول.
 
-## آخر حالة منشورة على main
+## الاختبارات — آخر checkpoint حالي
 
-- P3S-01/P3S-02/P3S-03 دُمجت عبر PR #34 إلى `main` في commit `fad025e903237f011b39239ce3b3d2152e694ca3`، ونجح بعدها main CI وCloudflare production deploy/smoke tests.
-- Worker العام يعمل على `https://qabl-almushahada.buildtools.workers.dev`.
-- D1 production قبل دمج P3S-04 ما زالت عند **18/18 migrations / 24 product tables**.
-- P3S-04 الحالية branch-only؛ الجداول الثلاثة الجديدة ليست production حتى يتم الدمج والنشر.
-
-## الاختبارات
-
-### آخر main منشور قبل P3S-04
-
-- P3S-01/02/03: **179/179** اختبارًا في checkpoint قبل الدمج، مع migrations/lint/build خضراء.
-
-### P3S-04 branch checkpoint
-
-- `test:engine`: **183/183 ناجحة، 0 فشل**.
-- `test:migrations`: ناجح.
+- fix branch P3S-05: **207/207 ناجحة، 0 فشل**.
+- `test:migrations`: ناجح — **20 migration files / 27 product tables** محليًا.
 - `lint:local`: ناجح.
 - `build:local`: ناجح.
-- schema: **19 migration files / 27 product tables**.
-- verifier الخاص بـP3S-04 يثبت الفصل القانوني بين catalog metadata وanalysis evidence على SQLite الفعلية بعد كل migrations.
+- اختبارات P3S-05 تغطي Wikipedia fetch policy، provenance، Workers AI parser/locators، coverage/conflict، ورفض النشر المباشر من candidate.
 
 ## Cloudflare — الإنتاج الفعلي
 
 - Worker العام: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
-- bindings: `DB`, `IMAGES`, `ASSETS`.
-- D1 production الحالية قبل P3S-04 عند **18/18 migrations**.
-- Cloudflare workflow في فرع P3S-04 صار يطلب وجود `content_source_policy_snapshots`, `title_catalog_sources`, و`version_evidence_sources` بعد تطبيق remote migration؛ أي نقص يمنع Worker deploy.
+- آخر deployment مؤكد ناجح: P3S-04 / commit `709355bd6a9d0aaccb703837bff3b744a77da90b`.
+- D1 production المؤكدة: **19/19 migrations**.
+- bindings المؤكدة: `DB`, `IMAGES`, `ASSETS`.
+- P3S-05 ستضيف production `AI` binding وتطبق migration رقم 20 فقط بعد merge الإصلاح ونجاح workflow كامل.
+- Cloudflare workflow في P3S-05 يفحص remote schema، exact source-policy rows، وجود `env.AI` في deploy output، ثم smoke tests العامة.
 - لا API tokens أو Account IDs تُنسخ إلى Worker config.
 
 ## ما لا نفعله
@@ -206,6 +223,7 @@
 - لا استخدام policy الكتالوج نفسها كـanalysis evidence.
 - لا نسخ review أجنبي ثم الادعاء أن «قبل المشاهدة» راجعه بنفسه.
 - لا ادعاء أن إنسانًا شاهد النسخة إذا لم يحدث ذلك.
+- لا منح Workers AI سلطة publish أو اعتبار صمته دليل `none`.
 - لا rating رقمي واحد للعمل يحل محل الأسباب والوقائع.
 - لا حسابات أطفال أو جمع اسم الطفل/تاريخ الميلاد.
 
@@ -213,18 +231,20 @@
 
 - بعض أعمال وأمثلة الصفحة الرئيسية ما زالت أمثلة تصميمية وليست مراجعات production.
 - زر البلاغ العام غير موصول حتى الآن.
+- لا توجد بعد بوابة publication مستقلة لـP3S؛ P3S-05 candidates تظل `publishable: false` حتى P3S-06.
 - taxonomy العربية تحتاج توسعة موضوعية قبل ingestion واسع: العري، الحميمية/التقبيل، الحوار الجنسي، التدخين/الكحول/المخدرات منفصلة، القمار، والحساسية الدينية عندما يمكن وصفها كواقعة قابلة للرصد.
 - لا صور posters غير مرخصة؛ غياب الصورة أفضل من استخدام غير قانوني.
+- لم يتم بعد bulk production catalog import؛ ذلك P3S-08.
 - P0-05 والمراحل P4 تبقى لاحقة بعد تثبيت مسار المحتوى الجديد.
 
 ## نقطة البدء التالية
 
-1. ادمج P3S-04 فقط بعد PR وCI أخضر، ثم تأكد أن remote D1 أصبحت **19/19 migrations** وأن الجداول الثلاثة الجديدة ظهرت في schema verification قبل Worker deploy.
-2. لا تبدأ P3S-05 قبل نجاح P3S-04 على production.
-3. `P3S-05` — بناء evidence-based review pipeline واختبارات coverage/conflict من غير synthetic reviewers، مع تفعيل مصدر analysis evidence فقط بعد policy قانونية خاصة به.
-4. `P3S-06` — بوابة نشر جديدة للمسار المستقل؛ يجب أن تحافظ على الحقيقة: **المراجعة النهائية والقرار من منهجنا نحن**، لكنها لا تقول إن بشرًا شاهدوا النسخة إذا لم يحدث ذلك.
-5. `P3S-07` — توسيع taxonomy العربية بوقائع موضوعية قبل التوسع.
-6. `P3S-08` — استيراد أول catalog production من Wikidata وتوليد صفحات SEO حقيقية، من غير زرع verified reviews مصطنعة.
+1. افتح PR لإصلاح `uncertain` trace locator فقط مع تحديث هذا checkpoint، ولا تدخل P3S-06 في نفس PR.
+2. لا تدمج إلا بعد PR CI أخضر على نفس head.
+3. بعد الدمج راقب main CI وCloudflare production deploy حتى النهاية.
+4. لا تعتبر P3S-05 production-complete إلا عندما تصبح D1 **20/20 migrations**، تنجح remote source-policy verification، يظهر `env.AI` في Wrangler deploy output، وتنجح smoke tests العامة.
+5. بعد ذلك فقط ابدأ `P3S-06` — بوابة نشر مستقلة تربط كل claim بأدلتها المرخصة ولا تدعي مشاهدة بشرية لم تحدث.
+6. بعد P3S-06: `P3S-07` taxonomy ثم `P3S-08` أول catalog production وSEO pages.
 
 راجع قبل تعديل المصدر/الثقة/النشر:
 
