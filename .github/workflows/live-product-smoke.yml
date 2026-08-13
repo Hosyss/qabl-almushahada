@@ -110,9 +110,12 @@ jobs:
           import { readFileSync } from 'node:fs';
 
           const [, , searchFile, titleFile, reviewFile, editorialId] = process.argv;
+          const searchRaw = readFileSync(searchFile, 'utf8');
+          const titleRaw = readFileSync(titleFile, 'utf8');
+          const reviewRaw = readFileSync(reviewFile, 'utf8');
 
-          function visibleText(file) {
-            return readFileSync(file, 'utf8')
+          function visibleText(html) {
+            return html
               .replace(/<!--[\s\S]*?-->/gu, '')
               .replace(/<script\b[\s\S]*?<\/script>/giu, ' ')
               .replace(/<style\b[\s\S]*?<\/style>/giu, ' ')
@@ -132,20 +135,26 @@ jobs:
             }
           }
 
+          function requireRaw(label, html, expected) {
+            if (!html.includes(expected)) {
+              throw new Error(`${label} is missing expected raw HTML/link token: ${expected}`);
+            }
+          }
+
           function requirePattern(label, text, pattern, description) {
             if (!pattern.test(text)) {
               throw new Error(`${label} is missing expected visible pattern: ${description}`);
             }
           }
 
-          const search = visibleText(searchFile);
-          const title = visibleText(titleFile);
-          const review = visibleText(reviewFile);
+          const search = visibleText(searchRaw);
+          const title = visibleText(titleRaw);
+          const review = visibleText(reviewRaw);
 
           requireText('Cars search', search, 'تحليل تحريري جزئي');
-          requireText('Cars search', search, editorialId);
+          requireRaw('Cars search', searchRaw, editorialId);
           requireText('Cars title', title, 'يوجد تحليل تحريري جزئي لهذا العمل');
-          requireText('Cars title', title, editorialId);
+          requireRaw('Cars title', titleRaw, editorialId);
 
           for (const expected of [
             'تحليل تحريري موثق جزئيًا',
@@ -173,7 +182,7 @@ jobs:
             '6/10 uncertain categories',
           );
 
-          console.log('Cars editorial live path verified with hydration-safe visible-text checks.');
+          console.log('Cars editorial live path verified with visible-text semantics and raw-link checks.');
           NODE
 
       - name: Verify mixed review locators fail closed
