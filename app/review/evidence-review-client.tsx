@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import type { ContentCategory } from "@/lib/review-engine";
+import {
+  CONTENT_FLAG_LABELS_AR,
+  type ContentCategory,
+} from "@/lib/review-engine";
 import type {
   PublicEvidenceReviewFact,
   PublicEvidenceReviewView,
@@ -245,7 +248,12 @@ function EvidenceFactRow({ fact, spoilerFree }: { fact: PublicEvidenceReviewFact
   return (
     <div className="review-fact">
       <time>{fact.startSecond === null ? "—" : formatFactTime(fact.startSecond)}</time>
-      <p>{summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من غير حرق»."} <small>({fact.sourceLocator})</small></p>
+      <p>
+        {summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من غير حرق»."} <small>({fact.sourceLocator})</small>
+        {fact.flags.length > 0 && (
+          <small> · {fact.flags.map((flag) => CONTENT_FLAG_LABELS_AR[flag]).join(" · ")}</small>
+        )}
+      </p>
     </div>
   );
 }
