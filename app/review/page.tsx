@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
+import { getEditorialReviewPublicationById } from "@/lib/editorial-review-registry";
 
+import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
 import ReviewClient from "./review-client";
 
@@ -10,6 +12,7 @@ type ReviewPageProps = {
   searchParams: Promise<{
     bundleId?: string | string[];
     publicationId?: string | string[];
+    editorialId?: string | string[];
   }>;
 };
 
@@ -18,16 +21,23 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
   const publicationId =
     typeof params.publicationId === "string" ? params.publicationId.trim() : "";
+  const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
+  const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
 
-  if ((bundleId && publicationId) || (!bundleId && !publicationId)) return <ReviewUnavailable />;
+  if (locatorCount !== 1) return <ReviewUnavailable />;
 
   if (bundleId) {
     const review = await loadHumanReviewFailClosed(bundleId);
     return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
   }
 
-  const evidenceReview = await loadEvidenceReviewFailClosed(publicationId);
-  return evidenceReview ? <EvidenceReviewClient review={evidenceReview} /> : <ReviewUnavailable />;
+  if (publicationId) {
+    const evidenceReview = await loadEvidenceReviewFailClosed(publicationId);
+    return evidenceReview ? <EvidenceReviewClient review={evidenceReview} /> : <ReviewUnavailable />;
+  }
+
+  const editorialReview = loadEditorialReviewFailClosed(editorialId);
+  return editorialReview ? <EditorialReviewView review={editorialReview} /> : <ReviewUnavailable />;
 }
 
 async function loadHumanReviewFailClosed(bundleId: string) {
@@ -41,6 +51,14 @@ async function loadHumanReviewFailClosed(bundleId: string) {
 async function loadEvidenceReviewFailClosed(publicationId: string) {
   try {
     return await loadPublicEvidenceReview({ publicationId });
+  } catch {
+    return null;
+  }
+}
+
+function loadEditorialReviewFailClosed(editorialId: string) {
+  try {
+    return getEditorialReviewPublicationById(editorialId);
   } catch {
     return null;
   }

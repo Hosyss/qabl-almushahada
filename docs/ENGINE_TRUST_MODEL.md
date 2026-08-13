@@ -2,41 +2,61 @@
 
 آخر تحديث تشغيلي: 13 أغسطس 2026
 
-هذه الوثيقة تشرح **من أين تأتي الثقة وما الذي يمنع النشر**. المشروع الآن يملك مسارين منفصلين: مسار مراجعة بشرية عالي الضبط من P2/P2Q، ومسار evidence-based قابل للتوسع من P3S. لا يجوز خلط هوياتهما أو تزوير أحدهما لتمرير بوابات الآخر.
+هذه الوثيقة تشرح **من أين تأتي الثقة، وما الذي يمكن نشره، وما الذي يملك سلطة إصدار حكم**. المشروع يملك الآن ثلاثة مسارات منفصلة لا يجوز خلط هوياتها أو استخدام أحدها لتمرير بوابات الآخر:
+
+1. مسار مراجعة بشرية عالي الضبط من P2/P2Q.
+2. مسار evidence-based كامل من P3S مرتبط بنسخة محددة.
+3. مسار P4-03 تحريري جزئي ينشر وقائع مثبتة من مصادر مستقلة لكنه **لا يملك سلطة حكم الملاءمة**.
 
 ## الحقيقة الأساسية
 
-الإنچين لا يعرف أن الإنسان صادق لمجرد أنه أدخل بيانات، ولا يعرف أن مخرجات النموذج الآلي صحيحة لمجرد أنها بصيغة JSON صحيحة. لذلك لا يوجد مصدر واحد يملك سلطة الحقيقة أو النشر.
-
-المبدأ العام:
+لا يوجد مصدر واحد يملك سلطة الحقيقة أو النشر أو الحكم. لذلك نفصل بين سؤالين:
 
 ```text
-source/evidence
-  → structured facts
-  → coverage + conflict gates
-  → immutable/current state gate
-  → family policy + engine
-  → public presentation
+هل توجد واقعة يمكن نشرها بأمان؟
+        ↓
+Editorial / Evidence Publication Gate
+        ↓
+هل الأدلة كاملة بما يكفي للحكم؟
+        ↓
+Suitability Decision Gate
+        ↓
+family policy + deterministic engine
 ```
 
-أي نقص أو تعارض أو stale state يعيد أو يفرض حالة غير قابلة للنشر بدل التحول إلى «مناسب».
+النتيجة المهمة:
 
-## القواعد المشتركة بين المسارين
+- نقص coverage يمكن أن يسمح **بصفحة تحريرية جزئية** إذا كانت الوقائع المنشورة نفسها متحققة ومصادرها ظاهرة.
+- نفس النقص يمنع **حكم الملاءمة** ويُبقيه `insufficient_data`.
+- لا يوجد مسار يحول unknown أو failure إلى «مناسب».
 
-1. **نسخة محددة**: كل حقيقة أو مراجعة مرتبطة بـ`title_version` محددة؛ cross-version evidence ممنوعة.
-2. **Coverage صريحة**: الحقل الحرج غير المعروف لا يُفترض أنه آمن.
-3. **Conflict fail-closed**: اختلاف وجود المحور أو فرق شدة كبير يمنع النشر.
-4. **History غير قابلة للمحو**: التصحيح ينشئ revision جديدة بدل الكتابة فوق التاريخ.
-5. **Current pointer صريح**: لا نختار أحدث صف بالصدفة؛ هناك current approval أو current evidence publication head.
-6. **Server-owned authority**: العميل لا يحدد reviewer identity أو actor أو policy version أو human-watch status.
-7. **Race protection**: القراءة العامة تعيد فحص الحالة الحالية بعد hydration قبل العرض.
-8. **No hidden trust score**: لا توجد درجة ثقة رقمية مركبة تختصر الأدلة أو تخفي حجم العينة.
+## القواعد المشتركة
+
+1. **لا silence → safe**: عدم ذكر محور لا يساوي `none`.
+2. **الفصل بين الواقعة والحكم**: إثبات واقعة لا يساوي age rating أو suitability verdict.
+3. **استقلال المصدر**: وصف claim بأنها `corroborated` يحتاج مصدرين من مجموعتي استقلال مختلفتين على الأقل.
+4. **Conflict fail-closed**: التعارض لا يُحل بالتخمين. في المسار الكامل يمنع readiness؛ وفي P4-03 يجعل المحور/claim غير محسومة بدل إخفاء الخلاف.
+5. **Server-owned authority**: العميل لا يحدد reviewer identity أو actor أو policy version أو human-watch status أو decision eligibility.
+6. **No hidden trust score**: لا توجد درجة ثقة رقمية مركبة تخفي حجم العينة أو نوع المصدر.
+7. **No copied authority**: تقييم جهة خارجية أو رأي reviewer خارجي لا يتحول إلى حكمنا؛ نستخرج الوقائع فقط ونكتب تحليلنا بالعربية من الصفر.
+
+## هوية النسخة
+
+- المساران اللذان يمكن أن يقودا إلى حكم مكتمل — P2/P2Q وP3S — يحتاجان `title_version` محددة وبصمة/منصة/لغة/مدة وفق قواعدهما.
+- P4-03 يسمح مؤقتًا بتحليل **على مستوى العمل** عندما لا توجد exact-version identity، بشرط إظهار هذا القيد صراحة وفرض:
+
+```text
+decisionEligible = false
+decisionStatus = insufficient_data
+```
+
+هذا ليس تخفيفًا لبوابة النسخة؛ بل منع صريح لاستخدام التحليل الجزئي كحكم نسخة.
 
 ---
 
 # المسار البشري — P2 / P2Q
 
-هذا المسار باقٍ ومستخدم عند الحاجة إلى مراجعة بشرية فعلية، لكنه لم يعد شرط التوسع الوحيد للموقع.
+هذا المسار باقٍ عند الحاجة إلى مراجعة بشرية فعلية.
 
 ## طبقات الحماية البشرية
 
@@ -115,13 +135,13 @@ Human resolution
 
 ---
 
-# المسار evidence-based — P3S
+# المسار evidence-based الكامل — P3S
 
-الهدف هو تغطية آلاف الأعمال من **أدلة مرخصة قابلة للتتبع** من غير توظيف مراجعين يشاهدون كل عنوان، ومن غير إنشاء reviewers وهميين لتمرير بوابات المسار البشري.
+الهدف هو تغطية الأعمال من أدلة مرخصة قابلة للتتبع من غير إنشاء reviewers وهميين لتمرير بوابات المسار البشري.
 
 ## P3S-04 — provenance
 
-- `content_source_policy_snapshots`: policy قانونية versioned.
+- `content_source_policy_snapshots`: policy versioned.
 - `title_catalog_sources`: provenance للكتالوج.
 - `version_evidence_sources`: evidence مرتبطة بنسخة محددة.
 - السجلات append-only ومحكومة بـsource/use scope والرخصة والـhash.
@@ -130,14 +150,14 @@ Human resolution
 
 ### سلطة Workers AI
 
-Workers AI **ليست سلطة نشر**. دورها استخراج structured claims/facts من evidence مرخصة.
+Workers AI **ليست سلطة نشر**. دورها استخراج structured claims/facts من evidence المسموح بها.
 
 بالنسبة إلى prose الآلية:
 
 - المخرجات المسموحة: `present` أو `uncertain` فقط.
 - `none` ممنوعة للنموذج؛ غياب الذكر ليس دليلًا على عدم الوجود.
-- `present` تحتاج fact وlocator `P####` حقيقي.
-- `uncertain` تحمل trace لنطاق الـchunk الذي تم فحصه، لا فقرة داعمة مزعومة.
+- `present` تحتاج fact وlocator حقيقي.
+- `uncertain` تحمل trace لنطاق المادة التي تم فحصها، لا فقرة داعمة مزعومة.
 - لا نختلق runtime timestamps من نص لا يحتويها.
 
 ### `assessEvidenceReview`
@@ -154,13 +174,7 @@ Workers AI **ليست سلطة نشر**. دورها استخراج structured cl
 
 النتيجة الجاهزة من P3S-05 **ليست منشورة تلقائيًا**؛ candidate نفسها `publishable: false`.
 
----
-
-# P3S-06 — بوابة النشر المستقلة
-
-P3S-06 تضيف سلطة نشر جديدة خاصة بالمسار evidence-based. هذه السلطة **موازية** للمسار البشري ولا تستخدم `review_bundles` أو `editorial_approvals` بصورة مزيفة.
-
-## قواعد ما قبل persistence
+## P3S-06 — بوابة النشر الكاملة
 
 `prepareEvidencePublication()` تعيد تشغيل بوابات P3S-05 ثم تفرض:
 
@@ -168,14 +182,14 @@ P3S-06 تضيف سلطة نشر جديدة خاصة بالمسار evidence-base
 - عدد المصادر/claims/facts bounded.
 - تطابق مجموعة `EvidenceSourceRef` مع مجموعة provenance واحدًا لواحد.
 - تطابق version/policy snapshot/URL/revision/hash حرفيًا.
-- source policy الحالية ما زالت تسمح `analysis_evidence` تجاريًا.
+- source policy الحالية ما زالت تسمح `analysis_evidence`.
 - license label وlicense URL يطابقان policy.
 - attribution موجودة عندما تكون مطلوبة.
 - `model_assisted + none` ممنوعة.
 - `reviewMethod = evidence_based` server-owned.
 - `humanWatchConfirmed = false` server-owned.
 
-## Snapshot غير قابلة للمحو
+### Snapshot غير قابلة للمحو
 
 migration P3S-06 تضيف:
 
@@ -188,15 +202,15 @@ migration P3S-06 تضيف:
 
 publication revisions متصلة مباشرة عبر `supersedes_publication_id`. الصفوف التاريخية وclaims/facts/flags لا تُعدّل ولا تُحذف.
 
-## لماذا الـDB نفسها بوابة نشر؟
+### بوابة D1 نفسها
 
-التطبيق لا يكفي وحده. `evidence_review_publication_heads` لا تسمح بإنشاء/تحريك current head إلا إذا تحقق داخل D1 نفسها:
+`evidence_review_publication_heads` لا تسمح بإنشاء/تحريك current head إلا إذا تحقق داخل D1 نفسها:
 
 1. النسخة `active`.
 2. snapshot تحمل `review_method = evidence_based`.
 3. `human_watch_confirmed = 0`.
-4. يوجد مصدر واحد مرخص على الأقل.
-5. كل linked source هي `analysis_evidence` لنفس النسخة ورخصتها مطابقة للـpolicy.
+4. يوجد مصدر واحد مسموح على الأقل.
+5. كل linked source لنفس النسخة وتطابق policy.
 6. كل claim مرتبطة بمصدر داخل نفس publication snapshot.
 7. المحاور العشرة كلها محسومة صراحة بـ`none` أو `present`.
 8. لا `uncertain` يمكنها إغلاق coverage.
@@ -207,91 +221,158 @@ publication revisions متصلة مباشرة عبر `supersedes_publication_id`
 
 هذا يجعل fail-closed property موجودة حتى لو حدث bug في طبقة TypeScript قبل finalization.
 
-## معاملة النشر
+### العرض العام الكامل
 
-`publishEvidenceReview()` تكتب في D1 batch واحدة:
+```text
+/review?bundleId=...       → human-reviewed full path
+/review?publicationId=...  → evidence-based full path
+```
 
-- missing provenance إن لم تكن موجودة بعد.
-- immutable publication snapshot.
-- source links.
-- assertion snapshots.
-- fact snapshots والflags.
-- ثم current head كآخر statement.
+public evidence loader يعيد التحقق بعد hydration؛ أي stale/current-head race يمنع العرض.
 
-لو تغير head في نفس الوقت، optimistic condition تمنع overwrite الصامت ويجب إعادة البناء من الحالة الحالية.
+الواجهة الكاملة تقول بوضوح إن المشاهدة البشرية غير مدعاة عندما يكون المسار evidence-based، وتعرض المصدر والرخصة والعزو والrevision.
+
+---
+
+# المسار التحريري الجزئي — P4-03
+
+هذا المسار موجود لحل مشكلة عملية مختلفة: قد نملك **وقائع مفيدة ومتقاطعة** عن عمل معروف، لكن لا نملك بعد coverage كاملة أو exact-version identity تسمح بحكم الملاءمة.
+
+## ما الذي نأخذه من المراجعات المنشورة؟
+
+**الوقائع فقط.** لا نأخذ تقييم المصدر أو age recommendation كحكمنا، ولا نخزن تعبيره التحريري.
+
+عقد `EditorialSourceReference` يخزن فقط:
+
+- `publisher`
+- `sourceType`: `published_review` أو `official_classification`
+- `sourceUrl`
+- `accessedOn`
+- `independenceGroupId`
+- `supportedClaimIds`
+
+لا يحتوي العقد على حقول source text/excerpt/quote/translation/paraphrase.
+
+## قاعدة الاستقلال
+
+كل claim لها أحد الوصفين:
+
+- `corroborated`: تحتاج مجموعتي استقلال مختلفتين على الأقل.
+- `single_source`: مسموحة في العقد للشفافية، لكن يجب أن تظهر كذلك ولا يجوز تسميتها corroborated.
+
+Cars pilot الحالي لا ينشر إلا claims `corroborated`.
+
+## Coverage في P4-03
+
+كل محور من المحاور العشرة يجب أن يكون واحدًا من:
+
+```text
+present via one or more explicit editorial claims
+uncertain
+```
+
+لا يوجد `none` مبني على silence في الـpilot.
+
+`uncertain` **لا يمنع الصفحة التحريرية** لكنه يمنع قرار الملاءمة.
+
+## سلطة النشر مقابل سلطة الحكم
+
+`assessEditorialReviewPublication()` يمكن أن تعيد:
+
+```text
+publishable = true
+```
+
+مع وجود محاور `uncertain`، إذا كانت الوقائع نفسها قابلة للتتبع ومتسقة مع قواعد الاستقلال.
+
+لكنها تعيد دائمًا:
+
+```text
+decisionEligible = false
+decisionStatus = insufficient_data
+```
+
+وبالتالي لا يستطيع هذا المسار وحده استدعاء نفسه «verified suitability review» أو إنتاج suitable badge.
 
 ## العرض العام
 
-المساران في `/review` منفصلان:
-
 ```text
-/review?bundleId=...       → human-reviewed path
-/review?publicationId=...  → evidence-based path
+/review?editorialId=... → editorial partial facts path
 ```
 
-وجود الاثنين أو غيابهما يفشل مغلقًا.
+`/review` يقبل locator واحدًا فقط من الثلاثة؛ أكثر من locator أو locator غير صالح يعيد حالة غير متاحة بدل المزج.
 
-public evidence loader يعمل:
+الواجهة تقول بوضوح:
+
+- **«تحليل تحريري موثق جزئيًا»**.
+- **«البيانات غير كافية للحكم»**.
+- عدد الوقائع المتقاطعة.
+- عدد المحاور `uncertain`.
+- نطاق العمل، وأن exact cut غير مدعاة إذا لم تُثبت.
+- قائمة المصادر، نوع كل مصدر، تاريخ الوصول، والادعاءات التي يدعمها.
+
+## Cars pilot
+
+الـpilot على `Cars` / `wd:Q182153` ينشر أربع claims متقاطعة في:
+
+- `violence`
+- `fear`
+- `language`
+- `sexualContent`
+
+ويترك ستة محاور `uncertain`.
+
+لا يوجد suitability verdict ولا human-watch claim ولا synthetic content fingerprint.
+
+## حدود الـpilot الحالية
+
+- persistence مؤقتة في registry versioned داخل المستودع، وليست D1 append-only بعد.
+- لذلك **لا توسع إلى عنوان ثانٍ** قبل نجاح checkpoint الحالي ثم قرار persistence للتوسع.
+- عند الانتقال إلى D1 يجب إعادة تطبيق immutability/current-pointer/audit history المناسبة لهذا المسار قبل cohort واسع.
+
+---
+
+# علاقة النشر بقرار الأسرة
+
+### full review publication
+
+وجود human/evidence publication مكتملة يعني أن الوقائع اجتازت بواباتها، ثم يمكن تطبيق Family Profile:
 
 ```text
-initial gate
-  → hydrate sources/claims/facts
-  → validate rows + licenses
-  → re-run assessEvidenceReview
-  → final gate with same revision
-  → render
-```
-
-أي تغيير في current head أثناء القراءة يمنع العرض بدل مزج state قديمة وجديدة.
-
-## ما الذي يظهر للمستخدم؟
-
-الواجهة يجب أن تقول بوضوح:
-
-- **«مراجعة مبنية على أدلة»**.
-- **«المشاهدة البشرية — غير مدعاة»**.
-- **«لا ندّعي مشاهدة بشرية لم تحدث»**.
-- المصدر والرخصة والعزو والrevision متاحون من snapshot المنشورة.
-- التوقيت غير الموجود يظهر كغير متاح؛ لا يتم اختلاق timestamp.
-
-النص التحريري الثابت:
-
-> **نحن لا ننقل مراجعة الآخرين؛ المصادر تمدنا بالدليل، والمراجعة النهائية وتجميع الوقائع وقرار الأسرة من منهج «قبل المشاهدة».**
-
-هذه العبارة لا تعني أن الموقع شاهد العمل؛ هي تصف ملكية منهج التنظيم والتقييم والقرار فقط.
-
-## علاقة النشر بقرار الأسرة
-
-وجود evidence publication جاهزة يعني أن **الوقائع المنشورة اجتازت بوابة الأدلة**، وليس أن العمل «مناسب» لكل أسرة.
-
-قرار الأسرة يظل خطوة منفصلة:
-
-```text
-current evidence facts
+verified current facts
   + Arab Family Policy / family overrides
   → deterministic engine verdict
 ```
 
-لا يجوز اختزال publication نفسها إلى age rating أو suitable badge من غير تطبيق حدود الأسرة.
+### editorial partial publication
+
+```text
+corroborated editorial facts
+  + unresolved categories
+  → useful public analysis
+  → decisionStatus = insufficient_data
+```
+
+لا يجوز تمرير الوقائع الجزئية إلى suitable badge أو age filter كأن coverage مكتملة.
 
 ---
 
 # ما لا يمكن ضمانه بالكامل؟
 
-- المصدر المرخص نفسه قد يحتوي خطأ أو نقصًا.
-- عدة مصادر قد تكرر نفس الخطأ الأصلي.
-- Wikipedia ليست exhaustive Parents Guide؛ لذلك silence لا يصبح `none`.
+- المصدر نفسه قد يحتوي خطأ أو نقصًا.
+- عدة مصادر قد تكرر نفس الخطأ الأصلي؛ الاستقلال المؤسسي يقلل الخطر لكنه لا يلغيه.
+- المراجعات المنشورة ليست checklist موحدة؛ لذلك silence لا يصبح `none`.
 - model extraction قد يخطئ رغم structured output.
 - human reviewers قد يتواطؤون أو يخطئون جماعيًا.
 - sampling لا يكتشف كل خطأ.
 
 تقليل هذه المخاطر يحتاج استمرار:
 
-- إضافة مصادر evidence مستقلة عند توفر حق استخدامها التجاري.
-- P3S-07 taxonomy أوضح وأكثر موضوعية.
-- P4-03 مقارنة 20 مراجعة evidence-based فعلية يدويًا قبل التوسع.
+- تنويع المصادر المستقلة.
+- حفظ claim-to-source trace بدل النص المنقول.
+- مراجعة يدوية لأول cohort.
 - corrections علنية قابلة للتتبع.
-- عدم تخفيف fail-closed بصمت لتسريع SEO أو الإعلانات.
+- عدم تخفيف Decision Gate لتسريع SEO أو الإعلانات.
 
 ## الحالات التشغيلية المختصرة
 
@@ -305,27 +386,37 @@ draft → under_review → submitted + audit_selection_decision → verified
                                       └─ different_version → withdrawn
 ```
 
-### المسار evidence-based
+### المسار evidence-based الكامل
 
 ```text
 licensed evidence
   → extraction
   → coverage/conflict assessment
-  → ready candidate (still not publish authority)
+  → ready candidate
   → P3S-06 publication snapshot
   → D1 current-head gate
   → public evidence review
 
-uncertain / missing / conflict / stale policy / cross-version / invalid licence
-  → not current / not public
+uncertain / missing / conflict / stale policy / cross-version
+  → not current / not public / insufficient_data
+```
+
+### المسار التحريري الجزئي
+
+```text
+published independent sources
+  → manual fact extraction only
+  → original Arabic claims
+  → independent corroboration check
+  → present + uncertain category partition
+  → public editorial page
+  → suitability decision remains insufficient_data
 ```
 
 ## مبدأ الفشل الآمن
 
-أي فشل في هوية النسخة، التغطية، سلامة المصدر أو الرخصة، التتبع، الاتساق، lineage التاريخ، current state، استقلال المراجعة البشرية عندما تُستخدم، التدقيق، المعايرة، Safety Hold، أو publication gate يمنع النشر أو يعيد:
+- فشل سلامة claim أو source trace أو independence يمنع **نشر الواقعة/الصفحة التحريرية**.
+- نقص coverage أو exact-version identity يمنع **حكم الملاءمة**، حتى لو كانت صفحة الوقائع مفيدة وقابلة للنشر.
+- فشل هوية النسخة أو current state أو provenance في المسارات الكاملة يمنع full review publication كما كان قبل P4-03.
 
-```text
-verdict = insufficient_data
-```
-
-ولا يوجد مسار افتراضي يحول الخطأ إلى «مناسب».
+لا يوجد مسار افتراضي يحول الخطأ أو المجهول إلى «مناسب».

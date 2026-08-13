@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { searchPublicTitles } from "@/db/public-title-search-service";
 import { buildPublicCatalogTitleHref } from "@/lib/public-catalog";
+import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
+import { getEditorialReviewPublicationForTitleId } from "@/lib/editorial-review-registry";
 import { buildPublicReviewHref } from "@/lib/public-review";
 import {
   filterPublicTitleSearchResults,
@@ -39,9 +41,14 @@ const AVAILABILITY_COPY = {
     description: "هناك دورة مراجعة قائمة ولم تُنشر نتيجة موثقة بعد.",
   },
   catalog_only: {
-    label: "موجود — لم يُراجع بعد",
-    description: "العنوان موجود في الدليل، لكن لا توجد مراجعة منشورة أو دورة مراجعة قائمة حاليًا.",
+    label: "موجود — لم يكتمل الحكم بعد",
+    description: "العنوان موجود في الدليل، لكن لا توجد بوابة حكم مكتملة حاليًا.",
   },
+} as const;
+
+const EDITORIAL_COPY = {
+  label: "موجود — تحليل تحريري جزئي",
+  description: "توجد وقائع مثبتة من مصادر مستقلة، لكن قرار الملاءمة ما زال «البيانات غير كافية».",
 } as const;
 
 type SearchPageProps = {
@@ -86,7 +93,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <section className={styles.hero} aria-labelledby="search-title">
         <span className={styles.kicker}>بحث الدليل</span>
         <h1 id="search-title">ابحث بالاسم العربي أو الاسم الأصلي.</h1>
-        <p>نطبع اختلافات الكتابة الشائعة، لكن لا نخمن عنوانًا غير موجود ولا نعرض مراجعة غير موثقة كأنها منشورة.</p>
+        <p>نطبع اختلافات الكتابة الشائعة، لكن لا نخمن عنوانًا غير موجود ولا نعرض تحليلًا جزئيًا كأنه حكم ملاءمة مكتمل.</p>
 
         <form className={styles.searchForm} action="/search" method="get" role="search">
           <label className="sr-only" htmlFor="search-query">اسم الفيلم أو المسلسل</label>
@@ -150,7 +157,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   <option value="all">كل الحالات</option>
                   <option value="verified">مراجعة موثقة</option>
                   <option value="in_review">قيد المراجعة</option>
-                  <option value="catalog_only">لم يُراجع بعد</option>
+                  <option value="catalog_only">الحكم غير مكتمل</option>
                 </select>
               </label>
 
@@ -162,7 +169,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
             <p className={styles.filterNote}>
               فلتر العمر يستخدم حدود المثال المعلنة داخل المنتج ويعمل على المراجعات الموثقة فقط؛
-              هو ليس تصنيفًا عمريًا رسميًا، والمساواة مع الحد قد تعني أن المشاهدة تحتاج مرافقة.
+              التحليل التحريري الجزئي لا يدخل فلتر العمر ولا يتحول إلى حكم من تلقاء نفسه.
               {filters.age !== null ? ` الحد المختار الآن: ${AGE_LABELS[filters.age]}.` : ""}
             </p>
 
@@ -179,7 +186,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               <div className={styles.grid}>
                 {filteredResults.map((result) => {
                   const availability = classifyPublicSearchAvailability(result);
-                  const copy = AVAILABILITY_COPY[availability];
+                  const editorialReview = getEditorialReviewPublicationForTitleId(result.id);
+                  const showEditorialState = Boolean(editorialReview) && availability !== "verified";
+                  const copy = showEditorialState ? EDITORIAL_COPY : AVAILABILITY_COPY[availability];
                   const catalogHref = buildPublicCatalogTitleHref(result.id);
                   return (
                     <article className={styles.card} key={result.id}>
@@ -200,6 +209,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                             <span aria-hidden="true">•</span>
                             <Link className={styles.back} href={catalogHref}>
                               صفحة العنوان <span aria-hidden="true">←</span>
+                            </Link>
+                          </>
+                        ) : null}
+                        {showEditorialState && editorialReview ? (
+                          <>
+                            <span aria-hidden="true">•</span>
+                            <Link className={styles.back} href={buildPublicEditorialReviewHref(editorialReview.id)}>
+                              فتح التحليل التحريري <span aria-hidden="true">←</span>
                             </Link>
                           </>
                         ) : null}
