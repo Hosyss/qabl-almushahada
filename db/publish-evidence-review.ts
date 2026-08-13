@@ -28,8 +28,6 @@ interface EvidencePublicationHeadRow {
 
 type BoundValue = string | number | null;
 
-type PublicationRows = ReturnType<typeof buildPublicationRows>;
-
 export async function publishEvidenceReview(input: EvidencePublicationInput) {
   const preparation = prepareEvidencePublication(input);
   if (!preparation.allowed) {
