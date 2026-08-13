@@ -1,10 +1,8 @@
 import Link from "next/link";
 
 import { searchPublicTitleDiscovery } from "@/db/public-title-search-service";
-import { getEditorialPublicationPresentation } from "@/lib/editorial-publication-presentation";
 import { buildPublicCatalogTitleHref } from "@/lib/public-catalog";
 import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
-import { getEditorialReviewPublicationForTitleId } from "@/lib/editorial-review-registry";
 import { buildPublicReviewHref } from "@/lib/public-review";
 import { filterPublicTitleSearchResults, hasActivePublicSearchFilters, parsePublicSearchFilters, type PublicSearchAgeOption } from "@/lib/public-search-filters";
 import { classifyPublicSearchAvailability } from "@/lib/public-search-result-state";
@@ -83,25 +81,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 }
 
 function titleNames(result: PublicTitleSearchResult) {
-  const editorial = getEditorialReviewPublicationForTitleId(result.id);
-  if (editorial) {
-    const presentation = getEditorialPublicationPresentation(editorial);
-    return { editorial, arabicName: presentation.titleAr, englishName: presentation.titleEn };
+  if (result.editorialPublicationId && result.editorialTitleAr && result.editorialTitleEn) {
+    return {
+      editorialId: result.editorialPublicationId,
+      arabicName: result.editorialTitleAr,
+      englishName: result.editorialTitleEn,
+    };
   }
   const names = getPublicTitleDisplayNames(result);
-  return { editorial: null, arabicName: names.arabicName, englishName: names.englishName };
+  return { editorialId: null, arabicName: names.arabicName, englishName: names.englishName };
 }
 
 function SearchResultCard({ result }: { result: PublicTitleSearchResult }) {
   const availability = classifyPublicSearchAvailability(result);
   const names = titleNames(result);
-  const editorialState = Boolean(names.editorial) && availability !== "verified";
+  const editorialState = Boolean(names.editorialId) && availability !== "verified";
   const copy = editorialState ? EDITORIAL_COPY : AVAILABILITY_COPY[availability];
   const href = buildPublicCatalogTitleHref(result.id);
   return <article className={styles.card}>
     <div className={styles.cardTop}><span className={`${styles.status} ${styles[`status_${availability}`]}`}>{copy.label}</span><span className={styles.year}>{result.releaseYear}</span></div>
     <h3>{names.arabicName}</h3><p className={styles.original} dir="ltr">{names.englishName}</p>
-    <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && names.editorial ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(names.editorial.id)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
+    <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && names.editorialId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(names.editorialId)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
   </article>;
 }
 
