@@ -132,7 +132,7 @@ jobs:
           npx wrangler d1 execute DB \
             --remote \
             --config .wrangler/production/wrangler.jsonc \
-            --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('titles','title_versions','review_bundles','internal_users','reviewer_reference_sets','content_source_policy_snapshots','title_catalog_sources','version_evidence_sources') ORDER BY name;" \
+            --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('titles','title_versions','review_bundles','internal_users','reviewer_reference_sets','content_source_policy_snapshots','title_catalog_sources','version_evidence_sources','evidence_review_publications','evidence_publication_sources','evidence_publication_assertions','evidence_publication_facts','evidence_publication_fact_flags','evidence_review_publication_heads') ORDER BY name;" \
             --json > "$RUNNER_TEMP/d1-schema.json"
 
           node --input-type=module - "$RUNNER_TEMP/d1-schema.json" <<'NODE'
@@ -150,13 +150,19 @@ jobs:
             'content_source_policy_snapshots',
             'title_catalog_sources',
             'version_evidence_sources',
+            'evidence_review_publications',
+            'evidence_publication_sources',
+            'evidence_publication_assertions',
+            'evidence_publication_facts',
+            'evidence_publication_fact_flags',
+            'evidence_review_publication_heads',
           ];
           const missing = required.filter((name) => !text.includes(`\"${name}\"`));
           if (missing.length) {
             console.error(`Remote D1 schema is missing required tables: ${missing.join(', ')}`);
             process.exit(1);
           }
-          console.log('Remote D1 schema contains the required project and provenance tables.');
+          console.log('Remote D1 schema contains the required project, provenance, and evidence-publication tables.');
           NODE
 
       - name: Deploy Worker
@@ -183,6 +189,13 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/" > /dev/null
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/review" > /dev/null
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/search?q=nemo" > /dev/null
+          curl --fail --silent --show-error --location --retry 3 \
+            "$DEPLOYED_WORKER_URL/review?publicationId=missing-publication" \
+            > "$RUNNER_TEMP/missing-evidence-publication.html"
+          if ! grep -Fq "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/missing-evidence-publication.html"; then
+            echo "Evidence publication route did not fail closed for a missing publication id." >&2
+            exit 1
+          fi
 
           check_policy_page() {
             local path="$1"
@@ -202,7 +215,7 @@ jobs:
           check_policy_page "/privacy" "سياسة الخصوصية" "$RUNNER_TEMP/privacy.html"
           check_policy_page "/corrections" "سياسة التصحيح" "$RUNNER_TEMP/corrections.html"
 
-          echo "Verified P3-06 policy routes and expected headings on the deployed Worker."
+          echo "Verified P3S-06 evidence publication route fails closed and public policy routes remain healthy."
 
       - name: Record successful deployment
         if: steps.credentials.outputs.available == 'true'
@@ -212,4 +225,4 @@ jobs:
           echo "- Worker: $DEPLOYED_WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1: $CF_D1_DATABASE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Public smoke tests: /, /review, /search?q=nemo, /review-policy, /privacy, /corrections" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Public smoke tests: /, /review, /review?publicationId=missing-publication, /search?q=nemo, /review-policy, /privacy, /corrections" >> "$GITHUB_STEP_SUMMARY"

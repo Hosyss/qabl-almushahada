@@ -3,6 +3,8 @@ import {
   type EvidenceReviewAssessment,
   type EvidenceSourceRef,
 } from "./evidence-review.ts";
+import type { EvidencePublicationInput } from "./evidence-publication.ts";
+import type { AnalysisEvidenceSourceProvenanceRecord } from "./source-provenance.ts";
 import {
   fetchWikipediaEvidencePage,
   prepareWikipediaEvidenceForVersion,
@@ -18,6 +20,7 @@ import {
 export interface AutomatedEvidenceReviewCandidate {
   versionId: string;
   source: EvidenceSourceRef;
+  provenance: AnalysisEvidenceSourceProvenanceRecord;
   wikipedia: WikipediaEvidencePage;
   extraction: ModelEvidenceExtraction;
   assessment: EvidenceReviewAssessment;
@@ -28,8 +31,8 @@ export interface AutomatedEvidenceReviewCandidate {
  * Builds an evidence-backed review candidate without publishing anything.
  *
  * The candidate stays explicitly `publishable: false`: P3S-05 is extraction and
- * evidence assessment only. P3S-06 must define the persistence/publication snapshot,
- * re-check provenance, and decide what can become public.
+ * evidence assessment only. P3S-06 owns persistence/publication and re-checks the
+ * evidence and provenance instead of trusting this candidate as publish authority.
  */
 export async function buildWikipediaEvidenceReviewCandidate(options: {
   versionId: string;
@@ -77,9 +80,22 @@ export async function buildWikipediaEvidenceReviewCandidate(options: {
   return {
     versionId: options.versionId,
     source,
+    provenance: prepared.provenance,
     wikipedia,
     extraction,
     assessment,
     publishable: false,
+  };
+}
+
+export function toEvidencePublicationInput(
+  candidate: AutomatedEvidenceReviewCandidate,
+): EvidencePublicationInput {
+  return {
+    versionId: candidate.versionId,
+    sources: [{ ...candidate.source }],
+    provenance: [{ ...candidate.provenance }],
+    assertions: candidate.extraction.assertions.map((assertion) => ({ ...assertion })),
+    facts: candidate.extraction.facts.map((fact) => ({ ...fact, flags: [...fact.flags] })),
   };
 }

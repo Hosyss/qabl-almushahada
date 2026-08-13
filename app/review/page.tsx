@@ -1,26 +1,46 @@
 import Link from "next/link";
 
+import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
 
+import EvidenceReviewClient from "./evidence-review-client";
 import ReviewClient from "./review-client";
 
 type ReviewPageProps = {
-  searchParams: Promise<{ bundleId?: string | string[] }>;
+  searchParams: Promise<{
+    bundleId?: string | string[];
+    publicationId?: string | string[];
+  }>;
 };
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const params = await searchParams;
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
+  const publicationId =
+    typeof params.publicationId === "string" ? params.publicationId.trim() : "";
 
-  if (!bundleId) return <ReviewUnavailable />;
+  if ((bundleId && publicationId) || (!bundleId && !publicationId)) return <ReviewUnavailable />;
 
-  const review = await loadReviewFailClosed(bundleId);
-  return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
+  if (bundleId) {
+    const review = await loadHumanReviewFailClosed(bundleId);
+    return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
+  }
+
+  const evidenceReview = await loadEvidenceReviewFailClosed(publicationId);
+  return evidenceReview ? <EvidenceReviewClient review={evidenceReview} /> : <ReviewUnavailable />;
 }
 
-async function loadReviewFailClosed(bundleId: string) {
+async function loadHumanReviewFailClosed(bundleId: string) {
   try {
     return await loadPublicReview({ bundleId });
+  } catch {
+    return null;
+  }
+}
+
+async function loadEvidenceReviewFailClosed(publicationId: string) {
+  try {
+    return await loadPublicEvidenceReview({ publicationId });
   } catch {
     return null;
   }
@@ -42,7 +62,7 @@ function ReviewUnavailable() {
         <div>
           <small>حالة آمنة</small>
           <h1 id="review-unavailable-title">المراجعة غير متاحة حاليًا.</h1>
-          <p>ممكن تكون النسخة اتغيّرت، أو الاعتماد اتوقف، أو الرابط قديم. مش هنعرض بيانات بديلة أو نموذج تجريبي مكانها.</p>
+          <p>ممكن تكون النسخة أو الاعتماد أو snapshot الأدلة اتغيّرت، أو الرابط قديم. مش هنعرض بيانات بديلة أو نموذج تجريبي مكانها.</p>
         </div>
         <Link href="/search">ارجع للبحث <span aria-hidden="true">←</span></Link>
       </section>
