@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
+import { getEditorialPublicationPresentation } from "@/lib/editorial-publication-presentation";
 import {
   buildEditorialReviewDescription,
   buildPublicEditorialReviewCanonicalUrl,
@@ -38,7 +39,8 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
     };
   }
 
-  const title = `${review.titleLabel} (${review.releaseYear}) — تحليل محتوى موثق جزئيًا | قبل المشاهدة`;
+  const presentation = getEditorialPublicationPresentation(review);
+  const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
   const description = buildEditorialReviewDescription(review);
   const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
 
@@ -47,7 +49,16 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
     description,
     alternates: { canonical },
     robots: { index: true, follow: true },
-    openGraph: { title, description, type: "article", url: canonical, locale: "ar_EG" },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: canonical,
+      locale: "ar_EG",
+      publishedTime: review.publishedAt,
+      modifiedTime: presentation.updatedAt,
+      authors: ["قبل المشاهدة"],
+    },
     twitter: { card: "summary", title, description },
   };
 }
@@ -76,27 +87,15 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
 }
 
 async function loadHumanReviewFailClosed(bundleId: string) {
-  try {
-    return await loadPublicReview({ bundleId });
-  } catch {
-    return null;
-  }
+  try { return await loadPublicReview({ bundleId }); } catch { return null; }
 }
 
 async function loadEvidenceReviewFailClosed(publicationId: string) {
-  try {
-    return await loadPublicEvidenceReview({ publicationId });
-  } catch {
-    return null;
-  }
+  try { return await loadPublicEvidenceReview({ publicationId }); } catch { return null; }
 }
 
 function loadEditorialReviewFailClosed(editorialId: string) {
-  try {
-    return getEditorialReviewPublicationById(editorialId);
-  } catch {
-    return null;
-  }
+  try { return getEditorialReviewPublicationById(editorialId); } catch { return null; }
 }
 
 function ReviewUnavailable() {
@@ -109,7 +108,6 @@ function ReviewUnavailable() {
         </Link>
         <Link className="review-back" href="/search">الرجوع للبحث <span aria-hidden="true">←</span></Link>
       </header>
-
       <section className="review-end" aria-labelledby="review-unavailable-title">
         <span aria-hidden="true">◎</span>
         <div>
@@ -124,11 +122,5 @@ function ReviewUnavailable() {
 }
 
 function ReviewLogo() {
-  return (
-    <span className="review-logo" aria-hidden="true">
-      <i />
-      <b />
-      <em />
-    </span>
-  );
+  return <span className="review-logo" aria-hidden="true"><i /><b /><em /></span>;
 }
