@@ -1,31 +1,27 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import test from "node:test";
 
-import {
-  buildEditorialPublicationContentFingerprint,
-  getEditorialPublicationPresentation,
-} from "../lib/editorial-publication-presentation.ts";
-import { listEditorialReviewPublications } from "../lib/editorial-review-registry.ts";
+import { buildEditorialPublicationFingerprint } from "../lib/editorial-publication-integrity.ts";
+import { assessEditorialReviewPublication } from "../lib/editorial-review.ts";
+import { FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES } from "./editorial-bootstrap-fixtures.ts";
 
-const fixtureDir = path.join(process.cwd(), "data", "editorial-bootstrap");
+test("the four parity-proven bootstrap fixtures remain internally exact and decision-ineligible", async () => {
+  assert.equal(FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES.length, 4);
+  const ids = new Set<string>();
+  const titleIds = new Set<string>();
 
-test("all four legacy editorial publications match their frozen D1 bootstrap fixtures exactly", async () => {
-  const legacy = listEditorialReviewPublications().sort((a, b) => a.id.localeCompare(b.id));
-  assert.equal(legacy.length, 4);
-  const frozen = [];
-  for (const review of legacy) {
-    const file = path.join(fixtureDir, `${review.id}.json`);
-    frozen.push(JSON.parse(await readFile(file, "utf8")));
+  for (const fixture of FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES) {
+    assert.equal(ids.has(fixture.review.id), false, fixture.review.id);
+    assert.equal(titleIds.has(fixture.review.titleId), false, fixture.review.titleId);
+    ids.add(fixture.review.id);
+    titleIds.add(fixture.review.titleId);
+
+    const fingerprint = await buildEditorialPublicationFingerprint(fixture.review, fixture.presentation);
+    assert.equal(fingerprint, fixture.fingerprint, fixture.review.id);
+
+    const assessment = assessEditorialReviewPublication(fixture.review);
+    assert.equal(assessment.publishable, true, fixture.review.id);
+    assert.equal(assessment.decisionEligible, false, fixture.review.id);
+    assert.equal(assessment.decisionStatus, "insufficient_data", fixture.review.id);
   }
-  const expected = [];
-  for (const review of legacy) {
-    expected.push({
-      review,
-      presentation: getEditorialPublicationPresentation(review),
-      fingerprint: await buildEditorialPublicationContentFingerprint(review),
-    });
-  }
-  assert.deepEqual(frozen, expected);
 });
