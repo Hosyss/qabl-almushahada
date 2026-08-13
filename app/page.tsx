@@ -17,6 +17,14 @@ import {
   type LocalFamilySettings,
 } from "@/lib/local-family-settings";
 
+type SearchSuggestion = {
+  id: string;
+  canonicalName: string;
+  originalName: string | null;
+  kind: "movie" | "series" | "episode" | "special";
+  releaseYear: number;
+};
+
 function LeafMark() {
   return (
     <span className="leaf-mark" aria-hidden="true">
@@ -49,6 +57,8 @@ function ShieldCheckIcon() {
 export default function Home() {
   const [query, setQuery] = useState("");
   const [searchMessage, setSearchMessage] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
+  const [suggestionsState, setSuggestionsState] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
   const [selectedTitle, setSelectedTitle] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
   const [childAge, setChildAge] = useState(9);
@@ -123,6 +133,36 @@ export default function Home() {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const cleanQuery = query.trim();
+    if (cleanQuery.length < 2) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSuggestionsState("loading");
+      try {
+        const response = await fetch(`/api/search-suggestions?q=${encodeURIComponent(cleanQuery)}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("suggestions unavailable");
+        const payload = (await response.json()) as { suggestions?: SearchSuggestion[] };
+        if (!Array.isArray(payload.suggestions)) throw new Error("invalid suggestions payload");
+        setSearchSuggestions(payload.suggestions);
+        setSuggestionsState("ready");
+      } catch {
+        if (controller.signal.aborted) return;
+        setSearchSuggestions([]);
+        setSuggestionsState("unavailable");
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
   function persistFamilySettings(settings: LocalFamilySettings) {
     try {
@@ -222,21 +262,43 @@ export default function Home() {
                 <input
                   id="title-search"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="مثال: البحث عن نيمو"
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setSearchMessage("");
+                  }}
+                  placeholder="اكتب اسم فيلم أو مسلسل"
                   autoComplete="off"
                 />
               </div>
             </form>
 
-            <div className="suggestions" aria-label="عمليات بحث مقترحة">
-              <span>جرّب:</span>
-              {['إنسايد آوت 2', 'وينزداي', 'البحث عن نيمو'].map((title) => (
-                <button key={title} type="button" onClick={() => chooseSuggestion(title)}>
-                  {title}
-                </button>
-              ))}
-            </div>
+            {query.trim().length >= 2 ? (
+              <div className="suggestions" aria-label="اقتراحات من الدليل الحقيقي">
+                <span>
+                  {suggestionsState === "loading"
+                    ? "بنبحث في الدليل…"
+                    : suggestionsState === "unavailable"
+                      ? "الاقتراحات غير متاحة الآن"
+                      : searchSuggestions.length > 0
+                        ? "من الدليل:"
+                        : "لا توجد اقتراحات مطابقة"}
+                </span>
+                {searchSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    onClick={() => chooseSuggestion(suggestion.canonicalName)}
+                    title={`${suggestion.releaseYear} · ${suggestion.kind === "movie" ? "فيلم" : suggestion.kind === "series" ? "مسلسل" : "عنوان"}`}
+                  >
+                    {suggestion.canonicalName}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="suggestions" aria-label="طريقة عمل اقتراحات البحث">
+                <span>الاقتراحات تظهر من العناوين الموجودة فعلًا في الدليل بعد كتابة حرفين.</span>
+              </div>
+            )}
 
             <p className={`search-message${searchMessage ? " is-visible" : ""}`} aria-live="polite">
               {searchMessage || " "}
@@ -246,7 +308,7 @@ export default function Home() {
           <div className="trust-strip" aria-label="مبادئ الثقة">
             <div>
               <ShieldCheckIcon />
-              <span><strong>مراجعة بشرية</strong><small>للنسخة المحددة</small></span>
+              <span><strong>وقائع موثقة</strong><small>للنسخة المحددة</small></span>
             </div>
             <div>
               <span className="trust-strip__icon" aria-hidden="true">◎</span>
@@ -296,7 +358,7 @@ export default function Home() {
 
       <section className="first-peek" aria-label="لمحة عن التجربة">
         <p>من الواقعة لقرار بيتك</p>
-        <h2>نشاهد النسخة، نسجّل المحتوى، ثم نطبّق حدود أسرتك.</h2>
+        <h2>نجمع وقائع موثقة لنسخة محددة، نتحقق منها، ثم نطبّق حدود أسرتك.</h2>
         <div className="peek-line" aria-hidden="true"><span /></div>
       </section>
 
@@ -381,22 +443,22 @@ export default function Home() {
         <div className="method-intro">
           <span className="section-kicker">الثقة مش جملة تسويقية</span>
           <h2>كل نتيجة ماشية في طريق واضح.</h2>
-          <p>الإنچين ما بيخمنش الفيلم. إحنا بنفصل اللي اتشاف فعلًا عن رأي العمر، وبعدها نطبّق حدود البيت.</p>
+          <p>الإنچين ما بيخمنش الفيلم. إحنا بنفصل الوقائع الموثقة عن رأي العمر، وبعدها نطبّق حدود البيت.</p>
         </div>
 
         <div className="method-steps">
           <article>
             <span className="method-number">01</span>
             <div className="method-icon">◫</div>
-            <h3>نشاهد نسخة محددة</h3>
-            <p>المنصة واللغة والموسم وتاريخ المراجعة ظاهرين، لأن النسخ ممكن تختلف.</p>
+            <h3>نوثّق نسخة محددة</h3>
+            <p>النسخة واللغة والسياق ظاهرين قدر ما تسمح الأدلة؛ والمشاهدة البشرية لا نذكرها إلا لو حدثت فعلًا.</p>
             <small>الواقعة أولًا</small>
           </article>
           <article>
             <span className="method-number">02</span>
             <div className="method-icon">⌁</div>
             <h3>نسجّل وقائع منظمة</h3>
-            <p>شدة وتكرار وسياق ووقت تقريبي، بدل جملة عامة من ذوق شخص واحد.</p>
+            <p>شدة وتكرار وسياق ووقت تقريبي عندما يكون متاحًا، بدل جملة عامة من ذوق شخص واحد.</p>
             <small>قابل للتدقيق</small>
           </article>
           <article>
