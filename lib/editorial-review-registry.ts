@@ -159,7 +159,7 @@ const ET_1982_EDITORIAL_REVIEW: EditorialReviewPublication = {
   policyVersion: "2026-08-13.1",
   publishedAt: "2026-08-13T15:11:00+03:00",
   scopeAr:
-    "هذا تحليل تحريري على مستوى فيلم E.T. the Extra-Terrestrial (1982)، مبني على وقائع متقاطعة بين مراجعات مستقلة وبيانات تصنيف رسمية. توجد إصدارات مختلفة للفيلم، لذلك نتجنب التفاصيل التي تتغير باختلاف القص أو إعادة الإصدار، ولا ندّعي مشاهدة نسخة محددة أو امتلاك بصمة لها.",
+    "هذا تحليل تحريري على مستوى فيلم E.T. the Extra-Terrestrial (1982)، مبني على وقائع متقاطعة بين مراجعات مستقلة منشورة. توجد إصدارات مختلفة للفيلم، لذلك نتجنب التفاصيل التي تتغير باختلاف القص أو إعادة الإصدار، ولا ندّعي مشاهدة نسخة محددة أو امتلاك بصمة لها.",
   analysisAr:
     "تتقاطع المصادر على وجود مطاردات ومواقف احتجاز وخطر قد تكون مؤثرة على الأطفال الأصغر، وعلى لحظات مرض وفقدان مؤقت ترفع التوتر العاطفي. كما تسجل عدة جهات ألفاظًا واضحة، ومشهد شرب يؤدي إلى سلوك مخمور، وقبلة قصيرة في سياق المدرسة. صغنا هذه الخلاصة بالعربية من الوقائع المشتركة فقط، وتركنا المحاور التي لا تملك إثباتًا كافيًا في حالة غير محسومة. بعض تفاصيل المطاردة تغيرت بين إصدارات الفيلم، لذلك لا نعامل تفصيلًا خاصًا بنسخة واحدة كحقيقة عامة لكل النسخ.",
   decisionStatus: "insufficient_data",
@@ -194,15 +194,6 @@ const ET_1982_EDITORIAL_REVIEW: EditorialReviewPublication = {
       ],
     },
     {
-      id: "et-source-bbfc",
-      publisher: "BBFC",
-      sourceType: "official_classification",
-      sourceUrl: "https://www.bbfc.co.uk/release/e-t-the-extra-terrestrial-q29sbgvjdglvbjpwwc0zmdgynjy",
-      accessedOn: "2026-08-13",
-      independenceGroupId: "bbfc",
-      supportedClaimIds: ["et-claim-fear", "et-claim-language"],
-    },
-    {
       id: "et-source-kids-in-mind",
       publisher: "Kids-In-Mind",
       sourceType: "published_review",
@@ -228,7 +219,6 @@ const ET_1982_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "et-source-common-sense-media",
         "et-source-plugged-in",
-        "et-source-bbfc",
         "et-source-kids-in-mind",
       ],
     },
@@ -249,7 +239,6 @@ const ET_1982_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "et-source-common-sense-media",
         "et-source-plugged-in",
-        "et-source-bbfc",
         "et-source-kids-in-mind",
       ],
     },
@@ -292,7 +281,7 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
   policyVersion: "2026-08-13.1",
   publishedAt: "2026-08-13T15:11:00+03:00",
   scopeAr:
-    "هذا تحليل تحريري على مستوى فيلم Harry Potter and the Philosopher's Stone (2001). نعتمد فقط على وقائع تتكرر في مراجع مستقلة وتصنيف رسمي، ولا نفترض أن كل إصدار منزلي أو سينمائي مطابق تمامًا للآخر، ولا ندّعي مشاهدة بشرية أو هوية نسخة محددة.",
+    "هذا تحليل تحريري على مستوى فيلم Harry Potter and the Philosopher's Stone (2001). نعتمد فقط على وقائع تتكرر في مراجعات مستقلة منشورة، ولا نفترض أن كل إصدار منزلي أو سينمائي مطابق تمامًا للآخر، ولا ندّعي مشاهدة بشرية أو هوية نسخة محددة.",
   analysisAr:
     "تتفق المصادر على أن الفيلم يحتوي خطرًا خياليًا متكررًا ومواجهات مع مخلوقات وساحر شرير، إلى جانب عنف فانتازي في مباراة شطرنج ومواجهة النهاية. موت والدي Harry حاضر في خلفية القصة وتتم الإشارة إليه أكثر من مرة. كما تسجل جهات متعددة ألفاظًا خفيفة، مع اختلاف بين المصادر في شدة توصيف هذا المحور. لم نحول أي خانة تقول «غير موجود» أو أي صمت في مصدر واحد إلى حكم عام؛ لذلك تبقى بقية المحاور غير محسومة ويظل قرار الملاءمة غير متاح.",
   decisionStatus: "insufficient_data",
@@ -315,20 +304,6 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
       accessedOn: "2026-08-13",
       independenceGroupId: "plugged-in",
       supportedClaimIds: ["hp1-claim-fear", "hp1-claim-violence", "hp1-claim-grief"],
-    },
-    {
-      id: "hp1-source-bbfc",
-      publisher: "BBFC",
-      sourceType: "official_classification",
-      sourceUrl: "https://www.bbfc.co.uk/release/harry-potter-and-the-philosophers-stone-q29sbgvjdglvbjpwwc0zmzm2odi",
-      accessedOn: "2026-08-13",
-      independenceGroupId: "bbfc",
-      supportedClaimIds: [
-        "hp1-claim-fear",
-        "hp1-claim-violence",
-        "hp1-claim-language",
-        "hp1-claim-grief",
-      ],
     },
     {
       id: "hp1-source-kids-in-mind",
@@ -369,7 +344,6 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "hp1-source-common-sense-media",
         "hp1-source-plugged-in",
-        "hp1-source-bbfc",
         "hp1-source-kids-in-mind",
         "hp1-source-dove",
       ],
@@ -383,7 +357,6 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "hp1-source-common-sense-media",
         "hp1-source-plugged-in",
-        "hp1-source-bbfc",
         "hp1-source-kids-in-mind",
         "hp1-source-dove",
       ],
@@ -394,7 +367,7 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
       summaryAr:
         "تسجل عدة جهات ألفاظًا خفيفة متفرقة، مع اختلاف واضح بين المصادر في ما إذا كانت هذه الألفاظ تستحق تصنيف المحور أصلًا؛ لذلك نثبت الوجود فقط ولا نستنتج درجة ملاءمة.",
       verification: "corroborated",
-      sourceIds: ["hp1-source-bbfc", "hp1-source-kids-in-mind", "hp1-source-dove"],
+      sourceIds: ["hp1-source-kids-in-mind", "hp1-source-dove"],
     },
     {
       id: "hp1-claim-grief",
@@ -405,7 +378,6 @@ const HARRY_POTTER_2001_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "hp1-source-common-sense-media",
         "hp1-source-plugged-in",
-        "hp1-source-bbfc",
         "hp1-source-kids-in-mind",
         "hp1-source-dove",
       ],
@@ -430,7 +402,7 @@ const MINIONS_2015_EDITORIAL_REVIEW: EditorialReviewPublication = {
   policyVersion: "2026-08-13.1",
   publishedAt: "2026-08-13T15:11:00+03:00",
   scopeAr:
-    "هذا تحليل تحريري على مستوى فيلم Minions (2015)، مبني على وقائع متقاطعة بين مراجعات مستقلة وتصنيف رسمي. لا نعامل نبرة الكوميديا كدليل على الأمان، ولا نفترض غياب محور لمجرد أن جهة لم تسجله، ولا نصدر حكم ملاءمة من هذه الصفحة.",
+    "هذا تحليل تحريري على مستوى فيلم Minions (2015)، مبني على وقائع متقاطعة بين مراجعات مستقلة منشورة. لا نعامل نبرة الكوميديا كدليل على الأمان، ولا نفترض غياب محور لمجرد أن جهة لم تسجله، ولا نصدر حكم ملاءمة من هذه الصفحة.",
   analysisAr:
     "تتقاطع المصادر على كثرة العنف الكرتوني والحوادث والانفجارات والتهديدات التي تقدم غالبًا في إطار ساخر، وعلى ألفاظ خفيفة وإهانات متفرقة، ومشاهد مزاح بصري تتضمن ملابس داخلية أو أردافًا كرتونية. ثلاث جهات مستقلة تسجل أيضًا ظهور مشروبات كحولية، رغم اختلاف جهة أخرى في تصنيف هذا المحور؛ لذلك نعرض واقعة الظهور ولا نحولها إلى استنتاج شامل. المحاور غير المثبتة بما يكفي تظل غير محسومة، والقرار النهائي يبقى `insufficient_data`.",
   decisionStatus: "insufficient_data",
@@ -463,15 +435,6 @@ const MINIONS_2015_EDITORIAL_REVIEW: EditorialReviewPublication = {
         "minions-claim-language",
         "minions-claim-substances",
       ],
-    },
-    {
-      id: "minions-source-bbfc",
-      publisher: "BBFC",
-      sourceType: "official_classification",
-      sourceUrl: "https://www.bbfc.co.uk/release/minions-q29sbgvjdglvbjpwwc00nzm5ody",
-      accessedOn: "2026-08-13",
-      independenceGroupId: "bbfc",
-      supportedClaimIds: ["minions-claim-violence"],
     },
     {
       id: "minions-source-kids-in-mind",
@@ -514,7 +477,6 @@ const MINIONS_2015_EDITORIAL_REVIEW: EditorialReviewPublication = {
       sourceIds: [
         "minions-source-common-sense-media",
         "minions-source-plugged-in",
-        "minions-source-bbfc",
         "minions-source-kids-in-mind",
         "minions-source-dove",
       ],
