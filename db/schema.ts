@@ -223,7 +223,7 @@ export const observationFlags = sqliteTable(
     index("observation_flags_flag_idx").on(table.flag),
     check(
       "observation_flags_value_check",
-      sql`${table.flag} IN ('jump_scare', 'blood', 'weapon', 'verbal_bullying', 'physical_bullying', 'bereavement', 'separation', 'flashing_sequence')`,
+      sql`${table.flag} IN ('jump_scare', 'blood', 'weapon', 'verbal_bullying', 'physical_bullying', 'bereavement', 'separation', 'flashing_sequence', 'nudity', 'kissing', 'intimate_touching', 'sexual_dialogue', 'smoking_or_vaping', 'alcohol_use', 'drug_use', 'gambling_activity', 'religious_reference_or_practice')`,
     ),
   ],
 );
