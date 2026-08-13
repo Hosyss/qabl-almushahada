@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: CatalogTitlePageProps): Promi
       title: `${names.arabicName} - ${names.englishName} (${title.releaseYear}) | ${COPY.brand}`,
       description: buildPublicCatalogDescription(title),
       alternates: { canonical: buildPublicCatalogCanonicalUrl(qid) },
-      robots: { index: true, follow: true },
+      robots: { index: Boolean(names.editorial), follow: true },
     };
   } catch {
     return { title: COPY.unavailable, robots: { index: false, follow: false } };
