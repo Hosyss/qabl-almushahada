@@ -2,299 +2,197 @@
 
 آخر تحديث: 13 أغسطس 2026
 
-> هذا الملف يصف **الحالة الحالية ومصدر الحقيقة التشغيلي**. التاريخ التفصيلي محفوظ في `docs/ROADMAP.md`، وملفات checkpoint، وPull Requests على GitHub.
+> هذا الملف يصف **الحالة الحالية ومصدر الحقيقة التشغيلي**. التاريخ التفصيلي محفوظ في `docs/ROADMAP.md`، وملفات checkpoint، وPull Requests وGit history.
 
-## الرؤية الحالية
+## الهدف الحالي
 
-«قبل المشاهدة» منتج عربي مستقل يساعد الأسرة على معرفة محتوى الفيلم أو المسلسل قبل تشغيله، ثم يصدر قرار مشاهدة مفسرًا ومخصصًا بدل تقييم رقمي واحد أو نقل تصنيف أجنبي كما هو.
+«قبل المشاهدة» دليل عربي مستقل يساعد الأسرة على معرفة محتوى الفيلم أو المسلسل قبل تشغيله، ثم يطبق حدود الأسرة على **وقائع موثقة** ليعطي قرارًا مفسرًا بدل درجة غامضة أو نقل تصنيف أجنبي كما هو.
 
-### المبدأ التحريري الثابت
+المقياس العملي للمرحلة الحالية:
 
-**«قبل المشاهدة» يعتمد على نفسه في المراجعة النهائية والمنهج والقرار.**
+> هل يستطيع الزائر البحث عن عمل معروف، ومعرفة هل له مراجعة أم لا، ثم — عند وجود مراجعة — رؤية وقائع قابلة للتتبع وقرار مفهوم يتغير مع حدود أسرته؟
 
-المصادر الخارجية لا تصبح مراجعتنا. دورها هو تقديم **بيانات كتالوجية أو دليل قابل للتتبع** عندما تسمح الرخصة والشروط بذلك، ثم نحول الأدلة إلى وقائع منظمة ونطبق taxonomy ومعايير الأسرة العربية والإنچين الخاص بنا.
+## ترتيب العمل المعتمد الآن
 
-النص العام الذي يجب الحفاظ عليه:
+1. كتالوج حقيقي — **مكتمل إنتاجيًا**.
+2. بحث مفيد من D1 فقط — **مكتمل إنتاجيًا**.
+3. 10–20 مراجعة evidence-based حقيقية لأعمال عائلية معروفة — **التالي**.
+4. توصيل البلاغ العام والتصحيح الكامل.
+5. اختبار المنتج مع 5 أسر، 3 أعمال لكل أسرة.
+6. بعد المحتوى فقط: اختصار الصفحة الرئيسية وعرض أعمال حقيقية بدل الأمثلة التصميمية.
+7. قبل التوسع: custom domain، أداء/إتاحة، rate limiting، monitoring، D1 backup/recovery، وتعطيل آمن عند الأعطال.
 
-> **نحن لا ننقل مراجعة الآخرين؛ المصادر تمدنا بالدليل، والمراجعة النهائية وتجميع الوقائع وقرار الأسرة من منهج «قبل المشاهدة».**
+لا أولوية الآن لتسجيل مستخدمين أو توصيات AI أو نجوم أو تعليقات أو تطبيق موبايل أو إعادة تصميم كبيرة.
 
-ولا يجوز أن ندعي أن إنسانًا من فريقنا شاهد النسخة إذا لم يحدث ذلك فعلًا في مسار مراجعة بشري منفصل.
+## المبدأ التحريري والثقة
 
-## المسار القابل للتوسع
+- المصادر الخارجية تمدنا **بالبيانات أو الدليل** فقط؛ لا تصبح مراجعتنا.
+- Wikidata مخصصة للـcatalog metadata تحت CC0 1.0.
+- Wikipedia مخصصة لمسار analysis evidence وفق policy المشروع والعزو/الrevision المحفوظين.
+- لا metadata → verified review تلقائيًا.
+- لا fake/synthetic reviewers.
+- لا ادعاء مشاهدة بشرية إذا لم تحدث.
+- Workers AI طبقة استخراج غير موثوقة ولا تملك publish authority.
+- `uncertain` أو conflict أو نقص coverage يفشل مغلقًا بدل إنتاج «مناسب».
+- قرار الأسرة منفصل عن حقيقة وجود الواقعة نفسها.
 
-1. **Catalog قانوني** لتعريف العمل والنسخة.
-2. **Evidence مرخص وقابل للتتبع** لكل claim محتوى.
-3. **استخراج وقائع منظمة**؛ Workers AI طبقة استخراج غير موثوقة ولا تملك publish authority.
-4. **Coverage + Conflict Gate**؛ `uncertain` أو التعارض لا يتحولان إلى «مناسب».
-5. **بوابة نشر evidence-based مستقلة** لا تستخدم reviewer وهميًا ولا تعيد استخدام approval بشري بصورة مضللة.
-6. **Snapshot غير قابلة للمحو** تربط كل claim بمصدرها ورخصتها والنسخة المحددة.
-7. **عرض عام fail-closed** يعيد فحص current publication بعد hydration لمنع stale/race state.
-8. **Arab Family Policy + Engine** يظلان منفصلين عن حقيقة وجود الوقائع نفسها.
-9. **Corrections/feedback** تحفظ التصحيح والتاريخ بدل تبديل النتيجة بصمت.
+النص العام الصحيح للثقة هو **«وقائع موثقة لنسخة محددة»**. داخل المراجعة يجب أن يظهر بوضوح إن كانت:
 
-سير المراجعين البشر المبني في P2/P2Q **يبقى موجودًا ولا يُحذف** كمسار جودة يدوي أو تصعيد، لكنه ليس شرطًا لتغطية آلاف الأعمال ولا توجد هويات مراجعين وهمية لتمرير بواباته.
+- مشاهدة بشرية مؤكدة؛ أو
+- مراجعة مبنية على أدلة موثقة؛ أو
+- البيانات غير كافية.
 
-## التشغيل التجاري ومصادر المحتوى
+## P3S-05 / P3S-06 — evidence-based review path
 
-- المشروع تجاري لأنه يستهدف إيرادًا إعلانيًا؛ لذلك لا نستخدم API أو dataset أو صورة إلا إذا كانت شروط الاستخدام مناسبة تجاريًا.
-- Wikidata: `catalog_metadata` تحت CC0 1.0 فقط.
-- Wikipedia: `analysis_evidence` عبر Action API الرسمي، مع CC BY-SA 4.0 والعزو وrevision ووقت الجلب وSHA-256.
-- Wikimedia Commons: لكل ملف على حدة فقط بعد التحقق من ترخيصه.
-- TMDB / IMDb / Parents Guide sites: blocked آليًا بلا ترخيص تجاري صريح.
-- لا يتم تحويل metadata وحدها إلى مراجعة موثقة.
-- لا نزرع مراجعات production مصطنعة بغرض SEO أو ملء الموقع.
+المسار evidence-based مستقل عن سير المراجعين البشر القديم:
 
-راجع `docs/CONTENT_SOURCE_POLICY.md` و`lib/content-source-policy.ts`.
+- evidence مرخص ومربوط بنسخة محددة.
+- extraction schema-bound.
+- coverage/conflict assessment deterministic.
+- publication snapshots append-only.
+- كل claim منشور مرتبط بمصدر داخل snapshot نفسها.
+- لا `human_watch_confirmed = 1` في المسار evidence-based.
+- `/review?publicationId=...` للمراجعة evidence-based.
+- `/review?bundleId=...` للمسار البشري القديم.
+- العرض العام يفشل مغلقًا عند stale/missing/current-head mismatch.
 
-## P3S-01 — Allowlist للمصادر التجارية — مكتمل ومنشور
+المسار البشري P2/P2Q محفوظ كاملًا كمسار جودة يدوي أو تصعيد، وليس شرطًا لتغطية آلاف الأعمال.
 
-- `lib/content-source-policy.ts` عقد fail-closed لكل source/use.
-- `catalog_metadata`, `analysis_evidence`, و`media` استخدامات منفصلة.
-- المصدر الجديد يبدأ blocked حتى تتم مراجعته وإضافة policy صريحة ومختبرة.
+## P3S-07 — taxonomy موضوعية
 
-## P3S-02 — عقد Wikidata للكتالوج — مكتمل ومنشور
+مكتملة ومنشورة:
 
-- `lib/wikidata-catalog.ts` يستخدم Wikidata Query Service الرسمي.
-- الطلبات bounded وبـUser-Agent واضح.
-- الاستيراد يولد metadata فقط ولا يلمس review state.
-- أول catalog production ما زال مؤجلًا إلى P3S-08.
+- `nudity`
+- `kissing`
+- `intimate_touching`
+- `sexual_dialogue`
+- `smoking_or_vaping`
+- `alcohol_use`
+- `drug_use`
+- `gambling_activity`
+- `religious_reference_or_practice`
 
-## P3S-03 — معايير الأسرة العربية — مكتملة ومنشورة
+الـsubtypes وصفية ولا تتحول تلقائيًا إلى age rating أو risk verdict مستقل. D1 category guards والـCHECKs متحقق منها production.
 
-- الإصدار الحالي: `2026-08-13.1`.
-- policy عربية افتراضية محافظة نسبيًا وقابلة للتخصيص، وليست تصنيفًا حكوميًا موحدًا.
-- القرار لا يعيد تسمية age rating أجنبي؛ لكل محور حد مستقل.
+## P3S-08 — أول كتالوج production حقيقي — مكتمل 100%
 
-## P3S-04 — provenance قانوني غير قابل للتعديل — مكتمل ومنشور
+### النتيجة الفعلية
 
-- PR #35 → main commit `709355bd6a9d0aaccb703837bff3b744a77da90b`.
-- أضيفت `content_source_policy_snapshots`, `title_catalog_sources`, و`version_evidence_sources`.
-- provenance وpolicy snapshots append-only ومحمية بقيود SQLite/D1.
-- production checkpoint وقتها: **19/19 migrations**.
+تم استيراد **200/200 عنوان حقيقي** من Wikidata إلى D1 production مع provenance قانونية لكل عنوان.
 
-## P3S-05 — evidence-based review pipeline — مكتمل ومنشور على production
+- المصدر: Wikidata.
+- الاستخدام: `catalog_metadata` فقط.
+- الرخصة: CC0 1.0.
+- لا posters.
+- لا review state مصطنعة.
+- لا evidence publication مصطنعة.
+- لا title version مصطنعة لمجرد SEO.
+- الاسم العربي يُفضّل عندما يتوفر، والاسم الإنجليزي المختلف يُحفظ كاسم بحث بديل.
+- الاختيار الأولي مرتب بالشيوع عبر Wikidata sitelinks مع bounds صريحة.
+- runtime/المدة **لا تُخزن كحقيقة عامة للعنوان**؛ تبقى خاصية للنسخة عندما تكون النسخة/القص محددين بدقة.
 
-المسار الوظيفي بُني في PR #36 ثم أُغلق إصلاحه عبر PR #37.
+### الاستيراد والإثبات
 
-### ما ينفذه
+- أول successful production import: Run `31690242194`، successful rerun job `94416044496`.
+- validated records: **200**.
+- exact remote verification: **200 title/provenance pairs**.
+- first QID: `Q44578`.
+- preview artifact: `wikidata-catalog-preview-31690242194`.
+- artifact ID: `9177142287`.
+- artifact ZIP SHA-256: `9e5ed4d87ce524959af37069851fecff93e98a8f112495fd195f04d9d2d857ab`.
+- D1 import نفذ 400 statements للـ200 title + 200 provenance records.
+- أول محاولتين فشلتا قبل أي D1 write؛ لم يتم تخطي fail-closed gates.
 
-- Wikipedia Action API كمصدر `analysis_evidence` مرخص.
-- Cloudflare Workers AI binding باسم `AI`.
-- النموذج الحالي: `@cf/meta/llama-3.1-8b-instruct-fast`.
-- النموذج **طبقة استخراج غير موثوقة** فقط.
-- model-assisted extraction يسمح بـ`present` أو `uncertain` فقط؛ لا يسمح بتحويل غياب الذكر إلى `none`.
-- `present` يتطلب fact منظمة وlocator حقيقي `P####`.
-- `uncertain` يحتفظ بتتبع نطاق chunk من غير اختراع فقرة داعمة.
-- لا تُختلق runtime timestamps من Wikipedia prose.
-- `assessEvidenceReview` يفشل مغلقًا عند نقص coverage أو uncertainty أو conflict أو cross-version evidence.
-- candidate الناتجة من P3S-05 تظل `publishable: false`؛ سلطة النشر أصبحت P3S-06.
+### الصفحات العامة
 
-### الإغلاق الإنتاجي المؤكد
+- `/titles` تعرض فقط عناوين لها provenance Wikidata/CC0 مسموح بها.
+- `/title/[qid]` تعرض metadata + source/license/policy disclosure + canonical/JSON-LD.
+- `/sitemap.xml` يولّد روابط العناوين القانونية فقط.
+- `/robots.txt` يعلن sitemap ويمنع `/internal`.
+- وجود العنوان في الكتالوج **لا يعني وجود مراجعة**.
 
-- PR #37 squash merged إلى main commit `701604e7570671671ff94b3b97e111d837ab626f`.
-- Cloudflare production Run `31676888290` نجح كاملًا.
-- **207/207 tests، 0 fail**.
-- D1 production أصبحت **20/20 migrations**.
-- bindings المؤكدة: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `a0de055e-8a85-4cd9-9ab6-57971b909fae`.
+## البحث الحقيقي — مكتمل 100%
 
-## P3S-06 — بوابة النشر المستقلة للأدلة — مكتملة ومنشورة على production
+البحث أصبح يعتمد على D1 الحقيقي فقط:
 
-P3S-06 دُمجت عبر PR #38 إلى main commit `d914b223c9db1d8622c4ba33a5681b7436842cf9`.
+- `/api/search-suggestions?q=...` يستخدم نفس `searchPublicTitles` server-side.
+- أقل من حرفين → لا اقتراحات.
+- أقصى 5 اقتراحات.
+- `no-store`، ولا fake fallback عند تعذر D1.
+- Hero يستخدم debounce + AbortController.
+- أزيلت الاقتراحات الثابتة القديمة مثل «البحث عن نيمو» و«إنسايد آوت 2» و«وينزداي».
+- placeholder لا يعد بعنوان غير موجود.
 
-### مبدأ المعمارية
+حالات البحث العامة أصبحت صريحة:
 
-P3S-06 **لا تستخدم** `review_bundles` أو `editorial_approvals` كحيلة لإيهام النظام بوجود مراجعة بشرية. يوجد مسار publication مستقل تمامًا للمراجعة evidence-based، بينما المسار البشري القديم يبقى كما هو.
+- **موجود — مراجعة موثقة**.
+- **موجود — قيد المراجعة**.
+- **موجود — لم يُراجع بعد**.
+- **غير موجود**.
 
-### بوابة النشر النقية
+لا يوجد زر «اطلب مراجعته» وهمي حتى يتم توصيل intake حقيقي.
 
-`lib/evidence-publication.ts`:
+### Live product smoke
 
-- تعيد تشغيل `assessEvidenceReview` قبل السماح بأي persistence.
-- تتطلب `status = ready` و`engineEligible = true`.
-- تمنع `model_assisted + none`.
-- تتأكد أن مجموعة المصادر ومجموعة provenance متطابقتان واحدًا لواحد.
-- تعيد التحقق من policy الحالية والرخصة والعزو والنسخة والـhash.
-- تفرض `reviewMethod = evidence_based` و`humanWatchConfirmed = false` server-side.
+أضيف Quality Gate مستقل يعمل بعد Cloudflare deploy الناجح على `main` ويختبر المنتج المنشور نفسه.
 
-### D1 publication snapshots
+آخر إثبات حي:
 
-migration `0018_evidence_publication_gate.sql` أضافت:
+- Cloudflare production deploy Run `31691881366`: success.
+- main Checkpoint Run `31691881382`: success.
+- Live product smoke Run `31691960997`: success.
+- العينة production: `Titanic` / `wd:Q44578`.
+- `/api/search-suggestions?q=Titanic` أعاد العنوان الحقيقي من D1.
+- `/search?q=Titanic` أظهر حالة مراجعة صريحة.
+- الصفحة الرئيسية احتوت «وقائع موثقة» ولم تحتوِ الاقتراحات الثابتة القديمة.
 
-1. `evidence_review_publications`
-2. `evidence_publication_sources`
-3. `evidence_publication_assertions`
-4. `evidence_publication_facts`
-5. `evidence_publication_fact_flags`
-6. `evidence_review_publication_heads`
-
-خصائصها:
-
-- snapshots وclaims وfacts وflags append-only.
-- revision lineage مباشرة عبر `supersedes_publication_id`.
-- كل source منشورة يجب أن تكون `analysis_evidence` مرخصة تجاريًا لنفس النسخة.
-- كل assertion منشورة يجب أن ترتبط بمصدر داخل snapshot نفسها.
-- `present` بلا fact مرفوضة.
-- `uncertain` لا يمكنها غلق coverage.
-- وجود conflict أو severity delta >=2 بين المصادر يمنع finalization.
-- current head لا يثبت إلا لو النسخة active وكل المحاور العشرة مغطاة صراحة بلا conflict.
-- `human_watch_confirmed = 1` مرفوض في هذا المسار على مستوى D1.
-
-### معاملة النشر
-
-`db/publish-evidence-review.ts`:
-
-- يتحقق من النسخة active.
-- يطابق provenance المخزنة حرفيًا أو يرفض mismatch.
-- يكتب missing provenance + publication snapshot + source links + claims + facts + flags في D1 batch.
-- current head هو آخر statement في المعاملة ويعمل كبوابة finalization على مستوى قاعدة البيانات.
-- revision الحالية تستخدم optimistic WHERE؛ أي concurrent publication تمنع finalization بدل overwrite صامت.
-
-### العرض العام
-
-- `/review?publicationId=...` هو locator للمراجعة evidence-based.
-- `/review?bundleId=...` يظل للمسار البشري القديم.
-- وجود الاثنين أو غياب الاثنين يفشل مغلقًا.
-- public loader يعمل initial gate → hydration → final gate بنفس revision لمنع stale/race state.
-- الصفحة تقول صراحة: **«المشاهدة البشرية — غير مدعاة»** و**«لا ندّعي مشاهدة بشرية لم تحدث»**.
-- تعرض source/license/attribution/revision من snapshot المنشورة.
-- التوقيت غير المتاح يظهر `—` ولا يتم اختلاق timestamp.
-- قرار الأسرة يظل منفصلًا عن مجرد نشر الوقائع.
-
-### التحقق والإغلاق الإنتاجي المؤكد
-
-- branch وPR CI نجحا قبل الدمج.
-- main Checkpoint verification Run `31679684679` نجح بالكامل.
-- Cloudflare production Run `31679684634` نجح بالكامل.
-- **219/219 tests، 0 fail**.
-- `test:migrations`: **21 migration files / 33 product tables** محليًا.
-- D1 production أصبحت **21/21 migrations**.
-- migration `0018_evidence_publication_gate.sql` نُفذت remote بنجاح عبر atomic file ingestion.
-- remote schema verification أكد وجود الجداول الستة الجديدة مع جداول المشروع/provenance.
-- bindings بعد النشر: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`.
-- Worker: `https://qabl-almushahada.buildtools.workers.dev`.
-- smoke tests نجحت لـ`/`, `/review`, `/search?q=nemo`, `/review-policy`, `/privacy`, `/corrections`.
-- `/review?publicationId=missing-publication` أُختبرت إنتاجيًا وأعادت الحالة الآمنة «المراجعة غير متاحة حاليًا» بدل Demo/fallback.
-
-**P3S-06 = 100% ومغلقة إنتاجيًا.**
-
-## P3S-07 — taxonomy عربية موضوعية — مكتملة ومنشورة على production
-
-P3S-07 دُمجت عبر PR #40 إلى main commit `8b8ae4d535881d439c9097f2729df421b787c879`.
-
-### ما تغير
-
-- أضيف عقد مركزي للـtaxonomy في `lib/review-engine/content-taxonomy.ts` تستخدمه مسارات المراجعة البشرية والأدلة وWorkers AI والواجهة.
-- أضيفت وقائع وصفية دقيقة: `nudity`, `kissing`, `intimate_touching`, `sexual_dialogue`, `smoking_or_vaping`, `alcohol_use`, `drug_use`, `gambling_activity`, و`religious_reference_or_practice`.
-- العري/التقبيل/اللمس الحميمي/الحوار الجنسي تبقى subtypes موضوعية داخل `sexualContent`، والتدخين/الكحول/المخدرات/القمار تبقى وقائع منفصلة داخل `substances`.
-- `religious_reference_or_practice` marker وصفي cross-cutting، ولا يصبح تلقائيًا حكم خطر أو ملاءمة.
-- human review وevidence assessment وWorkers AI parser تفشل مغلقًا إذا رُبط subtype بمحور غير متوافق.
-- Review Editor لا يعرض إلا flags المناسبة للمحور الحالي، والـpublic evidence DTO لا يسقط flags المنشورة.
-- لا أضيفت top-level categories جديدة، ولا rating عمري أجنبي، ولا trust score.
-
-### D1 والحماية
-
-- migration `0019_objective_content_taxonomy.sql` أعادت بناء جدولي flags فقط لتوسيع CHECKs؛ لم تضف product tables جديدة.
-- category-compatibility triggers موجودة في D1 لكل من `observation_flags` و`evidence_publication_fact_flags`.
-- append-only protections بقيت محفوظة بعد إعادة البناء.
-- P2Q-01 `review_audit_selections_insert_guard` أُعيد بنفس منطق الاختيار بعد rebuild وتم التحقق من وجوده وسلوكه.
-- production workflow يقرأ `sqlite_master` بعد migration ويتأكد من الـCHECKs والـcategory guards قبل نشر Worker.
-
-### الإغلاق الإنتاجي المؤكد
-
-- branch Checkpoint Run `31685621212` نجح، وPR #40 CI Run `31685982134` نجح.
-- main Checkpoint verification Run `31686061646` نجح بالكامل.
-- Cloudflare production Run `31686061613` نجح بالكامل.
-- **227/227 tests، 0 fail**.
-- `test:migrations`: **22 migration files / 33 product tables** محليًا.
-- migration `0019_objective_content_taxonomy.sql` نُفذت remote بنجاح عبر atomic file ingestion.
-- D1 production أصبحت **22/22 migrations**.
-- remote schema verification نجح.
-- remote taxonomy verification أكد وجود الـ9 subtypes في CHECKs وcategory-compatibility triggers على production.
-- bindings بعد النشر: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`.
-- Worker: `https://qabl-almushahada.buildtools.workers.dev`.
-- smoke tests نجحت لـ`/`, `/review`, `/review?publicationId=missing-publication`, `/search?q=nemo`, `/review-policy`, `/privacy`, `/corrections`.
-
-**P3S-07 = 100% ومغلقة إنتاجيًا.**
-
-## الإنچين والثقة — الحالة الحالية
-
-- القرار deterministic وقابل لإعادة الإنتاج.
-- نقص أو تعارض حرج يعيد `insufficient_data` بدل «مناسب».
-- Workers AI لا يملك سلطة القرار أو النشر.
-- P3S-05 يحول الأدلة إلى وقائع وcoverage/conflict assessment.
-- P3S-06 فقط يسمح بتحويل snapshot evidence-ready إلى publication current، بعد إعادة التحقق في التطبيق وفي D1.
-- P3S-07 يضيف وصفًا أدق للوقائع من غير تحويل الـsubtypes إلى أحكام مستقلة.
-- المسار البشري P2/P2Q محفوظ كاملًا مع independence, revisions, audit, calibration, safety holds, corrections.
-
-راجع `docs/ENGINE_TRUST_MODEL.md`.
-
-## تجربة المستخدم العامة
-
-- هوية عربية وRTL وصفحة رئيسية متجاوبة.
-- `/search` متصل بـD1 ومحرك بحث عربي deterministic.
-- فلاتر النوع والعمر وحالة التحقق.
-- `/review?bundleId=...` للمراجعات البشرية الموثقة القديمة.
-- `/review?publicationId=...` للمراجعات evidence-based بعد وجود snapshot منشورة فعلية.
-- العرض evidence-based يحافظ على الـobjective subtype flags المنشورة ويعرضها كأوصاف، لا كحكم ملاءمة مستقل.
-- حدود الأسرة محفوظة محليًا من غير اسم طفل أو تاريخ ميلاد.
-- `/review-policy`, `/privacy`, `/corrections` موجودة ومربوطة من الموقع.
-- search لم يُربط بعد تلقائيًا بـevidence publications؛ ذلك يدخل مع ingestion/SEO في P3S-08.
-
-## Cloudflare — الإنتاج المؤكد حاليًا
+## Cloudflare production — الحالة الحالية
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
-- آخر production feature commit مؤكد: `8b8ae4d535881d439c9097f2729df421b787c879` (P3S-07).
-- Cloudflare Run: `31686061613`.
-- main Checkpoint verification Run: `31686061646`.
-- D1: **22/22 migrations**.
-- product tables محليًا بعد كل migrations: **33**.
-- remote taxonomy CHECKs وcategory guards: verified.
+- D1 ID: `f2bd0d7a-660b-4f9e-bddc-40a918dd35cc`.
+- migrations: **22/22**.
+- product tables محليًا: **33**.
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`.
-- remote schema وsmoke tests نجحا بعد migration رقم 22.
+- latest production feature/checkpoint commit قبل docs: `f46fc4d61f46eccd71a3f4d924a0e806848e80f4`.
+- latest Worker Version ID: `c8279c37-7500-48d7-bf1a-87317017fabf`.
+- remote schema verification: success.
+- remote objective taxonomy guards: success.
+- standard public smoke: success.
+- live product smoke: success.
 
-## ما لا نفعله
+## ما يزال تصميميًا أو غير موصول
 
-- لا fake/synthetic reviewers.
-- لا scraper لـIMDb/TMDB/Parents Guide بلا ترخيص تجاري.
-- لا metadata → verified review تلقائيًا.
-- لا `catalog_metadata` policy كـ`analysis_evidence`.
-- لا نسخ review أجنبي ثم الادعاء أنه مراجعتنا.
-- لا ادعاء مشاهدة بشرية لم تحدث.
-- لا منح Workers AI سلطة publish أو اعتبار صمته دليل `none`.
-- لا rating رقمي واحد يحل محل الوقائع والأسباب.
-- لا حسابات أطفال أو جمع اسم الطفل/تاريخ الميلاد.
-
-## ما يزال مؤجلًا
-
-- بعض أمثلة الصفحة الرئيسية ما زالت تصميمية وليست مراجعات production.
-- زر البلاغ العام غير موصول بعد.
+- بعض بطاقات الصفحة الرئيسية أمثلة تصميمية ومعلّمة بوضوح وليست reviews production.
+- زر البلاغ العام داخل المراجعة غير موصول بعد، رغم وجود منطق P2-05 الداخلي للبلاغات الجوهرية.
+- «اطلب مراجعته» غير موصول ولن يظهر كزر وهمي.
 - لا posters غير مرخصة.
-- لا bulk production catalog import حتى P3S-08.
-- لا صفحات SEO production واسعة قبل catalog/evidence صالحين فعليًا.
-- P0-05 والمراحل P4 تبقى لاحقة بعد تثبيت مسار المحتوى الجديد.
+- لا مراجعات production حقيقية كافية بعد؛ هذه هي الأولوية التالية.
 
-## نقطة البدء التالية
+## الخطوة التالية — أول 10–20 مراجعة حقيقية
 
-1. ابدأ `P3S-08` فقط — أول catalog production من Wikidata إلى D1 ثم أول صفحات SEO حقيقية من البيانات القانونية.
-2. لا تزرع مراجعات موثقة أو evidence publications مصطنعة لملء صفحات SEO.
-3. catalog metadata يظل منفصلًا عن review/evidence state، وأي كتابة production يجب أن تمر preview/validation/provenance أولًا.
-4. بعد تثبيت المحتوى الحقيقي، انتقل إلى P4-03 لاختبار 20 مراجعة evidence-based يدويًا قبل التوسع.
+ابدأ من عناوين عائلية معروفة داخل الكتالوج الـ200، وليس من آلاف عناوين فارغة.
 
-راجع قبل تعديل المصدر/الثقة/النشر:
+لكل عنوان:
 
-- `docs/CONTENT_SOURCE_POLICY.md`
-- `docs/ARAB_FAMILY_POLICY.md`
-- `docs/ENGINE_TRUST_MODEL.md`
-- `docs/CLOUDFLARE_DEPLOYMENT.md`
-- `docs/ROADMAP.md`
+1. تأكد من title/version identity ولا تخترع runtime أو cut.
+2. اجلب analysis evidence فقط من source مسموح بها ومثبتة provenance.
+3. استخرج الوقائع مع source locators؛ silence لا يصبح `none`.
+4. coverage/conflict gate يجب أن ينجح.
+5. راجع الوقائع يدويًا قبل publish لأول مجموعة إطلاق.
+6. انشر فقط snapshot مستوفية P3S-06.
+7. اختبر القرار مع أكثر من Family Profile للتأكد أن تغيّر الحدود يغيّر القرار عندما ينبغي.
+8. سجّل أي title لا تكفيه الأدلة كـ`insufficient_data` بدل ملء الفراغ.
 
-## الروابط
+**العدد الصغير الموثوق أفضل من آلاف العناوين الفارغة.**
+
+بعد هذه المجموعة: وصل البلاغ العام والتصحيح، ثم اختبر مع 5 أسر قبل أي تحسين واجهة كبير.
+
+## روابط المصدر
 
 - المستودع: `https://github.com/Hosyss/qabl-almushahada`
 - الإنتاج: `https://qabl-almushahada.buildtools.workers.dev`
-- الموقع القديم `https://qabl-almushahada.hosys.chatgpt.site` ليس مصدر النشر الحالي.
+- Roadmap: `docs/ROADMAP.md`
+- سياسة المصادر: `docs/CONTENT_SOURCE_POLICY.md`
+- Trust model: `docs/ENGINE_TRUST_MODEL.md`
+- Cloudflare: `docs/CLOUDFLARE_DEPLOYMENT.md`
