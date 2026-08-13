@@ -91,11 +91,11 @@ export async function fetchWikipediaEvidencePage(options: {
   return parseWikipediaEvidencePayload(payload, options.language, now());
 }
 
-export function parseWikipediaEvidencePayload(
+export async function parseWikipediaEvidencePayload(
   payload: unknown,
   language: WikipediaEvidenceLanguage,
   retrievedAt: Date,
-): WikipediaEvidencePage {
+): Promise<WikipediaEvidencePage> {
   if (!isPlainObject(payload) || !isPlainObject(payload.query) || !Array.isArray(payload.query.pages)) {
     throw new TypeError("Invalid Wikipedia Action API response");
   }
@@ -126,7 +126,7 @@ export function parseWikipediaEvidencePayload(
   const revisionId = String(positiveInteger(revision.revid, "revid"));
   const revisionTimestamp = normalizeInstant(revision.timestamp, "revision timestamp");
   const retrievedAtIso = normalizeDate(retrievedAt, "retrievedAt");
-  const contentSha256 = sha256Hex(articleText);
+  const contentSha256 = await sha256Hex(articleText);
   const attributionText = buildWikipediaAttribution({
     title,
     sourceUrl,
