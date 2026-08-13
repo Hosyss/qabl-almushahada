@@ -1,0 +1,31 @@
+name: B4 live diagnostic
+
+on:
+  push:
+    branches:
+      - agent/p4-03-b4-live-diagnostic
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+    steps:
+      - name: Inspect Harry discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --get --data-urlencode 'q=HarryPotter' "$WORKER_URL/api/search-suggestions" | tee "$RUNNER_TEMP/harry.json"
+          echo '--- checks ---'
+          for token in 'did_you_mean' 'هاري بوتر وحجر الفيلسوف' "Harry Potter and the Philosopher's Stone" '2001' '/title/Q102438'; do
+            if grep -Fq "$token" "$RUNNER_TEMP/harry.json"; then echo "YES: $token"; else echo "NO: $token"; fi
+          done
+          echo '--- search page ---'
+          curl --fail --silent --show-error --location --get --data-urlencode 'q=HarryPotter' "$WORKER_URL/search" > "$RUNNER_TEMP/harry.html"
+          for token in 'هل تقصد؟' '/title/Q102438'; do
+            if grep -Fq "$token" "$RUNNER_TEMP/harry.html"; then echo "YES: $token"; else echo "NO: $token"; fi
+          done
