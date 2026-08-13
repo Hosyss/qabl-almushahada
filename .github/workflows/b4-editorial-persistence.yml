@@ -2,7 +2,7 @@ name: B4 editorial persistence
 
 on:
   push:
-    branches: ["agent/p4-03-b4-editorial-persistence-v2", main]
+    branches: ["agent/p4-03-b4-editorial-persistence-v4", main]
   pull_request:
 
 jobs:
