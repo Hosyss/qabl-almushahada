@@ -1,0 +1,122 @@
+name: Live product smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Cloudflare production deploy
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-product-smoke-main
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+
+    steps:
+      - name: Verify D1-backed suggestions and search state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/api/search-suggestions" > "$RUNNER_TEMP/suggestions.json"
+          grep -F 'wd:Q44578' "$RUNNER_TEMP/suggestions.json" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/search" > "$RUNNER_TEMP/search.html"
+          grep -Eq 'مراجعة موثقة|قيد المراجعة|الحكم غير مكتمل|تحليل تحريري جزئي' "$RUNNER_TEMP/search.html"
+
+      - name: Verify Cars editorial path
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='Cars'
+          qid='Q182153'
+          id='cars-2006-editorial-pilot-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/cars-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/cars-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/cars-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/cars-title.html"
+          grep -F "$id" "$RUNNER_TEMP/cars-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/cars-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/cars-review.html" > /dev/null
+
+      - name: Verify E.T. editorial path
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='E.T.'
+          qid='Q11621'
+          id='et-1982-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/et-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/et-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/et-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/et-title.html"
+          grep -F "$id" "$RUNNER_TEMP/et-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/et-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/et-review.html" > /dev/null
+
+      - name: Verify Harry Potter editorial path
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='هاري بوتر وحجر الفيلسوف'
+          qid='Q102438'
+          id='harry-potter-philosophers-stone-2001-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/harry-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/harry-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/harry-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/harry-title.html"
+          grep -F "$id" "$RUNNER_TEMP/harry-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/harry-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/harry-review.html" > /dev/null
+
+      - name: Verify Minions editorial path
+        shell: bash
+        run: |
+          set -euo pipefail
+          query='Minions'
+          qid='Q13619743'
+          id='minions-2015-editorial-batch-v1'
+          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/minions-search.html"
+          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/minions-search.html" > /dev/null
+          grep -F "$id" "$RUNNER_TEMP/minions-search.html" > /dev/null
+          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/minions-title.html"
+          grep -F "$id" "$RUNNER_TEMP/minions-title.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/minions-review.html"
+          grep -F 'insufficient_data' "$RUNNER_TEMP/minions-review.html" > /dev/null
+
+      - name: Verify mixed locators fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" --data-urlencode 'publicationId=invalid-publication' "$WORKER_URL/review" > "$RUNNER_TEMP/mixed.html"
+            grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/mixed.html" > /dev/null
+          done
+
+      - name: Verify editorial pages are discoverable
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            grep -F "editorialId=$id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
+          done
+
+      - name: Record live product smoke
+        shell: bash
+        run: |
+          echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Every editorial page remains insufficient_data' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Mixed review locators fail closed' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All four editorial pages are present in sitemap.xml' >> "$GITHUB_STEP_SUMMARY"
