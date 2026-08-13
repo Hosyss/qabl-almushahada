@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { searchPublicTitleDiscovery } from "@/db/public-title-search-service";
+import { getEditorialPublicationPresentation } from "@/lib/editorial-publication-presentation";
 import { buildPublicCatalogTitleHref } from "@/lib/public-catalog";
 import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
 import { getEditorialReviewPublicationForTitleId } from "@/lib/editorial-review-registry";
@@ -81,27 +82,33 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   );
 }
 
+function titleNames(result: PublicTitleSearchResult) {
+  const editorial = getEditorialReviewPublicationForTitleId(result.id);
+  if (editorial) {
+    const presentation = getEditorialPublicationPresentation(editorial);
+    return { editorial, arabicName: presentation.titleAr, englishName: presentation.titleEn };
+  }
+  const names = getPublicTitleDisplayNames(result);
+  return { editorial: null, arabicName: names.arabicName, englishName: names.englishName };
+}
+
 function SearchResultCard({ result }: { result: PublicTitleSearchResult }) {
   const availability = classifyPublicSearchAvailability(result);
-  const editorial = getEditorialReviewPublicationForTitleId(result.id);
-  const editorialState = Boolean(editorial) && availability !== "verified";
+  const names = titleNames(result);
+  const editorialState = Boolean(names.editorial) && availability !== "verified";
   const copy = editorialState ? EDITORIAL_COPY : AVAILABILITY_COPY[availability];
   const href = buildPublicCatalogTitleHref(result.id);
-  const names = getPublicTitleDisplayNames(result);
-  const arabicName = editorial?.titleLabel ?? names.arabicName;
-  const englishName = editorial?.originalTitleLabel ?? names.englishName;
   return <article className={styles.card}>
     <div className={styles.cardTop}><span className={`${styles.status} ${styles[`status_${availability}`]}`}>{copy.label}</span><span className={styles.year}>{result.releaseYear}</span></div>
-    <h3>{arabicName}</h3><p className={styles.original} dir="ltr">{englishName}</p>
-    <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && editorial ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(editorial.id)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
+    <h3>{names.arabicName}</h3><p className={styles.original} dir="ltr">{names.englishName}</p>
+    <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && names.editorial ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(names.editorial.id)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
   </article>;
 }
 
 function DidYouMeanResults({ query, results }: { query: string; results: PublicTitleSearchResult[] }) {
   return <div className={styles.didYouMean}><div className={styles.resultsHeading}><div><span>مطابقة محافظة</span><h2>هل تقصد؟</h2></div><small>اقتراحات قريبة فقط وليست نتيجة مؤكدة لـ «{query}». اختر العمل بنفسك.</small></div><div className={styles.grid}>{results.map((result) => {
-    const href = buildPublicCatalogTitleHref(result.id); if (!href) return null;
-    const editorial = getEditorialReviewPublicationForTitleId(result.id); const names = getPublicTitleDisplayNames(result);
-    return <Link className={styles.suggestionCard} href={href} key={result.id}><strong>{editorial?.titleLabel ?? names.arabicName}</strong><span dir="ltr">{editorial?.originalTitleLabel ?? names.englishName}</span><small>({result.releaseYear})</small></Link>;
+    const href = buildPublicCatalogTitleHref(result.id); if (!href) return null; const names = titleNames(result);
+    return <Link className={styles.suggestionCard} href={href} key={result.id}><strong>{names.arabicName}</strong><span dir="ltr">{names.englishName}</span><small>({result.releaseYear})</small></Link>;
   })}</div></div>;
 }
 
