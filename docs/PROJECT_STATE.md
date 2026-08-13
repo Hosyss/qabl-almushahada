@@ -16,7 +16,7 @@
 
 1. كتالوج حقيقي — **مكتمل إنتاجيًا**.
 2. بحث مفيد من D1 فقط — **مكتمل إنتاجيًا**.
-3. 10–20 مراجعة evidence-based حقيقية لأعمال عائلية معروفة — **التالي**.
+3. 10–20 مراجعة evidence-based حقيقية لأعمال عائلية معروفة — **التالي، لكنه blocked حاليًا على source coverage + exact version identity لأول عنوان**.
 4. توصيل البلاغ العام والتصحيح الكامل.
 5. اختبار المنتج مع 5 أسر، 3 أعمال لكل أسرة.
 6. بعد المحتوى فقط: اختصار الصفحة الرئيسية وعرض أعمال حقيقية بدل الأمثلة التصميمية.
@@ -136,7 +136,7 @@
 
 أضيف Quality Gate مستقل يعمل بعد Cloudflare deploy الناجح على `main` ويختبر المنتج المنشور نفسه.
 
-آخر إثبات حي:
+آخر إثبات حي قبل P4-03 pilot:
 
 - Cloudflare production deploy Run `31691881366`: success.
 - main Checkpoint Run `31691881382`: success.
@@ -146,6 +146,12 @@
 - `/search?q=Titanic` أظهر حالة مراجعة صريحة.
 - الصفحة الرئيسية احتوت «وقائع موثقة» ولم تحتوِ الاقتراحات الثابتة القديمة.
 
+بعد دمج P4-03 pilot على commit `0ad222cca4d65c0a794292e624c72a2bad07b55c` نجح أيضًا:
+
+- main Checkpoint Run `31694286104`.
+- Cloudflare production deploy Run `31694286099`.
+- Live product smoke Run `31694361999`.
+
 ## Cloudflare production — الحالة الحالية
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
@@ -154,8 +160,8 @@
 - migrations: **22/22**.
 - product tables محليًا: **33**.
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- latest production feature/checkpoint commit قبل docs: `f46fc4d61f46eccd71a3f4d924a0e806848e80f4`.
-- latest Worker Version ID: `c8279c37-7500-48d7-bf1a-87317017fabf`.
+- latest production feature/checkpoint commit قبل P4-03 docs: `f46fc4d61f46eccd71a3f4d924a0e806848e80f4`.
+- latest P4-03 pilot docs commit on main: `0ad222cca4d65c0a794292e624c72a2bad07b55c`.
 - remote schema verification: success.
 - remote objective taxonomy guards: success.
 - standard public smoke: success.
@@ -167,7 +173,7 @@
 - زر البلاغ العام داخل المراجعة غير موصول بعد، رغم وجود منطق P2-05 الداخلي للبلاغات الجوهرية.
 - «اطلب مراجعته» غير موصول ولن يظهر كزر وهمي.
 - لا posters غير مرخصة.
-- لا مراجعات production حقيقية كافية بعد؛ هذه هي الأولوية التالية.
+- لا مراجعات production حقيقية كافية بعد؛ هذه هي الأولوية التالية لكن لا تُنجز بإضعاف source/coverage gates.
 
 ## P4-03 — Pilot أول مراجعة حقيقية
 
@@ -183,11 +189,27 @@
 
 التفاصيل: `docs/P4_03_FIRST_REVIEW_PILOT.md`.
 
-**P4-03 ما زالت مفتوحة.** قبل إعادة المحاولة يجب حل شرطين لأول عنوان: `exact version identity` + مصادر قانونية تغطي المحاور غير المحسومة صراحة، أو استخدام مسار مشاهدة بشرية حقيقية P2/P2Q بدل إضعاف بوابة evidence-based.
+### Source qualification بعد الـpilot
+
+تم فحص البدائل العملية التي قد تغطي الفجوة بدل الالتفاف على البوابة. النتيجة حتى 13 أغسطس 2026:
+
+- Wikipedia: evidence جزئية فقط؛ لا silence → `none`.
+- Wikimedia Commons: يمكن أن يعطي exact licensed media file لبعض الأعمال القديمة على أساس كل ملف منفرد، لكنه لا يحل cohort الحديث ولا يوجد video-analysis coverage path كامل حاليًا.
+- BBFC: بياناته مفيدة جدًا للنسخة والمحتوى، لكن Website Terms تحفظ حقوق إعادة استخدام المعلومات، وخدمات film-information تحتاج Data Service Agreement لاستخدام ratings/associated data؛ لذلك لا automated commercial ingestion بلا اتفاق/إذن.
+- Australian Classification: consumer advice رسمي لكنه يركز العناصر الأكثر تأثيرًا/تكرارًا ولا يغطي taxonomy العشرة كـchecklist غياب.
+- New Zealand Classification Office: quick takes قوية وصفيًا، لكن لم يُثبت ترخيص عام لإعادة استخدام قاعدة ratings تجاريًا ولا coverage صريحة للمحاور العشرة.
+- Figshare MPAA reasons dataset: CC BY 4.0، لكن `False` = لم يُذكر كسبب للتصنيف وليس «غير موجود».
+- IMDb licensed Parents Guide data: خيار تجاري مستقبلي جزئي بخمس فئات، وليس حلًا مجانيًا أو كاملًا للتصنيف الحالي.
+
+التفاصيل: `docs/P4_03_SOURCE_QUALIFICATION.md`.
+
+**القرار:** لا يوجد حاليًا source stack مجاني ومؤهل ثبت أنه يغلق المحاور العشرة لعمل حديث مثل Cars. أقرب المسارات الصحيحة هي: provider مرخص شامل، أو مشاهدة بشرية حقيقية P2/P2Q، أو بناء مسار مستقل لاحق لتحليل ملف فيلم حر كامل مع coverage مثبتة. لا نختلق `content_fingerprint` ولا نخفض taxonomy.
+
+**P4-03 ما زالت مفتوحة ومعلّمة blocked على المصدر/هوية النسخة.** لا نحتسب `Cars` ضمن cohort.
 
 ## الخطوة التالية — أول 10–20 مراجعة حقيقية
 
-ابدأ من عناوين عائلية معروفة داخل الكتالوج الـ200، وليس من آلاف عناوين فارغة.
+عند حل source/version blocker، ابدأ من عناوين عائلية معروفة داخل الكتالوج الـ200، وليس من آلاف عناوين فارغة.
 
 لكل عنوان:
 
@@ -210,5 +232,7 @@
 - الإنتاج: `https://qabl-almushahada.buildtools.workers.dev`
 - Roadmap: `docs/ROADMAP.md`
 - سياسة المصادر: `docs/CONTENT_SOURCE_POLICY.md`
+- P4-03 pilot: `docs/P4_03_FIRST_REVIEW_PILOT.md`
+- P4-03 source qualification: `docs/P4_03_SOURCE_QUALIFICATION.md`
 - Trust model: `docs/ENGINE_TRUST_MODEL.md`
 - Cloudflare: `docs/CLOUDFLARE_DEPLOYMENT.md`
