@@ -17,7 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run test:engine
       - run: node --experimental-strip-types --test tests/public-catalog-directory.test.ts
-      - run: node --experimental-strip-types --test tests/editorial-persistence-immutability.test.ts tests/editorial-persistence-head.test.ts
+      - run: node --experimental-strip-types --test tests/editorial-persistence-immutability.test.ts tests/editorial-persistence-head-lock.test.ts
       - run: npm run test:migrations
       - run: npm run lint:local
       - run: npm run build:local
