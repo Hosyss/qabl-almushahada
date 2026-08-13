@@ -6,6 +6,16 @@ export {
   HIGH_SENSITIVITY_FLAG_THRESHOLDS,
 } from "./risk-policy.ts";
 export type { ThirdReviewRequirement, ThirdReviewRiskTrigger, ThirdReviewRiskCode } from "./risk-policy.ts";
+export {
+  CONTENT_FLAG_DEFINITIONS,
+  CONTENT_FLAG_LABELS_AR,
+  CONTENT_FLAG_EXTRACTION_GUIDANCE_AR,
+  getContentFlagsForCategory,
+  getIncompatibleContentFlags,
+  isContentFlagAllowedForCategory,
+  isKnownContentFlag,
+} from "./content-taxonomy.ts";
+export type { ContentFlagDefinition } from "./content-taxonomy.ts";
 export { createExampleFamilyProfile } from "./profile.ts";
 export { createVerifiedDemoBundle } from "./sample.ts";
 export { hydrateReviewBundle, InvalidStoredReviewError } from "./hydrate.ts";
