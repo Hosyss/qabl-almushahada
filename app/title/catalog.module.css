@@ -18,8 +18,8 @@
 .originalTitle { margin: 0 0 10px !important; color: #334d43 !important; font-size: clamp(18px, 2.3vw, 24px); line-height: 1.65 !important; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
 .hero p, .detailCard p, .notice p, .card p { line-height: 1.9; color: #43564d; font-size: 18px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 16px; margin-top: 26px; }
-.card { border-radius: 22px; padding: 22px; }
-.card h2 { margin: 14px 0 8px; font-size: 1.25rem; }
+.card { min-width: 0; border-radius: 22px; padding: 22px; }
+.card h2 { margin: 14px 0 4px; font-size: 1.25rem; line-height: 1.55; }
 .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 18px 0; color: #4d6158; font-size: 16px; font-weight: 750; }
 .detailCard { margin-top: 18px; }
 .sourceBox { margin-top: 28px; padding: 20px; border-radius: 18px; background: #eef2eb; }
@@ -29,10 +29,44 @@
 .notice { margin-top: 18px; background: #fff8ec; }
 .notice h2 { font-size: 25px; line-height: 1.55; }
 .empty { margin-top: 22px; text-align: center; }
+
+.directoryFilters { margin-top: 20px; padding: 18px; display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr)); gap: 12px; border: 1px solid rgba(45,67,55,.14); border-radius: 22px; background: rgba(255,255,255,.78); }
+.directoryFilters label { display: grid; gap: 6px; color: #41574f; font-size: 14px; font-weight: 850; }
+.directoryFilters input[type="search"],
+.directoryFilters input[type="number"],
+.directoryFilters select { width: 100%; min-height: 48px; border: 1px solid rgba(45,67,55,.2); border-radius: 12px; background: #fff; color: #1f2d25; padding: 0 12px; font: inherit; font-size: 16px; }
+.directoryCheckbox { grid-column: 1 / 2; display: flex !important; grid-template-columns: auto 1fr !important; align-items: center; width: fit-content; }
+.directoryCheckbox input { width: 20px; height: 20px; accent-color: #315d50; }
+.directoryActions { grid-column: 2 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.directoryActions button { min-height: 46px; border: 0; border-radius: 12px; padding: 0 22px; background: #315d50; color: white; font: inherit; font-size: 15px; font-weight: 900; cursor: pointer; }
+.directoryActions a { color: #7f4527; font-size: 15px; font-weight: 850; }
+.directorySummary { margin: 24px 0 -8px; display: flex; justify-content: space-between; gap: 16px; color: #4a6057; font-size: 15px; }
+.cardStateLine { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; color: #53675f; font-size: 14px; font-weight: 800; }
+.state_catalog { background: #e8ece9; color: #455a52; }
+.state_editorial { background: #f1e4d4; color: #7d4525; }
+.state_verified { background: #e2eee3; color: #315d50; }
+.pagination { margin-top: 28px; display: flex; align-items: center; justify-content: center; gap: 18px; }
+.pagination a, .pagination span { min-width: 88px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(45,67,55,.16); border-radius: 12px; background: rgba(255,255,255,.78); color: #315d50; font-size: 15px; font-weight: 900; text-decoration: none; }
+.pagination span[aria-disabled="true"] { opacity: .45; }
+.pagination strong { font-size: 15px; }
+
+@media (max-width: 900px) {
+  .directoryFilters { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .directorySearch { grid-column: 1 / -1; }
+  .directoryCheckbox { grid-column: 1 / 2; }
+  .directoryActions { grid-column: 2 / 3; }
+}
 @media (max-width: 640px) {
-  .page { padding-inline: 14px; font-size: 17px; }
+  .page { padding-inline: 14px; font-size: 17px; overflow-x: clip; }
   .header { align-items: flex-start; flex-direction: column; }
   .hero p, .detailCard p, .notice p, .card p { font-size: 17px; }
   .originalTitle { font-size: 18px; }
   .sourceBox dl { grid-template-columns: 1fr; }
+  .directoryFilters { grid-template-columns: 1fr; padding: 14px; }
+  .directorySearch, .directoryCheckbox, .directoryActions { grid-column: 1; }
+  .directoryActions { justify-content: flex-start; flex-wrap: wrap; }
+  .directorySummary { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .cardStateLine { flex-direction: column; }
+  .pagination { gap: 8px; }
+  .pagination a, .pagination span { min-width: 72px; }
 }
