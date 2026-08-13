@@ -165,6 +165,57 @@ jobs:
           console.log('Remote D1 schema contains the required project, provenance, and evidence-publication tables.');
           NODE
 
+      - name: Verify remote objective taxonomy guards
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute DB \
+            --remote \
+            --config .wrangler/production/wrangler.jsonc \
+            --command "SELECT type, name, sql FROM sqlite_master WHERE (type = 'table' AND name IN ('observation_flags','evidence_publication_fact_flags')) OR (type = 'trigger' AND name IN ('observation_flags_p3s07_category_guard','evidence_publication_fact_flags_p3s07_category_guard')) ORDER BY type, name;" \
+            --json > "$RUNNER_TEMP/d1-objective-taxonomy.json"
+
+          node --input-type=module - "$RUNNER_TEMP/d1-objective-taxonomy.json" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , file] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (Array.isArray(value)) {
+              value.forEach(visit);
+              return;
+            }
+            if (!value || typeof value !== 'object') return;
+            if (typeof value.name === 'string' && typeof value.sql === 'string') rows.push(value);
+            Object.values(value).forEach(visit);
+          };
+          visit(payload);
+
+          const byName = new Map(rows.map((row) => [row.name, row]));
+          for (const table of ['observation_flags', 'evidence_publication_fact_flags']) {
+            const sql = byName.get(table)?.sql ?? '';
+            for (const flag of ['nudity', 'kissing', 'intimate_touching', 'sexual_dialogue', 'smoking_or_vaping', 'alcohol_use', 'drug_use', 'gambling_activity', 'religious_reference_or_practice']) {
+              if (!sql.includes(`'${flag}'`)) {
+                console.error(`Remote ${table} CHECK is missing objective subtype ${flag}.`);
+                process.exit(1);
+              }
+            }
+          }
+
+          for (const trigger of ['observation_flags_p3s07_category_guard', 'evidence_publication_fact_flags_p3s07_category_guard']) {
+            const sql = byName.get(trigger)?.sql ?? '';
+            for (const token of ["'sexualContent'", "'substances'", "'religious_reference_or_practice'"]) {
+              if (!sql.includes(token)) {
+                console.error(`Remote taxonomy trigger ${trigger} is missing compatibility rule ${token}.`);
+                process.exit(1);
+              }
+            }
+          }
+          console.log('Remote D1 contains P3S-07 objective subtype CHECKs and category-compatibility triggers.');
+          NODE
+
       - name: Deploy Worker
         if: steps.credentials.outputs.available == 'true'
         id: worker
@@ -215,7 +266,7 @@ jobs:
           check_policy_page "/privacy" "سياسة الخصوصية" "$RUNNER_TEMP/privacy.html"
           check_policy_page "/corrections" "سياسة التصحيح" "$RUNNER_TEMP/corrections.html"
 
-          echo "Verified P3S-06 evidence publication route fails closed and public policy routes remain healthy."
+          echo "Verified P3S-07 taxonomy deployment and existing public fail-closed routes remain healthy."
 
       - name: Record successful deployment
         if: steps.credentials.outputs.available == 'true'
@@ -225,4 +276,5 @@ jobs:
           echo "- Worker: $DEPLOYED_WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1: $CF_D1_DATABASE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- P3S-07 remote taxonomy guards: verified" >> "$GITHUB_STEP_SUMMARY"
           echo "- Public smoke tests: /, /review, /review?publicationId=missing-publication, /search?q=nemo, /review-policy, /privacy, /corrections" >> "$GITHUB_STEP_SUMMARY"
