@@ -7,5 +7,7 @@ export function normalizePublicEditorialArabicText(value: string): string {
     .replaceAll("مرجع مؤهل", "مرجع مرتبط")
     .replaceAll("الدليل المؤهل", "الدليل الحالي")
     .replaceAll("اتفاق غير مؤهل", "اتفاق غير مكتمل")
+    .replaceAll("مؤهلة", "مستخدمة")
+    .replaceAll("مؤهل", "مستخدم")
     .replaceAll("Harry", "هاري");
 }
