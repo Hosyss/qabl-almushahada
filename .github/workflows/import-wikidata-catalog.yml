@@ -1,0 +1,303 @@
+name: Wikidata production catalog import
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum validated titles to fetch (1-200)"
+        required: true
+        default: "25"
+        type: string
+      offset:
+        description: "Wikidata catalog offset"
+        required: true
+        default: "0"
+        type: string
+      apply:
+        description: "Apply the generated, validated artifact to production D1"
+        required: true
+        default: false
+        type: boolean
+      confirmation:
+        description: "For apply=true, enter APPLY_WIKIDATA_CATALOG_PRODUCTION"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wikidata-catalog-production
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CF_D1_DATABASE_NAME: qabl-almushahada-production
+  CF_WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+  WIKIDATA_POLICY_SNAPSHOT_ID: source-policy:wikidata:2026-08-13.1:catalog_metadata
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Refuse non-main execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Production catalog import may run only from main." >&2
+            exit 1
+          fi
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify catalog source and import contracts
+        run: >-
+          node --experimental-strip-types --test
+          tests/content-source-policy.test.ts
+          tests/source-provenance.test.ts
+          tests/wikidata-production-catalog.test.ts
+
+      - name: Generate exact preview and SQL artifact
+        id: preview
+        shell: bash
+        env:
+          INPUT_LIMIT: ${{ inputs.limit }}
+          INPUT_OFFSET: ${{ inputs.offset }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$INPUT_LIMIT" =~ ^[0-9]+$ ]] || (( INPUT_LIMIT < 1 || INPUT_LIMIT > 200 )); then
+            echo "limit must be an integer from 1 to 200" >&2
+            exit 1
+          fi
+          if [[ ! "$INPUT_OFFSET" =~ ^[0-9]+$ ]] || (( INPUT_OFFSET > 1000000 )); then
+            echo "offset must be an integer from 0 to 1000000" >&2
+            exit 1
+          fi
+
+          npm run content:wikidata:preview -- \
+            --limit="$INPUT_LIMIT" \
+            --offset="$INPUT_OFFSET" \
+            --output="$RUNNER_TEMP/wikidata-catalog-preview.json" \
+            --sql-output="$RUNNER_TEMP/wikidata-catalog-import.sql"
+
+          node --input-type=module - "$RUNNER_TEMP/wikidata-catalog-preview.json" "$RUNNER_TEMP/wikidata-catalog-import.sql" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , previewFile, sqlFile] = process.argv;
+          const preview = JSON.parse(readFileSync(previewFile, 'utf8'));
+          const sql = readFileSync(sqlFile, 'utf8');
+          if (preview.source !== 'wikidata' || preview.license !== 'CC0 1.0') {
+            throw new Error('Preview source/license contract mismatch.');
+          }
+          if (!Number.isInteger(preview.count) || preview.count < 1 || preview.count > 200) {
+            throw new Error('Preview count is outside the production bound.');
+          }
+          if (!Array.isArray(preview.records) || preview.records.length !== preview.count) {
+            throw new Error('Preview record count mismatch.');
+          }
+          if (preview.policySnapshot?.id !== 'source-policy:wikidata:2026-08-13.1:catalog_metadata') {
+            throw new Error('Preview policy snapshot is not the approved Wikidata catalog snapshot.');
+          }
+          const forbidden = ['INSERT INTO title_versions', 'INSERT INTO review_bundles', 'INSERT INTO review_submissions', 'INSERT INTO editorial_approvals', 'INSERT INTO evidence_review_publications'];
+          for (const token of forbidden) {
+            if (sql.includes(token)) throw new Error(`Catalog SQL contains forbidden review/evidence write: ${token}`);
+          }
+          for (const record of preview.records) {
+            const qid = record?.title?.wikidataEntityId;
+            const hash = record?.provenance?.contentSha256;
+            if (typeof qid !== 'string' || !/^Q\d+$/.test(qid)) throw new Error('Preview contains an invalid QID.');
+            if (record.title.id !== `wd:${qid}`) throw new Error('Preview title id/QID mismatch.');
+            if (record.provenance.titleId !== record.title.id) throw new Error('Preview provenance/title mismatch.');
+            if (record.provenance.policySnapshotId !== preview.policySnapshot.id) throw new Error('Preview provenance policy mismatch.');
+            if (typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash)) throw new Error('Preview contains an invalid provenance hash.');
+          }
+          process.stdout.write(`${preview.records[0].title.wikidataEntityId}\n`);
+          NODE
+          FIRST_QID="$(node -e "const p=require('$RUNNER_TEMP/wikidata-catalog-preview.json');process.stdout.write(p.records[0].title.wikidataEntityId)")"
+          COUNT="$(node -e "const p=require('$RUNNER_TEMP/wikidata-catalog-preview.json');process.stdout.write(String(p.count))")"
+          echo "first_qid=$FIRST_QID" >> "$GITHUB_OUTPUT"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "### Wikidata catalog preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "Validated records: **$COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Offset: **$INPUT_OFFSET**" >> "$GITHUB_STEP_SUMMARY"
+          echo "First QID: **$FIRST_QID**" >> "$GITHUB_STEP_SUMMARY"
+          echo "No production write has happened at this point." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wikidata-catalog-preview-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/wikidata-catalog-preview.json
+            ${{ runner.temp }}/wikidata-catalog-import.sql
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Require explicit production confirmation
+        if: inputs.apply == true
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRMATION" != "APPLY_WIKIDATA_CATALOG_PRODUCTION" ]]; then
+            echo "apply=true requires the exact confirmation token." >&2
+            exit 1
+          fi
+
+      - name: Check production Cloudflare credentials
+        if: inputs.apply == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "Cloudflare credentials are missing; production D1 was not touched." >&2
+            exit 1
+          fi
+
+      - name: Resolve exact production D1 without creating resources
+        if: inputs.apply == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 list --json > "$RUNNER_TEMP/d1-list.json"
+          DB_ID="$(node --input-type=module - "$RUNNER_TEMP/d1-list.json" "$CF_D1_DATABASE_NAME" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const [, , file, wantedName] = process.argv;
+          const rows = JSON.parse(readFileSync(file, 'utf8'));
+          if (!Array.isArray(rows)) process.exit(2);
+          const matches = rows.filter((row) => row && row.name === wantedName);
+          if (matches.length !== 1) {
+            console.error(`Expected exactly one D1 database named ${wantedName}; found ${matches.length}.`);
+            process.exit(3);
+          }
+          const id = matches[0].uuid ?? matches[0].id ?? matches[0].database_id;
+          if (typeof id !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(id)) process.exit(4);
+          process.stdout.write(id);
+          NODE
+          )"
+          echo "Resolved production D1: $CF_D1_DATABASE_NAME ($DB_ID)"
+
+      - name: Verify production D1 is current and policy is exact
+        if: inputs.apply == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$CF_D1_DATABASE_NAME" --remote \
+            --command "SELECT name FROM d1_migrations ORDER BY id; SELECT id, source_key, policy_version, use_scope, decision, license_label, license_url, policy_url, attribution_required, share_alike, automated_ingestion_allowed, commercial_use_allowed, verified_on FROM content_source_policy_snapshots WHERE id = '$WIKIDATA_POLICY_SNAPSHOT_ID';" \
+            --json > "$RUNNER_TEMP/pre-import-d1.json"
+
+          node --input-type=module - "$RUNNER_TEMP/pre-import-d1.json" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const [, , file] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (Array.isArray(value)) return value.forEach(visit);
+            if (!value || typeof value !== 'object') return;
+            rows.push(value);
+            Object.values(value).forEach(visit);
+          };
+          visit(payload);
+          const migrationNames = rows.map((row) => row.name).filter((name) => typeof name === 'string' && name.endsWith('.sql'));
+          if (migrationNames.length !== 22 || !migrationNames.includes('0019_objective_content_taxonomy.sql')) {
+            throw new Error(`Production D1 is not at the expected 22-migration checkpoint: ${migrationNames.length}`);
+          }
+          const policy = rows.find((row) => row.id === 'source-policy:wikidata:2026-08-13.1:catalog_metadata');
+          const expected = {
+            source_key: 'wikidata', policy_version: '2026-08-13.1', use_scope: 'catalog_metadata', decision: 'allow',
+            license_label: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/',
+            policy_url: 'https://www.wikidata.org/wiki/Wikidata:Licensing', attribution_required: 0, share_alike: 0,
+            automated_ingestion_allowed: 1, commercial_use_allowed: 1, verified_on: '2026-08-13',
+          };
+          if (!policy) throw new Error('Approved Wikidata production policy snapshot is missing.');
+          for (const [key, value] of Object.entries(expected)) {
+            if (policy[key] !== value) throw new Error(`Production Wikidata policy mismatch at ${key}.`);
+          }
+          console.log('Production D1 and Wikidata catalog policy match the approved checkpoint.');
+          NODE
+
+      - name: Apply exact preview artifact to production D1
+        if: inputs.apply == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$CF_D1_DATABASE_NAME" --remote \
+            --file="$RUNNER_TEMP/wikidata-catalog-import.sql"
+
+      - name: Verify exact imported provenance remotely
+        if: inputs.apply == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute "$CF_D1_DATABASE_NAME" --remote \
+            --command "SELECT t.id AS titleId, cs.source_entity_id AS sourceEntityId, cs.content_sha256 AS contentSha256 FROM title_catalog_sources cs INNER JOIN titles t ON t.id = cs.title_id WHERE cs.policy_snapshot_id = '$WIKIDATA_POLICY_SNAPSHOT_ID';" \
+            --json > "$RUNNER_TEMP/post-import-d1.json"
+
+          node --input-type=module - "$RUNNER_TEMP/wikidata-catalog-preview.json" "$RUNNER_TEMP/post-import-d1.json" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const [, , previewFile, remoteFile] = process.argv;
+          const preview = JSON.parse(readFileSync(previewFile, 'utf8'));
+          const remote = JSON.parse(readFileSync(remoteFile, 'utf8'));
+          const rows = [];
+          const visit = (value) => {
+            if (Array.isArray(value)) return value.forEach(visit);
+            if (!value || typeof value !== 'object') return;
+            if (typeof value.titleId === 'string' && typeof value.sourceEntityId === 'string' && typeof value.contentSha256 === 'string') rows.push(value);
+            Object.values(value).forEach(visit);
+          };
+          visit(remote);
+          for (const record of preview.records) {
+            const expected = record.provenance;
+            const found = rows.some((row) => row.titleId === expected.titleId && row.sourceEntityId === expected.sourceEntityId && row.contentSha256 === expected.contentSha256);
+            if (!found) throw new Error(`Remote provenance verification failed for ${expected.sourceEntityId}.`);
+          }
+          console.log(`Verified ${preview.records.length} exact title/provenance pairs in production D1.`);
+          NODE
+
+      - name: Smoke-test live catalog and SEO routes
+        if: inputs.apply == true
+        shell: bash
+        env:
+          FIRST_QID: ${{ steps.preview.outputs.first_qid }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$CF_WORKER_URL/titles" > "$RUNNER_TEMP/titles.html"
+          curl --fail --silent --show-error "$CF_WORKER_URL/title/$FIRST_QID" > "$RUNNER_TEMP/title.html"
+          curl --fail --silent --show-error "$CF_WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
+          grep -F "Wikidata" "$RUNNER_TEMP/title.html" > /dev/null
+          grep -F "$FIRST_QID" "$RUNNER_TEMP/title.html" > /dev/null
+          grep -F "/title/$FIRST_QID" "$RUNNER_TEMP/sitemap.xml" > /dev/null
+          echo "Live /titles, /title/$FIRST_QID and sitemap.xml expose the imported legal catalog data."
+
+      - name: Record result
+        shell: bash
+        env:
+          APPLIED: ${{ inputs.apply }}
+          COUNT: ${{ steps.preview.outputs.count }}
+          FIRST_QID: ${{ steps.preview.outputs.first_qid }}
+        run: |
+          echo "### P3S-08 Wikidata catalog run" >> "$GITHUB_STEP_SUMMARY"
+          echo "Validated records: **$COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apply requested: **$APPLIED**" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$APPLIED" == "true" ]]; then
+            echo "Production D1 import and live SEO smoke tests: **verified**" >> "$GITHUB_STEP_SUMMARY"
+            echo "First live title: \`$CF_WORKER_URL/title/$FIRST_QID\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Preview-only run; production D1 was not changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
