@@ -33,7 +33,7 @@ jobs:
           done
           cat "$RUNNER_TEMP/app.log" >&2
           exit 1
-      - name: Capture four pages
+      - name: Capture four full-depth pages
         shell: bash
         run: |
           set -euo pipefail
@@ -42,8 +42,8 @@ jobs:
           test -n "$chrome"
           while IFS='|' read -r slug editorial_id; do
             url="http://127.0.0.1:4173/review?editorialId=$editorial_id"
-            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1600 --screenshot="$RUNNER_TEMP/visual/${slug}-desktop.png" "$url"
-            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=390,1200 --screenshot="$RUNNER_TEMP/visual/${slug}-mobile.png" "$url"
+            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,6000 --screenshot="$RUNNER_TEMP/visual/${slug}-desktop-long.png" "$url"
+            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=390,9000 --screenshot="$RUNNER_TEMP/visual/${slug}-mobile-long.png" "$url"
           done <<'CASES'
           cars|cars-2006-editorial-pilot-v1
           et|et-1982-editorial-batch-v1
@@ -52,6 +52,6 @@ jobs:
           CASES
       - uses: actions/upload-artifact@v4
         with:
-          name: p4-03-b2-local-visual
+          name: p4-03-b2-local-visual-long
           path: ${{ runner.temp }}/visual
           if-no-files-found: error
