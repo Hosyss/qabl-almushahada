@@ -136,11 +136,7 @@ export default function Home() {
 
   useEffect(() => {
     const cleanQuery = query.trim();
-    if (cleanQuery.length < 2) {
-      setSearchSuggestions([]);
-      setSuggestionsState("idle");
-      return;
-    }
+    if (cleanQuery.length < 2) return;
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -155,7 +151,7 @@ export default function Home() {
         if (!Array.isArray(payload.suggestions)) throw new Error("invalid suggestions payload");
         setSearchSuggestions(payload.suggestions);
         setSuggestionsState("ready");
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted) return;
         setSearchSuggestions([]);
         setSuggestionsState("unavailable");
