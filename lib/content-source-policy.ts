@@ -15,8 +15,11 @@ export interface ContentSourcePolicy {
   label: string;
   decision: ContentSourceDecision;
   automatedIngestion: boolean;
+  provenancePersistence: boolean;
+  commercialUseAllowed: boolean;
   allowedUses: readonly ContentSourceUse[];
   licenseLabel: string;
+  licenseUrl: string | null;
   policyUrl: string;
   attributionRequired: boolean;
   shareAlike: boolean;
@@ -30,7 +33,8 @@ export const CONTENT_SOURCE_POLICY_VERSION = "2026-08-13.1";
  * Commercial-site source allowlist.
  *
  * This registry is intentionally fail-closed: a public website being readable does not
- * make its data reusable. New sources must be explicitly reviewed before automation.
+ * make its data reusable. New sources must be explicitly reviewed before automation or
+ * provenance persistence.
  */
 export const CONTENT_SOURCE_POLICIES = {
   wikidata: {
@@ -38,8 +42,11 @@ export const CONTENT_SOURCE_POLICIES = {
     label: "Wikidata",
     decision: "allow",
     automatedIngestion: true,
+    provenancePersistence: true,
+    commercialUseAllowed: true,
     allowedUses: ["catalog_metadata"],
     licenseLabel: "CC0 1.0",
+    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
     policyUrl: "https://www.wikidata.org/wiki/Wikidata:Licensing",
     attributionRequired: false,
     shareAlike: false,
@@ -52,50 +59,62 @@ export const CONTENT_SOURCE_POLICIES = {
     label: "Wikipedia",
     decision: "allow_with_attribution",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: true,
     allowedUses: ["analysis_evidence"],
     licenseLabel: "CC BY-SA 4.0 / applicable page license",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
     policyUrl: "https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use",
     attributionRequired: true,
     shareAlike: true,
     verifiedOn: "2026-08-13",
     notesAr:
-      "يمكن استخدام النص تجاريًا مع الالتزام بالعزو والترخيص بالمثل. الأتمتة معطلة افتراضيًا حتى يكتمل حفظ revision/source/attribution وعدم إعادة نشر نصوص طويلة كما هي.",
+      "يمكن استخدام النص تجاريًا مع الالتزام بالعزو والترخيص بالمثل. الحفظ كدليل والأتمتة معطلان افتراضيًا حتى يكتمل حفظ revision/source/attribution والتحقق من رخصة الصفحة وعدم إعادة نشر نصوص طويلة كما هي.",
   },
   wikimediaCommons: {
     key: "wikimedia_commons",
     label: "Wikimedia Commons",
     decision: "per_item_license",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: false,
     allowedUses: ["media"],
     licenseLabel: "Per-file free license or public domain",
+    licenseUrl: null,
     policyUrl: "https://commons.wikimedia.org/wiki/Commons:Licensing",
     attributionRequired: true,
     shareAlike: false,
     verifiedOn: "2026-08-13",
     notesAr:
-      "لا نفترض أن كل صورة تحمل نفس الشروط. لا تُستخدم صورة إلا بعد قراءة ترخيص الملف نفسه وتسجيل المؤلف والرخصة والعزو المطلوب؛ الملصقات واللقطات غير الحرة لا تُسحب تلقائيًا.",
+      "لا توجد رخصة تجارية واحدة تغطي كل ملف. لا تُستخدم صورة إلا بعد قراءة ترخيص الملف نفسه وتسجيل المؤلف والرخصة والعزو المطلوب؛ الملصقات واللقطات غير الحرة لا تُسحب تلقائيًا.",
   },
   officialClassificationAuthority: {
     key: "official_classification_authority",
     label: "Official classification authority",
     decision: "manual_reference_only",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: false,
     allowedUses: ["analysis_evidence"],
-    licenseLabel: "Facts only; automation requires source-specific permission",
+    licenseLabel: "Source-specific review required",
+    licenseUrl: null,
     policyUrl: "",
     attributionRequired: true,
     shareAlike: false,
     verifiedOn: "2026-08-13",
     notesAr:
-      "يمكن الاستفادة من حقيقة التصنيف المنشور ورابط الجهة الرسمية كمصدر تحقق، لكن لا ننسخ الوصف التحريري ولا نعمل scraping آلي قبل مراجعة شروط كل جهة على حدة.",
+      "يمكن الاستفادة من حقيقة التصنيف المنشور ورابط الجهة الرسمية بعد مراجعة شروط الجهة نفسها، لكن لا ننسخ الوصف التحريري ولا نحفظه كدليل آلي قبل إنشاء policy خاصة بالمصدر المحدد.",
   },
   tmdb: {
     key: "tmdb",
     label: "TMDB",
     decision: "blocked_without_commercial_license",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: false,
     allowedUses: [],
     licenseLabel: "Commercial license required for a revenue-generating project",
+    licenseUrl: null,
     policyUrl: "https://developer.themoviedb.org/docs/faq",
     attributionRequired: true,
     shareAlike: false,
@@ -108,8 +127,11 @@ export const CONTENT_SOURCE_POLICIES = {
     label: "IMDb",
     decision: "blocked_without_commercial_license",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: false,
     allowedUses: [],
     licenseLabel: "Non-commercial datasets / commercial license required",
+    licenseUrl: null,
     policyUrl: "https://www.imdb.com/interfaces/",
     attributionRequired: true,
     shareAlike: false,
@@ -122,8 +144,11 @@ export const CONTENT_SOURCE_POLICIES = {
     label: "Third-party review/parents-guide sites",
     decision: "blocked_without_commercial_license",
     automatedIngestion: false,
+    provenancePersistence: false,
+    commercialUseAllowed: false,
     allowedUses: [],
     licenseLabel: "No reuse without explicit commercial permission",
+    licenseUrl: null,
     policyUrl: "",
     attributionRequired: true,
     shareAlike: false,
@@ -144,8 +169,28 @@ export function assertAutomatedSourceUseAllowed(
   use: ContentSourceUse,
 ): ContentSourcePolicy {
   const policy = getContentSourcePolicy(source);
-  if (!policy.automatedIngestion || !policy.allowedUses.includes(use)) {
+  if (
+    !policy.commercialUseAllowed ||
+    !policy.automatedIngestion ||
+    !policy.allowedUses.includes(use)
+  ) {
     throw new Error(`Automated source use is not allowed: ${source}:${use}`);
+  }
+  return policy;
+}
+
+export function assertSourceProvenancePersistenceAllowed(
+  source: ContentSourceKey,
+  use: ContentSourceUse,
+): ContentSourcePolicy {
+  const policy = getContentSourcePolicy(source);
+  if (
+    !policy.commercialUseAllowed ||
+    !policy.provenancePersistence ||
+    !policy.allowedUses.includes(use) ||
+    policy.licenseUrl === null
+  ) {
+    throw new Error(`Source provenance persistence is not allowed: ${source}:${use}`);
   }
   return policy;
 }
