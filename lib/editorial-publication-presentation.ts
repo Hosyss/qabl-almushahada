@@ -1,12 +1,10 @@
-import { buildEditorialPublicationFingerprint } from "./editorial-publication-integrity.ts";
+import {
+  buildEditorialPublicationFingerprint,
+  type EditorialPublicationPresentation,
+} from "./editorial-publication-integrity.ts";
 import type { EditorialReviewPublication } from "./editorial-review.ts";
 
-export interface EditorialPublicationPresentation {
-  titleAr: string;
-  titleEn: string;
-  revision: number;
-  updatedAt: string;
-}
+export type { EditorialPublicationPresentation } from "./editorial-publication-integrity.ts";
 
 const PRESENTATION_BY_ID: Record<string, EditorialPublicationPresentation> = {
   "cars-2006-editorial-pilot-v1": { titleAr: "سيارات", titleEn: "Cars", revision: 4, updatedAt: "2026-08-13T21:35:00+03:00" },
