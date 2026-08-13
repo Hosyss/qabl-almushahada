@@ -9,11 +9,10 @@
 - كتالوج D1 الحقيقي: **200/200 عنوان** من Wikidata مع provenance قانونية.
 - البحث والاقتراحات من D1: **مكتملان إنتاجيًا**.
 - `Cars (2006)` Editorial Pilot: **مكتمل ومتحقق إنتاجيًا**.
-- `P4-03` ككل: **ما زالت مفتوحة**.
-- الدفعة الحالية: **3 أفلام فقط** داخل checkpoint واحد: E.T. (1982)، Harry Potter and the Philosopher's Stone (2001)، Minions (2015).
-- إجمالي Editorial Publication records داخل الفرع بعد الدفعة: **4** = Cars + 3 أفلام جديدة.
-- العدد المتحقق إنتاجيًا يظل **1** حتى تنجح الدفعة الجديدة كاملة بعد الدمج والنشر والفحص الحي. عند نجاحها يصبح العدد **4**.
-- بعد نجاح الدفعة الثلاثية يجب التوقف ومراجعة جودة الصفحات والمصادر قبل بدء أي عنوان إضافي من هدف 10–20.
+- `P4-03B1` دفعة الثلاثة أفلام: **مكتملة ومتحققة إنتاجيًا**.
+- إجمالي Editorial Publication pages المتحققة إنتاجيًا الآن: **4** = Cars + E.T. + Harry Potter and the Philosopher's Stone + Minions.
+- `P4-03` ككل: **ما زالت مفتوحة**؛ لم نبدأ بقية هدف 10–20.
+- الخطوة التالية الإلزامية: **P4-03B2 مراجعة جودة الصفحات والمصادر**. لا يبدأ أي عنوان إضافي قبل هذه المراجعة.
 
 ## قواعد P4-03 الحالية
 
@@ -32,9 +31,11 @@ decisionStatus = insufficient_data
 ```
 
 - المسار لا يغير P3S-06 ولا يصدر حكم ملاءمة مكتملًا.
-- وجود أكثر من locator للمراجعة في طلب واحد يظل غير مقبول في المسار العام.
+- وجود أكثر من locator للمراجعة في طلب واحد يفشل مغلقًا.
 
-## Cars (2006) — baseline الإنتاجي
+## الصفحات المتحققة إنتاجيًا
+
+### Cars (2006)
 
 - Catalog ID: `wd:Q182153`.
 - Editorial ID: `cars-2006-editorial-pilot-v1`.
@@ -42,15 +43,12 @@ decisionStatus = insufficient_data
 - الوقائع `corroborated`: **4**.
 - المحاور `uncertain`: **6/10**.
 - القرار: `insufficient_data`.
-- تم التحقق منه على الإنتاج عبر Quality Gate وCloudflare وLive Product Smoke.
-
-## P4-03 — الدفعة الثلاثية الحالية
 
 ### E.T. the Extra-Terrestrial (1982)
 
 - Catalog ID: `wd:Q11621`.
 - Editorial ID: `et-1982-editorial-batch-v1`.
-- المصادر المستقلة المستخدمة في الدفعة: **3 مراجعات منشورة**.
+- المصادر المستقلة المستخدمة: **3 مراجعات منشورة**.
 - الوقائع `corroborated`: **5**: `fear`, `violence`, `language`, `substances`, `sexualContent`.
 - المحاور `uncertain`: **5/10**: `bullying`, `discrimination`, `selfHarm`, `grief`, `flashingLights`.
 - القرار: `insufficient_data`.
@@ -59,7 +57,7 @@ decisionStatus = insufficient_data
 
 - Catalog ID: `wd:Q102438`.
 - Editorial ID: `harry-potter-philosophers-stone-2001-editorial-batch-v1`.
-- المصادر المستقلة المستخدمة في الدفعة: **4 مراجعات منشورة**.
+- المصادر المستقلة المستخدمة: **4 مراجعات منشورة**.
 - الوقائع `corroborated`: **4**: `fear`, `violence`, `language`, `grief`.
 - المحاور `uncertain`: **6/10**: `bullying`, `sexualContent`, `substances`, `discrimination`, `selfHarm`, `flashingLights`.
 - القرار: `insufficient_data`.
@@ -68,12 +66,30 @@ decisionStatus = insufficient_data
 
 - Catalog ID: `wd:Q13619743`.
 - Editorial ID: `minions-2015-editorial-batch-v1`.
-- المصادر المستقلة المستخدمة في الدفعة: **4 مراجعات منشورة**.
+- المصادر المستقلة المستخدمة: **4 مراجعات منشورة**.
 - الوقائع `corroborated`: **5**: `violence`, `fear`, `language`, `substances`, `sexualContent`.
 - المحاور `uncertain`: **5/10**: `bullying`, `discrimination`, `selfHarm`, `grief`, `flashingLights`.
 - القرار: `insufficient_data`.
 
 تفاصيل روابط المصادر ونوع كل مصدر وتاريخ الوصول وربط المصدر بالادعاءات محفوظة في `lib/editorial-review-registry.ts` وموثقة في `docs/P4_03_THREE_TITLE_BATCH.md`.
+
+## التحقق الإنتاجي لـP4-03B1
+
+- Content batch PR: `#54`.
+- Live validation follow-up PR: `#55`.
+- `main` بعد إصلاح الـLive Smoke: `269c46babfe80e0638da29b1b35ccf3ab874bf0d`.
+- Checkpoint verification على `main`: **success**.
+- Cloudflare production deploy: **success**.
+- Live Product Smoke: **success**.
+- الفحص الحي مرّ لكل من Cars وE.T. وHarry Potter 1 وMinions عبر:
+
+```text
+search → title page → editorial analysis
+```
+
+- كل صفحة أظهرت `insufficient_data`.
+- mixed review locators فشلت مغلقًا.
+- صفحات Editorial الأربع موجودة في `sitemap.xml`.
 
 ## الاختبارات الحالية
 
@@ -88,31 +104,28 @@ decisionStatus = insufficient_data
 - أن محاولة تحويل التحليل الجزئي إلى قرار مكتمل تجعل التحقق يفشل.
 - أن مسار المراجعة العام يحتفظ بشرط locator واحد فقط.
 
-`Live Product Smoke` معد لاختبار Cars والأفلام الثلاثة من البحث إلى صفحة العنوان ثم صفحة التحليل، والتحقق من `insufficient_data` والمصادر والأعداد، ثم اختبار رفض الطلب ذي أكثر من locator.
-
 ## الفهرسة
 
 - صفحات العناوين الحقيقية تظل من D1.
-- `sitemap.xml` يضيف صفحات Editorial Publication العامة الأربع إلى روابط العناوين.
+- `sitemap.xml` يدرج صفحات Editorial Publication العامة الأربع إلى جانب صفحات العناوين.
 - إدراج صفحة Editorial في sitemap لا يجعلها مراجعة مكتملة أو حكم ملاءمة.
 
-## Production baseline قبل دمج الدفعة
+## Production baseline الحالي
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
 - D1 ID: `f2bd0d7a-660b-4f9e-bddc-40a918dd35cc`.
 - migrations: **22/22**.
-- آخر baseline موثوق قبل الدفعة: `b4a627989add3c3fc5d9c5a7f30e422a790912ef`.
-- Cars Live Product Smoke: success.
+- Editorial pages production-verified: **4**.
 
 ## الخطوة التالية
 
-1. تشغيل Quality Gate على آخر head للفرع الحالي.
-2. فتح PR مستقل للدفعة الثلاثية فقط.
-3. الدمج فقط إذا نجحت Engine tests وmigrations وlint وproduction build.
-4. بعد الدمج: التحقق من `main` وCloudflare production deploy.
-5. التحقق الحي لكل فيلم: search → title → editorial analysis، مع بقاء القرار `insufficient_data`.
-6. إذا نجحت الدفعة كلها على الإنتاج: **التوقف وإبلاغ المستخدم قبل إضافة أي عنوان آخر**.
+`P4-03B2` فقط:
+
+1. مراجعة جودة الصفحات العربية الأربع.
+2. مراجعة جودة وتنوع المصادر والـclaim mapping.
+3. تحديد أي تعديلات مطلوبة قبل التوسع.
+4. **عدم إضافة أي عنوان خامس أو بدء باقي 10–20 قبل موافقة المستخدم على نتيجة المراجعة.**
 
 ## روابط داخل المشروع
 
