@@ -32,6 +32,26 @@ test("homepage has no generic /review CTA and is driven only by the four real ed
   }
 });
 
+test("search combobox keeps its ARIA and keyboard navigation contract", async () => {
+  const combobox = await source("app/search/title-search-combobox.tsx");
+  for (const token of [
+    'role="combobox"',
+    'aria-autocomplete="list"',
+    "aria-expanded={open}",
+    "aria-controls={listId}",
+    "aria-activedescendant=",
+    'role="listbox"',
+    'role="option"',
+    'maxLength={80}',
+  ]) {
+    assert.ok(combobox.includes(token), `Search combobox lost accessibility token: ${token}`);
+  }
+  for (const key of ["ArrowDown", "ArrowUp", "Enter", "Escape"]) {
+    assert.ok(combobox.includes(`event.key === "${key}"`), `Search combobox lost keyboard handler: ${key}`);
+  }
+  assert.match(combobox, /window\.location\.assign\(items\[active\]\.href\)/u);
+});
+
 test("public editorial copies use neutral source wording and Arabic names inside Arabic prose", () => {
   for (const publication of listEditorialReviewPublications()) {
     const publicArabicText = [
