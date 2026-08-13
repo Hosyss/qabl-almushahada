@@ -97,7 +97,7 @@ export function parseWikidataCatalogResponse(payload: unknown): WikidataCatalogT
     const kind = readValue(binding.kind);
     const date = readValue(binding.date);
 
-    const entityId = itemUrl?.match(/^https:\/\/www\.wikidata\.org\/entity\/(Q\d+)$/u)?.[1];
+    const entityId = itemUrl?.match(/^https?:\/\/www\.wikidata\.org\/entity\/(Q\d+)$/u)?.[1];
     const canonicalName = arLabel ?? enLabel ?? fallbackLabel;
     if (!entityId || !canonicalName || canonicalName === entityId || !date) continue;
     if (kind !== "movie" && kind !== "series") continue;
