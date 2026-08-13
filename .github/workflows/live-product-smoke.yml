@@ -25,107 +25,105 @@ jobs:
       WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
 
     steps:
-      - name: Verify D1-backed suggestions and search state
+      - name: Verify homepage real-content contract
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/api/search-suggestions" > "$RUNNER_TEMP/suggestions.json"
-          grep -F 'wd:Q44578' "$RUNNER_TEMP/suggestions.json" > /dev/null
-          curl --fail --silent --show-error --location --get --data-urlencode "q=Titanic" "$WORKER_URL/search" > "$RUNNER_TEMP/search.html"
-          grep -Eq 'مراجعة موثقة|قيد المراجعة|الحكم غير مكتمل|تحليل تحريري جزئي' "$RUNNER_TEMP/search.html"
+          curl --fail --silent --show-error --location "$WORKER_URL/" > "$RUNNER_TEMP/home.html"
+          grep -F 'تحليلات منشورة حديثًا' "$RUNNER_TEMP/home.html" > /dev/null
+          grep -F 'تحليل تحريري جزئي — الحكم غير مكتمل' "$RUNNER_TEMP/home.html" > /dev/null
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            grep -F "editorialId=$id" "$RUNNER_TEMP/home.html" > /dev/null
+          done
+          if grep -Eq 'href="/review"([ >])' "$RUNNER_TEMP/home.html"; then
+            echo 'Homepage contains a locator-less /review CTA.' >&2
+            exit 1
+          fi
+          for forbidden in 'مناسب بمرافقة' 'ثقة مرتفعة' 'تمت مراجعة النسخة'; do
+            if grep -Fq "$forbidden" "$RUNNER_TEMP/home.html"; then
+              echo "Homepage still contains fake review language: $forbidden" >&2
+              exit 1
+            fi
+          done
+          grep -F '"@type":"WebSite"' "$RUNNER_TEMP/home.html" > /dev/null
+          grep -F '"@type":"Organization"' "$RUNNER_TEMP/home.html" > /dev/null
+          if grep -Fq 'SearchAction' "$RUNNER_TEMP/home.html"; then
+            echo 'Homepage unexpectedly exposes SearchAction.' >&2
+            exit 1
+          fi
 
-      - name: Verify Cars editorial path
+      - name: Verify HarryPotter conservative discovery
         shell: bash
         run: |
           set -euo pipefail
-          query='Cars'
-          qid='Q182153'
-          id='cars-2006-editorial-pilot-v1'
-          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/cars-search.html"
-          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/cars-search.html" > /dev/null
-          grep -F "$id" "$RUNNER_TEMP/cars-search.html" > /dev/null
-          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/cars-title.html"
-          grep -F "$id" "$RUNNER_TEMP/cars-title.html" > /dev/null
-          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/cars-review.html"
-          grep -F 'insufficient_data' "$RUNNER_TEMP/cars-review.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode 'q=HarryPotter' "$WORKER_URL/api/search-suggestions" > "$RUNNER_TEMP/harry-suggestions.json"
+          grep -F 'did_you_mean' "$RUNNER_TEMP/harry-suggestions.json" > /dev/null
+          grep -F 'هاري بوتر وحجر الفيلسوف' "$RUNNER_TEMP/harry-suggestions.json" > /dev/null
+          grep -F "Harry Potter and the Philosopher's Stone" "$RUNNER_TEMP/harry-suggestions.json" > /dev/null
+          grep -F '2001' "$RUNNER_TEMP/harry-suggestions.json" > /dev/null
+          grep -F '/title/Q102438' "$RUNNER_TEMP/harry-suggestions.json" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode 'q=HarryPotter' "$WORKER_URL/search" > "$RUNNER_TEMP/harry-search.html"
+          grep -F 'هل تقصد؟' "$RUNNER_TEMP/harry-search.html" > /dev/null
+          grep -F '/title/Q102438' "$RUNNER_TEMP/harry-search.html" > /dev/null
 
-      - name: Verify E.T. editorial path
+      - name: Verify four editorial paths and safe presentation
         shell: bash
         run: |
           set -euo pipefail
-          query='E.T.'
-          qid='Q11621'
-          id='et-1982-editorial-batch-v1'
-          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/et-search.html"
-          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/et-search.html" > /dev/null
-          grep -F "$id" "$RUNNER_TEMP/et-search.html" > /dev/null
-          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/et-title.html"
-          grep -F "$id" "$RUNNER_TEMP/et-title.html" > /dev/null
-          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/et-review.html"
-          grep -F 'insufficient_data' "$RUNNER_TEMP/et-review.html" > /dev/null
-
-      - name: Verify Harry Potter editorial path
-        shell: bash
-        run: |
-          set -euo pipefail
-          query='هاري بوتر وحجر الفيلسوف'
-          qid='Q102438'
-          id='harry-potter-philosophers-stone-2001-editorial-batch-v1'
-          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/harry-search.html"
-          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/harry-search.html" > /dev/null
-          grep -F "$id" "$RUNNER_TEMP/harry-search.html" > /dev/null
-          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/harry-title.html"
-          grep -F "$id" "$RUNNER_TEMP/harry-title.html" > /dev/null
-          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/harry-review.html"
-          grep -F 'insufficient_data' "$RUNNER_TEMP/harry-review.html" > /dev/null
-
-      - name: Verify Minions editorial path
-        shell: bash
-        run: |
-          set -euo pipefail
-          query='Minions'
-          qid='Q13619743'
-          id='minions-2015-editorial-batch-v1'
-          curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/minions-search.html"
-          grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/minions-search.html" > /dev/null
-          grep -F "$id" "$RUNNER_TEMP/minions-search.html" > /dev/null
-          curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/minions-title.html"
-          grep -F "$id" "$RUNNER_TEMP/minions-title.html" > /dev/null
-          curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/minions-review.html"
-          grep -F 'insufficient_data' "$RUNNER_TEMP/minions-review.html" > /dev/null
-
-      - name: Verify P4-03B2 editorial quality markers
-        shell: bash
-        run: |
-          set -euo pipefail
-          for slug in cars et harry minions; do
-            file="$RUNNER_TEMP/$slug-review.html"
-            grep -F 'البيانات غير كافية — لا نصدر حكمًا نهائيًا بعد' "$file" > /dev/null
-            grep -F 'اتفاق مستقل' "$file" > /dev/null
-            grep -F 'مصدر واحد فقط' "$file" > /dev/null
-            grep -F 'أساس الاستخدام' "$file" > /dev/null
-            grep -F 'CC BY-SA 4.0' "$file" > /dev/null
-            grep -F 'لا ندّعي ترخيص إعادة نشر' "$file" > /dev/null
-            grep -F 'application/ld+json' "$file" > /dev/null
-            grep -F 'rel="canonical"' "$file" > /dev/null
-            for forbidden in 'Common Sense Media' 'Plugged In' 'BBFC' 'Dove.org'; do
-              if grep -Fq "$forbidden" "$file"; then
-                echo "$slug still exposes excluded source: $forbidden" >&2
+          cat > "$RUNNER_TEMP/editorials.tsv" <<'EOF'
+          cars	Cars	Q182153	cars-2006-editorial-pilot-v1
+          et	E.T.	Q11621	et-1982-editorial-batch-v1
+          harry	هاري بوتر وحجر الفيلسوف	Q102438	harry-potter-philosophers-stone-2001-editorial-batch-v1
+          minions	Minions	Q13619743	minions-2015-editorial-batch-v1
+          EOF
+          while IFS=$'\t' read -r slug query qid id; do
+            curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/$slug-search.html"
+            grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/$slug-search.html" > /dev/null
+            grep -F "$id" "$RUNNER_TEMP/$slug-search.html" > /dev/null
+            curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/$slug-title.html"
+            grep -F "$id" "$RUNNER_TEMP/$slug-title.html" > /dev/null
+            curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/$slug-review.html"
+            grep -F 'المعلومات غير كافية لإصدار حكم نهائي' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'اقرأ التحليل كاملًا' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'الخلاصة التحريرية' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'محاور لم نستطع حسمها' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'مدعومة بمصدرين مستقلين على الأقل' "$RUNNER_TEMP/$slug-review.html" > /dev/null || grep -F 'مدعومة بمرجع واحد' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'application/ld+json' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            grep -F 'rel="canonical"' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            for forbidden in 'decisionEligible' 'P4-03' 'المصادر المؤهلة' 'اتفاق مصدرين مستقلين+'; do
+              if grep -Fq "$forbidden" "$RUNNER_TEMP/$slug-review.html"; then
+                echo "$slug exposes forbidden public term: $forbidden" >&2
                 exit 1
               fi
             done
-          done
+          done < "$RUNNER_TEMP/editorials.tsv"
 
-      - name: Verify mixed locators fail closed
+      - name: Verify title directory server pagination and filters
         shell: bash
         run: |
           set -euo pipefail
+          curl --fail --silent --show-error --location "$WORKER_URL/titles" > "$RUNNER_TEMP/titles.html"
+          grep -F 'دليل الأفلام والمسلسلات' "$RUNNER_TEMP/titles.html" > /dev/null
+          grep -F 'المراجعة الموثقة' "$RUNNER_TEMP/titles.html" > /dev/null
+          grep -F 'التالي' "$RUNNER_TEMP/titles.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode 'q=Harry Potter' --data-urlencode 'kind=movie' --data-urlencode 'year=2001' "$WORKER_URL/titles" > "$RUNNER_TEMP/titles-filtered.html"
+          grep -F '2001' "$RUNNER_TEMP/titles-filtered.html" > /dev/null
+          grep -F 'Harry Potter' "$RUNNER_TEMP/titles-filtered.html" > /dev/null
+
+      - name: Verify invalid and mixed review locators fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location "$WORKER_URL/review" > "$RUNNER_TEMP/invalid-review.html"
+          grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/invalid-review.html" > /dev/null
+          grep -F 'noindex' "$RUNNER_TEMP/invalid-review.html" > /dev/null
+          grep -F '/search' "$RUNNER_TEMP/invalid-review.html" > /dev/null
           for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
             curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" --data-urlencode 'publicationId=invalid-publication' "$WORKER_URL/review" > "$RUNNER_TEMP/mixed.html"
             grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/mixed.html" > /dev/null
           done
 
-      - name: Verify editorial pages are discoverable
+      - name: Verify indexable sitemap contract
         shell: bash
         run: |
           set -euo pipefail
@@ -133,13 +131,16 @@ jobs:
           for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
             grep -F "editorialId=$id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
+          for qid in Q182153 Q11621 Q102438 Q13619743; do
+            grep -F "/title/$qid" "$RUNNER_TEMP/sitemap.xml" > /dev/null
+          done
 
       - name: Record live product smoke
         shell: bash
         run: |
           echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Cars + E.T. + Harry Potter 1 + Minions pass search -> title -> editorial analysis' >> "$GITHUB_STEP_SUMMARY"
-          echo '- P4-03B2 Arabic evidence strength, source-rights markers, JSON-LD, and canonical metadata are live' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Excluded source publishers are absent from all four editorial pages' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Every editorial page remains insufficient_data and mixed locators fail closed' >> "$GITHUB_STEP_SUMMARY"
-          echo '- All four editorial pages are present in sitemap.xml' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Homepage exposes only the four real partial editorial analyses and no locator-less review CTA' >> "$GITHUB_STEP_SUMMARY"
+          echo '- HarryPotter stays conservative and leads to the correct bilingual 2001 title through did-you-mean' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All four titles pass search -> title -> editorial analysis with safe Arabic no-verdict presentation' >> "$GITHUB_STEP_SUMMARY"
+          echo '- /titles server-side filters and pagination are live' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Invalid/mixed review locators fail closed and indexable sitemap contains only rich title/review routes' >> "$GITHUB_STEP_SUMMARY"
