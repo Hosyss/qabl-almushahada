@@ -66,33 +66,67 @@ jobs:
           grep -F 'هل تقصد؟' "$RUNNER_TEMP/harry-search.html" > /dev/null
           grep -F '/title/Q102438' "$RUNNER_TEMP/harry-search.html" > /dev/null
 
-      - name: Verify four editorial paths and safe presentation
+      - name: Verify four editorial paths and safe visible presentation
         shell: bash
         run: |
           set -euo pipefail
+          cat > "$RUNNER_TEMP/visible_text.py" <<'PY'
+          from html.parser import HTMLParser
+          import sys
+
+          class VisibleText(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.skip = 0
+                  self.parts = []
+              def handle_starttag(self, tag, attrs):
+                  if tag in {"script", "style", "template", "noscript"}:
+                      self.skip += 1
+              def handle_endtag(self, tag):
+                  if tag in {"script", "style", "template", "noscript"} and self.skip:
+                      self.skip -= 1
+              def handle_data(self, data):
+                  if not self.skip:
+                      text = " ".join(data.split())
+                      if text:
+                          self.parts.append(text)
+
+          parser = VisibleText()
+          with open(sys.argv[1], "r", encoding="utf-8") as handle:
+              parser.feed(handle.read())
+          print("\n".join(parser.parts))
+          PY
+
           cat > "$RUNNER_TEMP/editorials.tsv" <<'EOF'
           cars	Cars	Q182153	cars-2006-editorial-pilot-v1
           et	E.T.	Q11621	et-1982-editorial-batch-v1
           harry	هاري بوتر وحجر الفيلسوف	Q102438	harry-potter-philosophers-stone-2001-editorial-batch-v1
           minions	Minions	Q13619743	minions-2015-editorial-batch-v1
           EOF
+
           while IFS=$'\t' read -r slug query qid id; do
             curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/$slug-search.html"
             grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/$slug-search.html" > /dev/null
             grep -F "$id" "$RUNNER_TEMP/$slug-search.html" > /dev/null
+
             curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/$slug-title.html"
             grep -F "$id" "$RUNNER_TEMP/$slug-title.html" > /dev/null
+
             curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" "$WORKER_URL/review" > "$RUNNER_TEMP/$slug-review.html"
-            grep -F 'المعلومات غير كافية لإصدار حكم نهائي' "$RUNNER_TEMP/$slug-review.html" > /dev/null
-            grep -F 'اقرأ التحليل كاملًا' "$RUNNER_TEMP/$slug-review.html" > /dev/null
-            grep -F 'الخلاصة التحريرية' "$RUNNER_TEMP/$slug-review.html" > /dev/null
-            grep -F 'محاور لم نستطع حسمها' "$RUNNER_TEMP/$slug-review.html" > /dev/null
-            grep -F 'مدعومة بمصدرين مستقلين على الأقل' "$RUNNER_TEMP/$slug-review.html" > /dev/null || grep -F 'مدعومة بمرجع واحد' "$RUNNER_TEMP/$slug-review.html" > /dev/null
+            python3 "$RUNNER_TEMP/visible_text.py" "$RUNNER_TEMP/$slug-review.html" > "$RUNNER_TEMP/$slug-review.txt"
+
+            grep -F 'المعلومات غير كافية لإصدار حكم نهائي' "$RUNNER_TEMP/$slug-review.txt" > /dev/null
+            grep -F 'اقرأ التحليل كاملًا' "$RUNNER_TEMP/$slug-review.txt" > /dev/null
+            grep -F 'الخلاصة التحريرية' "$RUNNER_TEMP/$slug-review.txt" > /dev/null
+            grep -F 'محاور لم نستطع حسمها' "$RUNNER_TEMP/$slug-review.txt" > /dev/null
+            grep -F 'مدعومة بمصدرين مستقلين على الأقل' "$RUNNER_TEMP/$slug-review.txt" > /dev/null || grep -F 'مدعومة بمرجع واحد' "$RUNNER_TEMP/$slug-review.txt" > /dev/null
+
             grep -F 'application/ld+json' "$RUNNER_TEMP/$slug-review.html" > /dev/null
             grep -F 'rel="canonical"' "$RUNNER_TEMP/$slug-review.html" > /dev/null
-            for forbidden in 'decisionEligible' 'P4-03' 'المصادر المؤهلة' 'اتفاق مصدرين مستقلين+'; do
-              if grep -Fq "$forbidden" "$RUNNER_TEMP/$slug-review.html"; then
-                echo "$slug exposes forbidden public term: $forbidden" >&2
+
+            for forbidden in 'decisionEligible' 'insufficient_data' 'P4-03' 'مؤهل' 'اتفاق مصدرين مستقلين+'; do
+              if grep -Fq "$forbidden" "$RUNNER_TEMP/$slug-review.txt"; then
+                echo "$slug exposes forbidden visible term: $forbidden" >&2
                 exit 1
               fi
             done
@@ -141,6 +175,6 @@ jobs:
           echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
           echo '- Homepage exposes only the four real partial editorial analyses and no locator-less review CTA' >> "$GITHUB_STEP_SUMMARY"
           echo '- HarryPotter stays conservative and leads to the correct bilingual 2001 title through did-you-mean' >> "$GITHUB_STEP_SUMMARY"
-          echo '- All four titles pass search -> title -> editorial analysis with safe Arabic no-verdict presentation' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All four titles pass search -> title -> editorial analysis with safe Arabic visible presentation' >> "$GITHUB_STEP_SUMMARY"
           echo '- /titles server-side filters and pagination are live' >> "$GITHUB_STEP_SUMMARY"
           echo '- Invalid/mixed review locators fail closed and indexable sitemap contains only rich title/review routes' >> "$GITHUB_STEP_SUMMARY"
