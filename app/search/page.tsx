@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { searchPublicTitles } from "@/db/public-title-search-service";
+import { buildPublicCatalogTitleHref } from "@/lib/public-catalog";
 import { buildPublicReviewHref } from "@/lib/public-review";
 import {
   filterPublicTitleSearchResults,
@@ -179,6 +180,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 {filteredResults.map((result) => {
                   const availability = classifyPublicSearchAvailability(result);
                   const copy = AVAILABILITY_COPY[availability];
+                  const catalogHref = buildPublicCatalogTitleHref(result.id);
                   return (
                     <article className={styles.card} key={result.id}>
                       <div className={styles.cardTop}>
@@ -193,6 +195,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         <span>{KIND_LABELS[result.kind]}</span>
                         <span aria-hidden="true">•</span>
                         <span>{copy.description}</span>
+                        {catalogHref ? (
+                          <>
+                            <span aria-hidden="true">•</span>
+                            <Link className={styles.back} href={catalogHref}>
+                              صفحة العنوان <span aria-hidden="true">←</span>
+                            </Link>
+                          </>
+                        ) : null}
                         {availability === "verified" && result.verifiedBundleId ? (
                           <>
                             <span aria-hidden="true">•</span>

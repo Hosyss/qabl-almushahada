@@ -1,5 +1,11 @@
 import { assertAutomatedSourceUseAllowed } from "./content-source-policy.ts";
 import type { PublicTitleKind } from "./public-title-search.ts";
+import {
+  buildCurrentSourcePolicySnapshot,
+  prepareCatalogSourceProvenance,
+  type CatalogSourceProvenanceRecord,
+  type SourcePolicySnapshotRecord,
+} from "./source-provenance.ts";
 
 export const WIKIDATA_SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
 export const WIKIDATA_USER_AGENT =
@@ -14,6 +20,20 @@ export interface WikidataCatalogTitle {
   releaseYear: number;
   sourceUrl: string;
   sourceLicense: "CC0 1.0";
+}
+
+export interface WikidataCatalogImportRecord {
+  title: WikidataCatalogTitle;
+  provenance: CatalogSourceProvenanceRecord;
+}
+
+export interface WikidataCatalogImportPlan {
+  source: "wikidata";
+  license: "CC0 1.0";
+  retrievedAt: string;
+  policySnapshot: SourcePolicySnapshotRecord;
+  records: WikidataCatalogImportRecord[];
+  sql: string;
 }
 
 type SparqlBindingValue = { type?: string; value?: string };
@@ -99,8 +119,7 @@ export function buildWikidataTitleUpsertSql(titles: readonly WikidataCatalogTitl
 
   return titles
     .map((title) => {
-      if (!/^wd:Q\d+$/u.test(title.id)) throw new TypeError("Invalid Wikidata-backed title id");
-      if (title.sourceLicense !== "CC0 1.0") throw new TypeError("Unexpected Wikidata license");
+      assertValidWikidataCatalogTitle(title);
       const canonicalName = sqlString(title.canonicalName);
       const originalName = title.originalName === null ? "NULL" : sqlString(title.originalName);
       return `INSERT INTO titles (id, canonical_name, original_name, kind, release_year)
@@ -113,6 +132,97 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP;`;
     })
     .join("\n\n") + "\n";
+}
+
+export async function prepareWikidataCatalogImportPlan(
+  titles: readonly WikidataCatalogTitle[],
+  options: { retrievedAt: string },
+): Promise<WikidataCatalogImportPlan> {
+  if (!Array.isArray(titles) || titles.length < 1 || titles.length > 200) {
+    throw new RangeError("Wikidata production import must contain between 1 and 200 titles");
+  }
+
+  const policySnapshot = buildCurrentSourcePolicySnapshot("wikidata", "catalog_metadata");
+  const seen = new Set<string>();
+  const records: WikidataCatalogImportRecord[] = [];
+
+  for (const title of titles) {
+    assertValidWikidataCatalogTitle(title);
+    if (seen.has(title.wikidataEntityId)) {
+      throw new TypeError(`Duplicate Wikidata entity in import plan: ${title.wikidataEntityId}`);
+    }
+    seen.add(title.wikidataEntityId);
+
+    const contentSha256 = await hashWikidataCatalogTitle(title);
+    const provenance = prepareCatalogSourceProvenance({
+      id: `catalog:wikidata:${title.wikidataEntityId}:${contentSha256}`,
+      titleId: title.id,
+      source: "wikidata",
+      sourceEntityId: title.wikidataEntityId,
+      sourceUrl: title.sourceUrl,
+      sourceRevision: null,
+      retrievedAt: options.retrievedAt,
+      contentSha256,
+      ingestionMode: "automated",
+    });
+    records.push({ title, provenance });
+  }
+
+  return {
+    source: "wikidata",
+    license: "CC0 1.0",
+    retrievedAt: records[0].provenance.retrievedAt,
+    policySnapshot,
+    records,
+    sql: buildWikidataCatalogImportSql(records, policySnapshot.id),
+  };
+}
+
+export function buildWikidataCatalogImportSql(
+  records: readonly WikidataCatalogImportRecord[],
+  expectedPolicySnapshotId: string,
+): string {
+  if (records.length < 1 || records.length > 200) {
+    throw new RangeError("Wikidata import SQL requires between 1 and 200 records");
+  }
+
+  const statements: string[] = [
+    "-- P3S-08 Wikidata catalog import: metadata + immutable provenance only.",
+    "-- This file intentionally does not create title versions, reviews, approvals, or evidence publications.",
+  ];
+
+  for (const record of records) {
+    assertValidWikidataCatalogTitle(record.title);
+    const provenance = record.provenance;
+    if (
+      provenance.titleId !== record.title.id ||
+      provenance.policySnapshotId !== expectedPolicySnapshotId ||
+      provenance.sourceEntityId !== record.title.wikidataEntityId ||
+      provenance.sourceUrl !== record.title.sourceUrl ||
+      provenance.ingestionMode !== "automated"
+    ) {
+      throw new TypeError("Wikidata catalog title/provenance identity mismatch");
+    }
+
+    statements.push(buildWikidataTitleUpsertSql([record.title]).trim());
+    statements.push(`INSERT INTO title_catalog_sources (
+  id, title_id, policy_snapshot_id, source_entity_id, source_url,
+  source_revision, retrieved_at, content_sha256, ingestion_mode
+) VALUES (
+  ${sqlString(provenance.id)},
+  ${sqlString(provenance.titleId)},
+  ${sqlString(provenance.policySnapshotId)},
+  ${sqlString(provenance.sourceEntityId)},
+  ${sqlString(provenance.sourceUrl)},
+  ${provenance.sourceRevision === null ? "NULL" : sqlString(provenance.sourceRevision)},
+  ${sqlString(provenance.retrievedAt)},
+  ${sqlString(provenance.contentSha256)},
+  'automated'
+)
+ON CONFLICT(policy_snapshot_id, source_entity_id, content_sha256) DO NOTHING;`);
+  }
+
+  return `${statements.join("\n\n")}\n`;
 }
 
 export async function fetchWikidataCatalogPage(options: {
@@ -144,6 +254,44 @@ export async function fetchWikidataCatalogPage(options: {
   }
 
   return parseWikidataCatalogResponse(await response.json());
+}
+
+async function hashWikidataCatalogTitle(title: WikidataCatalogTitle): Promise<string> {
+  const canonical = JSON.stringify({
+    sourceEntityId: title.wikidataEntityId,
+    sourceUrl: title.sourceUrl,
+    sourceLicense: title.sourceLicense,
+    canonicalName: title.canonicalName,
+    originalName: title.originalName,
+    kind: title.kind,
+    releaseYear: title.releaseYear,
+  });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function assertValidWikidataCatalogTitle(title: WikidataCatalogTitle): void {
+  if (!/^wd:Q\d+$/u.test(title.id) || title.id !== `wd:${title.wikidataEntityId}`) {
+    throw new TypeError("Invalid Wikidata-backed title id");
+  }
+  if (!/^Q\d+$/u.test(title.wikidataEntityId)) throw new TypeError("Invalid Wikidata entity id");
+  if (title.sourceUrl !== `https://www.wikidata.org/wiki/${title.wikidataEntityId}`) {
+    throw new TypeError("Wikidata source URL must match entity id");
+  }
+  if (title.sourceLicense !== "CC0 1.0") throw new TypeError("Unexpected Wikidata license");
+  if (!title.canonicalName.trim() || title.canonicalName.length > 500 || title.canonicalName.includes("\u0000")) {
+    throw new TypeError("Invalid Wikidata canonical title");
+  }
+  if (
+    title.originalName !== null &&
+    (!title.originalName.trim() || title.originalName.length > 500 || title.originalName.includes("\u0000"))
+  ) {
+    throw new TypeError("Invalid Wikidata original title");
+  }
+  if (title.kind !== "movie" && title.kind !== "series") throw new TypeError("Invalid Wikidata title kind");
+  if (!Number.isInteger(title.releaseYear) || title.releaseYear < 1880 || title.releaseYear > 2200) {
+    throw new TypeError("Invalid Wikidata release year");
+  }
 }
 
 function readValue(value: SparqlBindingValue | undefined): string | undefined {
