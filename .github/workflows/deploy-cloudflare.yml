@@ -170,9 +170,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/" > /dev/null
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/review" > /dev/null
           curl --fail --silent --show-error --location --retry 3 "$DEPLOYED_WORKER_URL/search?q=nemo" > /dev/null
+
+          check_policy_page() {
+            local path="$1"
+            local expected_heading="$2"
+            local output="$3"
+
+            curl --fail --silent --show-error --location --retry 3 \
+              "$DEPLOYED_WORKER_URL$path" > "$output"
+
+            if ! grep -Fq "$expected_heading" "$output"; then
+              echo "Production route $path did not contain expected heading: $expected_heading" >&2
+              exit 1
+            fi
+          }
+
+          check_policy_page "/review-policy" "سياسة المراجعة" "$RUNNER_TEMP/review-policy.html"
+          check_policy_page "/privacy" "سياسة الخصوصية" "$RUNNER_TEMP/privacy.html"
+          check_policy_page "/corrections" "سياسة التصحيح" "$RUNNER_TEMP/corrections.html"
+
+          echo "Verified P3-06 policy routes and expected headings on the deployed Worker."
 
       - name: Record successful deployment
         if: steps.credentials.outputs.available == 'true'
@@ -182,4 +203,4 @@ jobs:
           echo "- Worker: $DEPLOYED_WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1: $CF_D1_DATABASE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Public smoke tests: /, /review, /search?q=nemo" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Public smoke tests: /, /review, /search?q=nemo, /review-policy, /privacy, /corrections" >> "$GITHUB_STEP_SUMMARY"
