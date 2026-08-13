@@ -5,32 +5,17 @@ import { useMemo, useState, useTransition } from "react";
 
 import { saveReviewDraftAction, submitReviewAssignmentAction } from "./actions";
 import type { ReviewerEditorData } from "@/db/internal-ui-service";
-import { CONTENT_CATEGORIES, CONTENT_FLAGS, type ContentCategory, type ContentFlag } from "@/lib/review-engine/types";
+import {
+  CATEGORY_LABELS_AR,
+  CONTENT_CATEGORIES,
+  CONTENT_FLAG_LABELS_AR,
+  getContentFlagsForCategory,
+  isContentFlagAllowedForCategory,
+  isKnownContentFlag,
+  type ContentCategory,
+  type ContentFlag,
+} from "@/lib/review-engine";
 import styles from "../internal.module.css";
-
-const CATEGORY_LABELS: Record<ContentCategory, string> = {
-  fear: "الخوف والفزع",
-  violence: "العنف",
-  language: "الألفاظ واللغة",
-  bullying: "التنمر",
-  sexualContent: "المحتوى الجنسي",
-  substances: "التدخين والمواد",
-  discrimination: "التمييز",
-  selfHarm: "إيذاء النفس",
-  grief: "الفقد والحزن",
-  flashingLights: "الومضات الضوئية",
-};
-
-const FLAG_LABELS: Record<ContentFlag, string> = {
-  jump_scare: "فزعة مفاجئة",
-  blood: "دماء",
-  weapon: "سلاح",
-  verbal_bullying: "تنمر لفظي",
-  physical_bullying: "تنمر جسدي",
-  bereavement: "وفاة/فقد",
-  separation: "انفصال",
-  flashing_sequence: "وميض متكرر",
-};
 
 type CategoryCheck = "none" | "present" | "uncertain";
 type ObservationDraft = {
@@ -86,7 +71,11 @@ export default function ReviewEditor({ data }: { data: ReviewerEditorData }) {
     setMessage(null);
     setSuccess(null);
     try {
-      const result = await saveReviewDraftAction({ assignmentId: data.assignment.id, expectedRevision: revision, draft: payload() });
+      const result = await saveReviewDraftAction({
+        assignmentId: data.assignment.id,
+        expectedRevision: revision,
+        draft: payload(),
+      });
       setRevision(result.revision);
       setSuccess(`تم حفظ المسودة. revision ${result.revision}`);
     } catch (error) {
@@ -98,9 +87,16 @@ export default function ReviewEditor({ data }: { data: ReviewerEditorData }) {
     setMessage(null);
     setSuccess(null);
     try {
-      const saved = await saveReviewDraftAction({ assignmentId: data.assignment.id, expectedRevision: revision, draft: payload() });
+      const saved = await saveReviewDraftAction({
+        assignmentId: data.assignment.id,
+        expectedRevision: revision,
+        draft: payload(),
+      });
       setRevision(saved.revision);
-      await submitReviewAssignmentAction({ assignmentId: data.assignment.id, expectedRevision: saved.revision });
+      await submitReviewAssignmentAction({
+        assignmentId: data.assignment.id,
+        expectedRevision: saved.revision,
+      });
       window.location.href = "/internal";
     } catch (error) {
       setMessage(errorMessage(error));
@@ -141,7 +137,7 @@ export default function ReviewEditor({ data }: { data: ReviewerEditorData }) {
           {CONTENT_CATEGORIES.map((category) => {
             const count = observations.filter((item) => item.category === category).length;
             return <div className={styles.categoryRow} key={category}>
-              <div><strong>{CATEGORY_LABELS[category]}</strong><small>{count > 0 ? `${count} واقعة` : "لا توجد وقائع"}</small></div>
+              <div><strong>{CATEGORY_LABELS_AR[category]}</strong><small>{count > 0 ? `${count} واقعة` : "لا توجد وقائع"}</small></div>
               <select value={checks[category]} disabled={locked} onChange={(event) => setChecks((current) => ({ ...current, [category]: event.target.value as CategoryCheck }))}>
                 <option value="uncertain">غير محسوم — يوقف الإرسال</option>
                 <option value="none">غير موجود</option>
@@ -180,10 +176,19 @@ export default function ReviewEditor({ data }: { data: ReviewerEditorData }) {
 
 function ObservationEditor({ observation, index, locked, runtimeSeconds, onChange, onRemove }: { observation: ObservationDraft; index: number; locked: boolean; runtimeSeconds: number; onChange: (value: ObservationDraft) => void; onRemove: () => void }) {
   const patch = <K extends keyof ObservationDraft>(key: K, value: ObservationDraft[K]) => onChange({ ...observation, [key]: value });
+  const availableFlags = getContentFlagsForCategory(observation.category);
+  const changeCategory = (category: ContentCategory) => {
+    onChange({
+      ...observation,
+      category,
+      flags: observation.flags.filter((flag) => isContentFlagAllowedForCategory(flag, category)),
+    });
+  };
+
   return <article className={styles.observationEditor}>
-    <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>واقعة {index + 1}</span><h3>{CATEGORY_LABELS[observation.category]}</h3></div>{!locked && <button className={styles.dangerButton} type="button" onClick={onRemove}>حذف الواقعة</button>}</div>
+    <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>واقعة {index + 1}</span><h3>{CATEGORY_LABELS_AR[observation.category]}</h3></div>{!locked && <button className={styles.dangerButton} type="button" onClick={onRemove}>حذف الواقعة</button>}</div>
     <div className={styles.formGrid}>
-      <label>المحور<select disabled={locked} value={observation.category} onChange={(event) => patch("category", event.target.value as ContentCategory)}>{CONTENT_CATEGORIES.map((category) => <option key={category} value={category}>{CATEGORY_LABELS[category]}</option>)}</select></label>
+      <label>المحور<select disabled={locked} value={observation.category} onChange={(event) => changeCategory(event.target.value as ContentCategory)}>{CONTENT_CATEGORIES.map((category) => <option key={category} value={category}>{CATEGORY_LABELS_AR[category]}</option>)}</select></label>
       <label>الشدة<select disabled={locked} value={observation.severity} onChange={(event) => patch("severity", Number(event.target.value) as 1 | 2 | 3 | 4)}><option value="1">1 — منخفضة</option><option value="2">2 — متوسطة</option><option value="3">3 — عالية</option><option value="4">4 — شديدة</option></select></label>
       <label>بداية الواقعة بالثواني<input disabled={locked} type="number" min="0" max={runtimeSeconds} value={observation.startSecond} onChange={(event) => patch("startSecond", Number(event.target.value))} /></label>
       <label>نهاية الواقعة بالثواني<input disabled={locked} type="number" min="0" max={runtimeSeconds} value={observation.endSecond} onChange={(event) => patch("endSecond", Number(event.target.value))} /></label>
@@ -192,7 +197,7 @@ function ObservationEditor({ observation, index, locked, runtimeSeconds, onChang
       <label>درجة الحرق<select disabled={locked} value={observation.spoilerLevel} onChange={(event) => patch("spoilerLevel", event.target.value as ObservationDraft["spoilerLevel"])}><option value="none">بدون حرق</option><option value="contextual">سياقي</option><option value="major">حرق كبير</option></select></label>
     </div>
     <label className={styles.fullLabel}>وصف واقعي مختصر<textarea disabled={locked} value={observation.summary} onChange={(event) => patch("summary", event.target.value)} placeholder="صف ما ظهر، لا تحكم على ملاءمته للأسرة هنا." /></label>
-    <div className={styles.flagGrid}>{CONTENT_FLAGS.map((flag) => <label className={styles.checkLine} key={flag}><input type="checkbox" disabled={locked} checked={observation.flags.includes(flag)} onChange={(event) => patch("flags", event.target.checked ? [...observation.flags, flag] : observation.flags.filter((item) => item !== flag))} /> {FLAG_LABELS[flag]}</label>)}</div>
+    <div className={styles.flagGrid}>{availableFlags.map((flag) => <label className={styles.checkLine} key={flag}><input type="checkbox" disabled={locked} checked={observation.flags.includes(flag)} onChange={(event) => patch("flags", event.target.checked ? [...observation.flags, flag] : observation.flags.filter((item) => item !== flag))} /> {CONTENT_FLAG_LABELS_AR[flag]}</label>)}</div>
   </article>;
 }
 
@@ -219,7 +224,15 @@ function normalizeDraft(raw: unknown): EditableDraft {
 function isObservationDraft(value: unknown): value is ObservationDraft {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return typeof row.id === "string" && CONTENT_CATEGORIES.includes(row.category as ContentCategory) && Number.isInteger(row.severity) && typeof row.startSecond === "number" && typeof row.endSecond === "number" && typeof row.summary === "string" && Array.isArray(row.flags);
+  if (typeof row.id !== "string" || !CONTENT_CATEGORIES.includes(row.category as ContentCategory)) return false;
+  const category = row.category as ContentCategory;
+  return Number.isInteger(row.severity)
+    && typeof row.startSecond === "number"
+    && typeof row.endSecond === "number"
+    && typeof row.summary === "string"
+    && Array.isArray(row.flags)
+    && row.flags.every(isKnownContentFlag)
+    && row.flags.every((flag) => isContentFlagAllowedForCategory(flag, category));
 }
 
 function toLocalInput(value: string): string {
