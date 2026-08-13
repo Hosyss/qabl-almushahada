@@ -31,7 +31,7 @@ assert.deepEqual(foreignKeyErrors, [], "Foreign-key validation failed after appl
 const tables = database
   .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
   .all();
-assert.equal(tables.length, 24, "Unexpected number of product tables.");
+assert.equal(tables.length, 27, "Unexpected number of product tables.");
 const tableNames = new Set(tables.map((table) => table.name));
 for (const requiredTable of [
   "internal_users",
@@ -45,8 +45,11 @@ for (const requiredTable of [
   "reviewer_reference_attempts",
   "reviewer_reference_case_results",
   "internal_audit_events",
+  "content_source_policy_snapshots",
+  "title_catalog_sources",
+  "version_evidence_sources",
 ]) {
-  assert.ok(tableNames.has(requiredTable), `Missing workflow table: ${requiredTable}`);
+  assert.ok(tableNames.has(requiredTable), `Missing workflow/provenance table: ${requiredTable}`);
 }
 
 const referenceSetColumns = database.prepare("PRAGMA table_info('reviewer_reference_sets')").all();
