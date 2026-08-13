@@ -93,31 +93,88 @@ jobs:
             "$WORKER_URL/search" \
             > "$RUNNER_TEMP/editorial-search.html"
 
-          grep -F "تحليل تحريري جزئي" "$RUNNER_TEMP/editorial-search.html" > /dev/null
-          grep -F "$EDITORIAL_ID" "$RUNNER_TEMP/editorial-search.html" > /dev/null
-
           curl --fail --silent --show-error --location --retry 3 \
             "$WORKER_URL/title/$EDITORIAL_QID" \
             > "$RUNNER_TEMP/editorial-title.html"
-
-          grep -F "يوجد تحليل تحريري جزئي لهذا العمل" "$RUNNER_TEMP/editorial-title.html" > /dev/null
-          grep -F "$EDITORIAL_ID" "$RUNNER_TEMP/editorial-title.html" > /dev/null
 
           curl --fail --silent --show-error --location --retry 3 \
             --get --data-urlencode "editorialId=$EDITORIAL_ID" \
             "$WORKER_URL/review" \
             > "$RUNNER_TEMP/editorial-review.html"
 
-          grep -F "تحليل تحريري موثق جزئيًا" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "insufficient_data" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "البيانات غير كافية للحكم" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "4" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "6/10" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "Common Sense Media" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "Plugged In" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "BBFC" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "Kids-In-Mind" "$RUNNER_TEMP/editorial-review.html" > /dev/null
-          grep -F "Dove.org" "$RUNNER_TEMP/editorial-review.html" > /dev/null
+          node --input-type=module - \
+            "$RUNNER_TEMP/editorial-search.html" \
+            "$RUNNER_TEMP/editorial-title.html" \
+            "$RUNNER_TEMP/editorial-review.html" \
+            "$EDITORIAL_ID" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , searchFile, titleFile, reviewFile, editorialId] = process.argv;
+
+          function visibleText(file) {
+            return readFileSync(file, 'utf8')
+              .replace(/<!--[\s\S]*?-->/gu, '')
+              .replace(/<script\b[\s\S]*?<\/script>/giu, ' ')
+              .replace(/<style\b[\s\S]*?<\/style>/giu, ' ')
+              .replace(/<[^>]+>/gu, ' ')
+              .replace(/&amp;/gu, '&')
+              .replace(/&lt;/gu, '<')
+              .replace(/&gt;/gu, '>')
+              .replace(/&quot;/gu, '"')
+              .replace(/&#x27;|&#39;/gu, "'")
+              .replace(/\s+/gu, ' ')
+              .trim();
+          }
+
+          function requireText(label, text, expected) {
+            if (!text.includes(expected)) {
+              throw new Error(`${label} is missing expected visible text: ${expected}`);
+            }
+          }
+
+          function requirePattern(label, text, pattern, description) {
+            if (!pattern.test(text)) {
+              throw new Error(`${label} is missing expected visible pattern: ${description}`);
+            }
+          }
+
+          const search = visibleText(searchFile);
+          const title = visibleText(titleFile);
+          const review = visibleText(reviewFile);
+
+          requireText('Cars search', search, 'تحليل تحريري جزئي');
+          requireText('Cars search', search, editorialId);
+          requireText('Cars title', title, 'يوجد تحليل تحريري جزئي لهذا العمل');
+          requireText('Cars title', title, editorialId);
+
+          for (const expected of [
+            'تحليل تحريري موثق جزئيًا',
+            'insufficient_data',
+            'البيانات غير كافية للحكم',
+            'Common Sense Media',
+            'Plugged In',
+            'BBFC',
+            'Kids-In-Mind',
+            'Dove.org',
+          ]) {
+            requireText('Cars editorial review', review, expected);
+          }
+
+          requirePattern(
+            'Cars editorial review',
+            review,
+            /وقائع متحققة بمصدرين\+\s*4/u,
+            '4 corroborated facts',
+          );
+          requirePattern(
+            'Cars editorial review',
+            review,
+            /المحاور غير المحسومة\s*6\/10/u,
+            '6/10 uncertain categories',
+          );
+
+          console.log('Cars editorial live path verified with hydration-safe visible-text checks.');
+          NODE
 
       - name: Verify mixed review locators fail closed
         shell: bash
@@ -157,6 +214,6 @@ jobs:
           echo "### Live product smoke succeeded" >> "$GITHUB_STEP_SUMMARY"
           echo "- D1-backed suggestion: \`wd:$KNOWN_CATALOG_QID\` found for \`$KNOWN_CATALOG_QUERY\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Search result exposes an explicit review state" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Cars editorial path is public with \`insufficient_data\` decision status" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cars editorial path is public with 4 corroborated facts, 6/10 uncertain axes, and \`insufficient_data\` decision status" >> "$GITHUB_STEP_SUMMARY"
           echo "- Mixed review locators fail closed" >> "$GITHUB_STEP_SUMMARY"
           echo "- Homepage contains no static legacy suggestions" >> "$GITHUB_STEP_SUMMARY"
