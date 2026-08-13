@@ -92,21 +92,19 @@
 ### الإغلاق الإنتاجي المؤكد
 
 - PR #37 squash merged إلى main commit `701604e7570671671ff94b3b97e111d837ab626f`.
-- main CI نجح.
 - Cloudflare production Run `31676888290` نجح كاملًا.
 - **207/207 tests، 0 fail**.
 - D1 production أصبحت **20/20 migrations**.
 - bindings المؤكدة: `DB`, `IMAGES`, `AI`, `ASSETS`.
 - Worker Version ID: `a0de055e-8a85-4cd9-9ab6-57971b909fae`.
-- smoke tests العامة وصفحات السياسات نجحت.
 
-## P3S-06 — بوابة النشر المستقلة للأدلة — مكتملة وظيفيًا، الإنتاج ينتظر PR/Deploy
+## P3S-06 — بوابة النشر المستقلة للأدلة — مكتملة ومنشورة على production
 
-الفرع الحالي: `agent/p3s-06-evidence-publication-gate`.
+P3S-06 دُمجت عبر PR #38 إلى main commit `d914b223c9db1d8622c4ba33a5681b7436842cf9`.
 
 ### مبدأ المعمارية
 
-P3S-06 **لا تستخدم** `review_bundles` أو `editorial_approvals` كحيلة لإيهام النظام بوجود مراجعة بشرية. تم إنشاء مسار publication مستقل تمامًا للمراجعة evidence-based، بينما المسار البشري القديم يبقى كما هو.
+P3S-06 **لا تستخدم** `review_bundles` أو `editorial_approvals` كحيلة لإيهام النظام بوجود مراجعة بشرية. يوجد مسار publication مستقل تمامًا للمراجعة evidence-based، بينما المسار البشري القديم يبقى كما هو.
 
 ### بوابة النشر النقية
 
@@ -121,7 +119,7 @@ P3S-06 **لا تستخدم** `review_bundles` أو `editorial_approvals` كحي�
 
 ### D1 publication snapshots
 
-migration `0018_evidence_publication_gate.sql` تضيف:
+migration `0018_evidence_publication_gate.sql` أضافت:
 
 1. `evidence_review_publications`
 2. `evidence_publication_sources`
@@ -159,27 +157,27 @@ migration `0018_evidence_publication_gate.sql` تضيف:
 - وجود الاثنين أو غياب الاثنين يفشل مغلقًا.
 - public loader يعمل initial gate → hydration → final gate بنفس revision لمنع stale/race state.
 - الصفحة تقول صراحة: **«المشاهدة البشرية — غير مدعاة»** و**«لا ندّعي مشاهدة بشرية لم تحدث»**.
-- تعرض روابط source/license/attribution/revision من snapshot المنشورة.
+- تعرض source/license/attribution/revision من snapshot المنشورة.
 - التوقيت غير المتاح يظهر `—` ولا يتم اختلاق timestamp.
 - قرار الأسرة يظل منفصلًا عن مجرد نشر الوقائع.
 
-### الاختبارات — functional checkpoint
+### التحقق والإغلاق الإنتاجي المؤكد
 
-آخر clean feature checkpoint قبل التوثيق:
-
-- commit `93e0348b5e95efbcca8ea79440db12cc2901fffe`.
+- branch وPR CI نجحا قبل الدمج.
+- main Checkpoint verification Run `31679684679` نجح بالكامل.
+- Cloudflare production Run `31679684634` نجح بالكامل.
 - **219/219 tests، 0 fail**.
-- `test:migrations` ناجح: **21 migration files / 33 product tables**.
-- `scripts/verify-evidence-publication.mjs` يثبت DB-level guards للـimmutability، licensed claim links، coverage/conflict finalization، وعدم ادعاء human watch.
-- `lint:local`: ناجح **بدون warnings**.
-- `build:local`: ناجح.
+- `test:migrations`: **21 migration files / 33 product tables** محليًا.
+- D1 production أصبحت **21/21 migrations**.
+- migration `0018_evidence_publication_gate.sql` نُفذت remote بنجاح عبر atomic file ingestion.
+- remote schema verification أكد وجود الجداول الستة الجديدة مع جداول المشروع/provenance.
+- bindings بعد النشر: `DB`, `IMAGES`, `AI`, `ASSETS`.
+- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`.
+- Worker: `https://qabl-almushahada.buildtools.workers.dev`.
+- smoke tests نجحت لـ`/`, `/review`, `/search?q=nemo`, `/review-policy`, `/privacy`, `/corrections`.
+- `/review?publicationId=missing-publication` أُختبرت إنتاجيًا وأعادت الحالة الآمنة «المراجعة غير متاحة حاليًا» بدل Demo/fallback.
 
-### حالة الإنتاج لـP3S-06
-
-- لم تُدمج بعد إلى `main` في هذا checkpoint.
-- D1 production المؤكدة ما زالت **20/20 migrations** من P3S-05.
-- جداول P3S-06 الستة لا نعتبرها production-active قبل نجاح deploy بعد الدمج.
-- Cloudflare workflow بعد الدمج سيطبق migration رقم 21، يتحقق من الجداول الستة، ثم يختبر `/review?publicationId=missing-publication` fail-closed مع بقية المسارات العامة وصفحات السياسات.
+**P3S-06 = 100% ومغلقة إنتاجيًا.**
 
 ## الإنچين والثقة — الحالة الحالية
 
@@ -207,11 +205,12 @@ migration `0018_evidence_publication_gate.sql` تضيف:
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
-- آخر production commit مؤكد: `701604e7570671671ff94b3b97e111d837ab626f` (P3S-05).
-- D1: **20/20 migrations**.
+- آخر production feature commit مؤكد: `d914b223c9db1d8622c4ba33a5681b7436842cf9` (P3S-06).
+- Cloudflare Run: `31679684634`.
+- D1: **21/21 migrations**.
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- Worker Version ID: `a0de055e-8a85-4cd9-9ab6-57971b909fae`.
-- P3S-06 لا تعتبر production-complete حتى merge + main CI + Cloudflare deploy + **21/21 migrations** + remote schema verification + smoke tests.
+- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`.
+- remote schema وsmoke tests نجحا بعد migration رقم 21.
 
 ## ما لا نفعله
 
@@ -237,13 +236,10 @@ migration `0018_evidence_publication_gate.sql` تضيف:
 
 ## نقطة البدء التالية
 
-1. أكمل توثيق P3S-06 على نفس الفرع ثم final branch CI.
-2. افتح PR لـP3S-06 فقط؛ لا تدخل P3S-07 في نفس PR.
-3. لا تدمج إلا بعد PR CI أخضر على نفس head.
-4. بعد الدمج راقب main CI وCloudflare حتى النهاية.
-5. لا تعتبر P3S-06 production-complete إلا عندما تصبح D1 **21/21 migrations**، تنجح remote schema verification للجداول الستة، يبقى `env.AI` موجودًا في Worker، وتنجح smoke tests بما فيها `publicationId` fail-closed.
-6. بعد ذلك فقط ابدأ `P3S-07` — توسيع taxonomy العربية الموضوعية.
-7. بعد P3S-07: `P3S-08` أول catalog production وصفحات SEO حقيقية.
+1. ابدأ `P3S-07` فقط — توسيع taxonomy العربية بوقائع موضوعية قابلة للرصد والاختبار.
+2. لا تدخل bulk catalog أو SEO ingestion في نفس PR.
+3. بعد P3S-07: `P3S-08` أول catalog production من Wikidata وصفحات SEO حقيقية من البيانات القانونية.
+4. بعد تثبيت المحتوى الحقيقي، انتقل إلى P4-03 لاختبار 20 مراجعة evidence-based يدويًا قبل التوسع.
 
 راجع قبل تعديل المصدر/الثقة/النشر:
 
