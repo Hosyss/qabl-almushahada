@@ -3,8 +3,11 @@ import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 
-import { loadEditorialBootstrapFixtures } from "../scripts/editorial-bootstrap-sql.mjs";
+import { CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY } from "../db/public-editorial-head-query.ts";
+import { buildEditorialPublicationFingerprint } from "../lib/editorial-publication-integrity.ts";
+import { buildEditorialBootstrapSql, loadEditorialBootstrapFixtures } from "../scripts/editorial-bootstrap-sql.mjs";
 import { verifyEditorialProductionRows } from "../scripts/cloudflare-migrate.mjs";
 
 const root = process.cwd();
@@ -19,6 +22,23 @@ async function sourceFiles(directory) {
   return output;
 }
 
+async function editorialDb() {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  const migrationDir = path.join(root, "drizzle");
+  for (const name of (await readdir(migrationDir)).filter((value) => /^\d+.*\.sql$/u.test(value)).sort()) {
+    const sql = await readFile(path.join(migrationDir, name), "utf8");
+    for (const statement of sql.split("--> statement-breakpoint").map((value) => value.trim()).filter(Boolean)) db.exec(statement);
+  }
+  const fixtures = await loadEditorialBootstrapFixtures();
+  for (const { review } of fixtures) {
+    db.prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES (?, ?, ?, ?)")
+      .run(review.titleId, review.titleLabel, review.kind, review.releaseYear);
+  }
+  db.exec(buildEditorialBootstrapSql(fixtures));
+  return { db, fixtures };
+}
+
 test("production runtime has no TypeScript editorial registry or bootstrap-data fallback", async () => {
   assert.equal(existsSync(path.join(root, "lib", "editorial-review-registry.ts")), false);
   assert.equal(existsSync(path.join(root, "lib", "editorial-review-publications")), false);
@@ -30,6 +50,53 @@ test("production runtime has no TypeScript editorial registry or bootstrap-data 
       assert.equal(source.includes("data/editorial-bootstrap"), false, file);
     }
   }
+});
+
+test("public editorial lookup resolves only the current head and never an arbitrary snapshot id", async () => {
+  const { db, fixtures } = await editorialDb();
+  const fixture = fixtures[0];
+  const currentId = `${fixture.review.id}:r${fixture.presentation.revision}`;
+  const current = db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(fixture.review.id);
+  assert.equal(current?.snapshotId, currentId);
+  assert.equal(current?.revision, fixture.presentation.revision);
+  assert.equal(db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(currentId), undefined);
+  assert.match(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /h\.public_id=\?1/u);
+  assert.match(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /r\.id=h\.current_revision_id/u);
+  assert.doesNotMatch(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /r\.id\s*=\s*\?1/u);
+  db.close();
+});
+
+test("a staged successor is not public until the current head moves", async () => {
+  const { db, fixtures } = await editorialDb();
+  const fixture = fixtures[0];
+  const currentId = `${fixture.review.id}:r${fixture.presentation.revision}`;
+  const nextRevision = fixture.presentation.revision + 1;
+  const nextId = `${fixture.review.id}:r${nextRevision}`;
+  db.prepare(`INSERT INTO editorial_publication_revisions
+    (id,public_id,title_id,revision,supersedes_revision_id,revision_kind,publication_state,title_label,title_ar,title_en,
+     release_year,kind,policy_version,published_at,updated_at,scope_ar,analysis_ar,decision_status,decision_eligible,content_fingerprint)
+    VALUES (?,?,?,?,?,'revision','published',?,?,?,?,?,?,?,?,?,?,'insufficient_data',0,?)`)
+    .run(
+      nextId, fixture.review.id, fixture.review.titleId, nextRevision, currentId,
+      fixture.review.titleLabel, fixture.presentation.titleAr, fixture.presentation.titleEn,
+      fixture.review.releaseYear, fixture.review.kind, fixture.review.policyVersion,
+      fixture.review.publishedAt, fixture.presentation.updatedAt, fixture.review.scopeAr,
+      fixture.review.analysisAr, fixture.fingerprint,
+    );
+  const current = db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(fixture.review.id);
+  assert.equal(current?.snapshotId, currentId);
+  assert.notEqual(current?.snapshotId, nextId);
+  db.close();
+});
+
+test("fingerprint tampering changes canonical content and hydrator keeps mismatch fail-closed", async () => {
+  const fixtures = await loadEditorialBootstrapFixtures();
+  const fixture = fixtures[0];
+  const tampered = { ...fixture.review, analysisAr: `${fixture.review.analysisAr} تغيير غير معتمد` };
+  const fingerprint = await buildEditorialPublicationFingerprint(tampered, fixture.presentation);
+  assert.notEqual(fingerprint, fixture.fingerprint);
+  const hydrator = await readFile(path.join(root, "lib", "editorial-publication-hydrate.ts"), "utf8");
+  assert.match(hydrator, /fingerprint !== head\.contentFingerprint\) return null/u);
 });
 
 test("production verification requires exact frozen current-head parity and insufficient-data authority", async () => {
