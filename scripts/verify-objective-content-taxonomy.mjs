@@ -117,7 +117,7 @@ assert.throws(
 );
 assert.throws(
   () => db.prepare("INSERT INTO observation_flags (observation_id, flag) VALUES (?, ?)").run("obs-fear", "unknown_flag"),
-  /constraint/i,
+  /incompatible with observation category|constraint/i,
   "Human review storage accepted an unknown flag.",
 );
 assert.throws(
@@ -145,7 +145,7 @@ assert.throws(
 );
 assert.throws(
   () => db.prepare("INSERT INTO evidence_publication_fact_flags (fact_id, flag) VALUES (?, ?)").run("evidence-fact-sexual", "unknown_flag"),
-  /constraint/i,
+  /incompatible with fact category|constraint/i,
   "Evidence publication storage accepted an unknown flag.",
 );
 assert.throws(
