@@ -1,0 +1,31 @@
+name: B4 filter diagnostic
+
+on:
+  push:
+    branches:
+      - agent/p4-03-b4-filter-diagnostic
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+    steps:
+      - name: Verify live editorial filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --get \
+            --data-urlencode 'editorialStatus=editorial' \
+            "$WORKER_URL/titles" > "$RUNNER_TEMP/titles.html"
+          for qid in Q182153 Q11621 Q102438 Q13619743; do
+            grep -F "/title/$qid" "$RUNNER_TEMP/titles.html" > /dev/null
+          done
+          count="$(grep -oE 'href="/title/Q[0-9]+"' "$RUNNER_TEMP/titles.html" | sort -u | wc -l | tr -d ' ')"
+          test "$count" = "4"
+          grep -F 'له تحليل تحريري' "$RUNNER_TEMP/titles.html" > /dev/null
+          echo "Verified exactly four current editorial title links."
