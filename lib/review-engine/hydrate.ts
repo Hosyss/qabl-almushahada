@@ -1,6 +1,9 @@
 import {
+  isContentFlagAllowedForCategory,
+  isKnownContentFlag,
+} from "./content-taxonomy.ts";
+import {
   CONTENT_CATEGORIES,
-  CONTENT_FLAGS,
   type CategoryCheck,
   type CategoryChecklist,
   type ContentCategory,
@@ -73,7 +76,7 @@ function isCategory(value: string): value is ContentCategory {
 }
 
 function isFlag(value: string): value is ContentFlag {
-  return (CONTENT_FLAGS as readonly string[]).includes(value);
+  return isKnownContentFlag(value);
 }
 
 function isCategoryCheck(value: string): value is CategoryCheck {
@@ -128,6 +131,9 @@ export function hydrateReviewBundle(rows: PersistedBundleRows): {
       throw new InvalidStoredReviewError(`Unknown observation flag: ${flagRow.flag}`);
     }
     const flags = flagsByObservation.get(flagRow.observationId) ?? [];
+    if (flags.includes(flagRow.flag)) {
+      throw new InvalidStoredReviewError(`Duplicate observation flag: ${flagRow.flag}`);
+    }
     flags.push(flagRow.flag);
     flagsByObservation.set(flagRow.observationId, flags);
   }
@@ -146,6 +152,16 @@ export function hydrateReviewBundle(rows: PersistedBundleRows): {
     }
     if (!isObservedSeverity(observationRow.severity)) {
       throw new InvalidStoredReviewError(`Invalid stored severity: ${observationRow.severity}`);
+    }
+
+    const flags = flagsByObservation.get(observationRow.id) ?? [];
+    const incompatibleFlag = flags.find(
+      (flag) => !isContentFlagAllowedForCategory(flag, observationRow.category),
+    );
+    if (incompatibleFlag) {
+      throw new InvalidStoredReviewError(
+        `Observation flag ${incompatibleFlag} is incompatible with category ${observationRow.category}`,
+      );
     }
 
     const observation: ContentObservation = {
@@ -170,7 +186,7 @@ export function hydrateReviewBundle(rows: PersistedBundleRows): {
         "spoilerLevel",
       ),
       summary: observationRow.summary,
-      flags: flagsByObservation.get(observationRow.id) ?? [],
+      flags,
     };
 
     const observations = observationsBySubmission.get(observationRow.submissionId) ?? [];
