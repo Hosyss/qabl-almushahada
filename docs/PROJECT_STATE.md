@@ -2,280 +2,224 @@
 
 آخر تحديث: 13 أغسطس 2026
 
+> هذا الملف يصف **الحالة الحالية ومصدر الحقيقة التشغيلي**. التاريخ التفصيلي لكل مرحلة محفوظ في `docs/ROADMAP.md`، وملفات checkpoint، وPull Requests على GitHub.
+
 ## الرؤية الحالية
 
-منتج عربي مستقل يساعد الأسرة على اتخاذ قرار مشاهدة مفسَّر ومخصص، لا مجرد تقييم عمري أو درجة عامة.
+«قبل المشاهدة» منتج عربي مستقل يساعد الأسرة على معرفة محتوى الفيلم أو المسلسل قبل تشغيله، ثم يصدر قرار مشاهدة مفسرًا ومخصصًا بدل تقييم رقمي واحد أو نقل تصنيف أجنبي كما هو.
 
-مسار القرار المتفق عليه:
+### المبدأ التحريري الذي لا يتغير
 
-1. مراجعة بشرية لنسخة محددة: منصة، لغة، موسم/حلقة، وتاريخ.
-2. تسجيل وقائع منظمة: المحور، الشدة، التكرار، السياق، والتوقيت التقريبي.
-3. فحوص جودة وتعارض قبل اعتماد البيانات.
-4. تطبيق حدود الأسرة آليًا على الوقائع المعتمدة.
-5. عرض القرار والسبب ودرجة الثقة وحالة البيانات.
-6. عند نقص معلومة أساسية: «البيانات غير كافية».
+**«قبل المشاهدة» يعتمد على نفسه في المراجعة النهائية والقرار.**
 
-## ما تم تنفيذه
+المصادر الخارجية لا تصبح مراجعتنا ولا ننسخ Parents Guide أو مراجعة أجنبية ثم نعيد صياغتها على أنها رأينا. دور المصدر الخارجي هو تقديم **بيانات كتالوجية أو دليل قابل للتتبع** عندما تسمح الرخصة والشروط بذلك. بعد ذلك نطبّق taxonomy ومعايير الأسرة العربية والإنچين الخاص بنا.
 
-- هوية «قبل المشاهدة» واتجاه عربي كامل وصفحة رئيسية متجاوبة.
-- Hero عائلي برسمة أشجار، بحث حقيقي متصل بـD1، اقتراحات قابلة للنقر، وحدود أسرة تفاعلية.
-- صفحة `/search` حقيقية تعرض نتائج الدليل وحالة المراجعة من البيانات الفعلية، وتربط المراجعة الموثقة بالحزمة المنشورة نفسها، وتدعم فلاتر النوع والعمر وحالة التحقق من غير اختراع تصنيف عمري رسمي.
-- صفحة `/review` حقيقية تقرأ مراجعة D1 موثقة محددة بـ`bundleId` وتفشل مغلقًا عند stale/invalid state بدل أي Demo fallback، مع وضع «من غير حرق» لا يؤلف وقائع بديلة.
-- صفحات عامة لسياسة المراجعة والخصوصية والتصحيح مرتبطة من كل الموقع وتصف السلوك الفعلي بدل وعود عامة أو قنوات وهمية.
-- حدود الأسرة تُحفظ محليًا في المتصفح بعقد صارم لا يحتوي اسم طفل أو تاريخ ميلاد، وتعود بعد إعادة فتح الصفحة عندما يكون التخزين المحلي متاحًا.
-- نواة إنچين قرار TypeScript مستقلة عن الواجهة، مع fail-safe يعيد `insufficient_data` عند نقص أو تعارض.
-- بوابات جودة تمنع المصدر الواحد، مجموعات الاستقلال غير الكافية، `uncertain`، اختلاف وجود المحور، وفروق الشدة الكبيرة.
-- محوّل صارم من صفوف D1 إلى schema الإنچين؛ القيم المجهولة تُرفض.
-- نشر ذري بقفل `revision` و`transition ID` وسجل تدقيق.
-- فتح بلاغ جوهري ذري يوقف النتيجة ويحوّل الحزمة إلى `conflicted` ويسقط الاعتماد الحالي من غير حذف التاريخ.
+المسار القابل للتوسع المستهدف أصبح:
 
-## P2-02 — مكتمل على main
+1. **Catalog قانوني** لتعريف العمل والنسخة من مصدر يسمح بالاستخدام التجاري.
+2. **Evidence مرخص وقابل للتتبع** لكل معلومة محتوى نستخدمها.
+3. **استخراج وقائع منظمة**: المحور، الشدة، التكرار، السياق، والتوقيت عندما يسمح الدليل بذلك.
+4. **فحص coverage والتعارض**؛ نقص الدليل لا يتحول إلى «مناسب».
+5. **معايير الأسرة العربية** versioned وقابلة للتخصيص، وليست ترجمة لتصنيف أجنبي.
+6. **Engine مستقل** يطبق حدود الأسرة على الوقائع المقبولة ويُرجع القرار والأسباب.
+7. **Corrections/feedback** تحفظ التصحيح والتاريخ بدل تبديل النتيجة بصمت.
 
-- أدوار أقل صلاحية منفصلة: `admin`، `review_coordinator`، `reviewer`، `editorial_reviewer`، وAdmin لا يرث صلاحيات الأدوار الأخرى.
-- bootstrap/provisioning للحسابات محميان server-side، والخادم يولد هوية reviewer ولا يقبل `reviewerId` من المتصفح.
-- المنسق يوزع المهمة باستخدام بريد حساب داخلي؛ reviewer والنسخة يُحلان من D1 والـbundle على الخادم.
-- SQLite triggers تمنع تبديل bundle/version/reviewer بعد إنشاء المهمة.
-- حفظ المسودة والإرسال يستخدمان optimistic revision locking؛ لا يوجد `assigned → submitted` مباشر.
-- validation النهائي يرفض تغطية أقل من 95%، المحاور الناقصة/`uncertain`، التناقضات، enums/flags المجهولة، التوقيت الخاطئ وmass assignment.
-- الاعتماد التحريري يشغّل `assessReviewQuality` قبل الكتابة ويغطي كل المراجعات الحالية وspot checks وبصمة النسخة.
-- إعادة تفعيل الحساب الموقوف ممنوعة fail-closed حتى وجود سياسة معايرة/استئناف في P2Q.
-- `internal_audit_events` و`review_audit_events` append-only على مستوى SQLite.
-- المصادقة الداخلية مستقلة عن الاستضافة: `INTERNAL_AUTH_MODE` إجباري، ووضع Cloudflare Access يتحقق server-side من JWT RS256 وissuer/audience/expiry قبل الثقة في البريد.
-- `/internal` مكتملة حسب الدور: Admin / Coordinator / Reviewer / Editorial، مع نموذج مراجع منظم وقراءة D1 مقيدة على الخادم.
+سير المراجعين البشر المبني في P2/P2Q **يبقى موجودًا ولا يُحذف** لأنه مفيد كمسار جودة يدوي أو تصعيد للحالات المهمة، لكنه لن يكون شرطًا لتغطية آلاف الأفلام ولا سننشئ مراجعين وهميين لتمرير بواباته.
 
-## P2-03 — المراجعة الثالثة حسب المخاطر — مكتمل على main
+## هدف التشغيل التجاري
 
-- سياسة مخاطر deterministic في `lib/review-engine/risk-policy.ts`؛ لا توجد heuristics مخفية أو AI يقرر متى نطلب المراجع الثالث.
-- القاعدة العامة مراجعان نشطان مستقلان على الأقل.
-- يرتفع الحد إلى **3 مراجعين نشطين من 3 مجموعات استقلال مختلفة** عند:
-  - أي واقعة severity = 4.
-  - `selfHarm` من severity 1.
-  - `sexualContent` أو `flashingLights` من severity 2.
-  - `violence` أو `substances` أو `discrimination` أو `bullying` من severity 3.
-  - flag `flashing_sequence` من severity 1.
-  - flags `blood` أو `weapon` أو `physical_bullying` من severity 3.
-- النقص في المراجع الثالث أو مجموعة الاستقلال الثالثة يمنع القرار والنشر والاعتماد التحريري.
-- المراجع الموقوف أو غير النشط لا يحتسب.
-- checkpoint P2-03 المدموج على main اجتاز 72/72 اختبارًا، و`test:migrations` و`lint:local` و`build:local`.
+- الموقع مستهدف لتحقيق دخل من الإعلانات؛ لذلك نتعامل معه كمشروع **تجاري** عند اختيار API أو dataset أو صورة.
+- لا نعتمد على توظيف فريق يشاهد كل فيلم لكي يستطيع الموقع التوسع.
+- لا نستخدم مصدرًا لمجرد أنه متاح على الإنترنت؛ كل source يبدأ blocked إلى أن يراجع ترخيصه وشروط استخدامه.
+- لا نزرع مراجعات موثقة مصطنعة بغرض ملء الموقع أو SEO.
 
-## P2-04 — revisions غير قابلة للمحو — مكتمل على main
+## مصادر المحتوى — الحالة القانونية الحالية
 
-- إعادة الإرسال لا تمسح facts القديمة ولا تعمل UPSERT فوق نفس submission.
-- كل إرسال جديد ينشئ `review_submissions` جديدًا بمعرّف و`revision` جديدين و`supersedes_submission_id` مباشر.
-- `review_assignments.submission_id` هو المؤشر للمراجعة الحالية فقط؛ revisions التاريخية تبقى محفوظة ولا تدخل القرار الحالي.
-- SQLite تمنع UPDATE/DELETE على submissions وcategory checks والوقائع والflags القديمة وتفرض lineage مباشرًا.
-- الاعتماد التحريري append-only أيضًا: كل approval جديدة تحمل revision متزايدة و`supersedes_approval_id` مباشر.
-- `review_bundles.current_approval_id` يشير إلى الاعتماد الحالي فقط، بينما كل الاعتمادات السابقة تبقى محفوظة.
-- P2-04 مدموج على `main` في commit `d32434356eeae46e51c0547fd46f430fa350e0a5`، وCI الخاص بـmain نجح.
+راجع `docs/CONTENT_SOURCE_POLICY.md` و`lib/content-source-policy.ts`.
 
-## P2-05 — حسم البلاغ والتصحيح وإعادة الاعتماد — مكتمل على main
+### مسموح آليًا الآن
 
-- البلاغ الجوهري لا يُفتح إلا على حزمة `verified` لها current approval فعلية.
-- D1 تلتقط server-side snapshot غير قابل للتزوير: `version_id`، حالة الحزمة، revision، والاعتماد الجاري إبطاله.
-- فتح البلاغ يحول الحزمة إلى `conflicted` ويجعل `current_approval_id = NULL` فورًا من غير حذف التاريخ.
-- لا يسمح بأكثر من بلاغ `open/investigating` واحد للحزمة، ولا بإنشاء approval جديدة أثناء وجود بلاغ نشط.
-- حسم البلاغ محصور في `editorial_reviewer` نشط.
-- `no_issue` يعيد نفس الاعتماد الذي أبطله البلاغ فقط إذا لم تتغير الحالة.
-- `correction_required` يعيد assignments المعتمدة لنفس النسخة إلى `changes_requested`، ويجبر submission revisions جديدة واعتماد revision جديدة.
-- `different_version` المؤكد يسحب الحزمة بدل تعديل وقائع تحت هوية نسخة خاطئة.
-- SQLite تمنع إعادة approval أبطله تصحيح مؤكد، وتمنع أي approval تاريخية أقدم من أن تصبح current، وتمنع `verified` بلا current approval.
-- P2-05 مدموجة على `main` في commit `16a6a844f9636373df83a44204579e0164ae9cd8` عبر PR #8.
-- CI #142 على `main` بعد الدمج اجتاز **78/78 اختبارًا، 0 فشل**، ومعه migrations وlint وbuild ناجحة.
+**Wikidata**
 
-## P2Q-01 — تدقيق عشوائي غير متوقع بعد الإرسال — مكتمل على main
+- الاستخدام الحالي: `catalog_metadata` فقط.
+- الرخصة: CC0 1.0 للبيانات المنظمة.
+- الاستيراد يحمل QID ثابتًا ومصدر السجل والرخصة.
+- عقد الطلب محدود، ويستخدم User-Agent واضحًا ولا يحاول تجاوز rate limits.
+- لا تُحوّل metadata من Wikidata تلقائيًا إلى مراجعة موثقة أو حكم مشاهدة.
 
-- أضيفت policy مستقلة في `lib/review-audit-selection.ts` لاختيار عينة التدقيق **بعد اكتمال validation وتجميد payload الإرسال النهائي**.
-- القرعة تُولد على الخادم بـ`crypto.getRandomValues` كـCSPRNG؛ لا يأتي draw أو rate أو risk tier أو selected من المتصفح.
-- السياسة الأولية صريحة وقابلة للمراجعة:
-  - **10%** للحالات العادية (`1000 bps`).
-  - **50%** للحالات عالية الحساسية (`5000 bps`).
-- high-risk يعيد استخدام **نفس P2-03 thresholds**، فلا يوجد تعريف مخاطر موازٍ أو hidden heuristic.
-- المقارنة تتم مباشرة على نطاق uint32 بدل `%`، فتتجنب modulo bias.
-- high-risk ليست 100% عمدًا حتى لا يستطيع المراجع توقع أن كل حالة حساسة ستدخل تدقيقًا.
-- قرار الاختيار يُكتب في **نفس D1 batch** الخاصة بالإرسال المقفول، واستجابة submit للمراجع لا تحتوي نتيجة الاختيار.
-- جدول `review_audit_selections` يسجل قرارًا واحدًا لكل submission سواء selected أو لا: هوية submission/assignment/bundle/version/reviewer، risk tier، rate، draw، selected، triggers، ووقت الإنشاء.
-- القرارات append-only؛ SQLite تمنع UPDATE/DELETE.
-- SQLite تعيد التحقق من هوية submission الحالية، ومن high-risk thresholds، ومن 10%/50%، ومن أن `selected` يطابق draw الفعلي؛ down-rating أو تزوير نتيجة القرعة يُرفض.
-- SQLite تمنع انتقال assignment إلى `approved` إذا لم توجد audit-selection decision للمراجعة الحالية، وتمنع جعل bundle `verified` إذا كانت أي submission حالية بلا decision.
-- P2Q-01 تختار العينة وتسجل القرار فقط؛ تنفيذ التدقيق الفعلي وoutcome والمعايرة هي `P2Q-02`.
-- migration `0007_random_audit_selection.sql` رفعت الإجمالي إلى **8 migrations / 18 product tables**.
-- الاختبارات تشمل pure policy وSQLite guards للـrisk/rate/draw/immutability والاعتماد بلا decision.
-- P2Q-01 مدموجة على `main` في commit `c308bc79ea8dfd7e01e6f68a6a565de0198efadd` عبر PR #10.
-- CI #159 على `main` بعد الدمج نجح في **83/83 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
+### مسموح من حيث الرخصة لكن الأتمتة موقوفة حتى اكتمال compliance
 
-## P2Q-02 — نتيجة التدقيق ومعايرة المراجع — مكتملة على main
+**Wikipedia**
 
-- أضيفت `review_audit_outcomes` و`review_audit_findings` كسجل append-only لنتيجة التدقيق الفعلي والـfindings.
-- لا يسجل outcome إلا `editorial_reviewer` نشط وله reviewer identity نشطة ومستقلة عن المراجع الأصلي؛ self-audit ونفس مجموعة الاستقلال مرفوضان.
-- selected submission تظل مانعة للاعتماد حتى يكتمل outcome بـ`confirmed`؛ SQLite تمنع editorial approval و`verified` قبل ذلك.
-- `confirmed` لا يقبل findings. وجود `missed_event` أو `severity_difference` ينتج `correction_required` ويرجع الـassignment ذريًا إلى `changes_requested`.
-- هوية المراجع والمدقق وشدة المراجع الأصلية تُحل من D1؛ العميل لا يستطيع إرسال أو تزوير `reviewerSeverity` أو server-owned identities.
-- findings تدعم الحدث الفائت بمحور/شدة/توقيت مضبوط، وفرق الشدة ضد observation موجودة داخل نفس submission فقط.
-- outcome النهائي والfindings محمية من UPDATE/DELETE بعد الإقفال؛ سجل audit يسجل confirmed أو correction_required.
-- `getReviewerCalibrationSummary` يحسب النتائج من outcomes المكتملة المخزنة، وليس من قيمة client-side أو UI state.
-- حجم العينة وraw counts متاحان للتدقيق، لكن normalized rates تظل `null` قبل **20 تدقيقًا مكتملًا** للمراجع؛ عند 20 تبدأ rates basis-points بالظهور.
-- لا توجد composite `trustScore` ولا ranking للمراجعين؛ P2Q-02 تقدم evidence/counts/rates فقط.
-- migration `0008_reviewer_calibration_outcomes.sql` رفعت الإجمالي إلى **9 migrations / 20 product tables**.
-- P2Q-02 مدموجة على `main` في commit `120a43d62517141a3ed0c14cd07d6128655303fa` عبر PR #12.
-- CI #178 على `main` بعد الدمج اجتاز **95/95 اختبارًا، 0 فشل**، ونجح `test:migrations` و`lint:local` و`build:local` أيضًا.
+- النص يسمح بالاستخدام التجاري ضمن شروط CC BY-SA والعزو والترخيص بالمثل حسب الصفحة/المحتوى.
+- ingestion النصي الآلي معطل حاليًا حتى توجد طبقة تخزن source URL/revision/license/attribution وتفصل الحقائق عن النص المنسوخ.
+- لا ننشر فقرات طويلة كأنها كتابتنا الأصلية.
 
-## P2Q-03 — المعايرة المرجعية قبل التفعيل — مكتملة على main
+**Wikimedia Commons**
 
-- أضيفت `reviewer_reference_sets`, `reviewer_reference_cases`, `reviewer_reference_attempts`, و`reviewer_reference_case_results`؛ الإجمالي أصبح **10 migrations / 24 product tables**.
-- المراجع الجديد يبدأ `probation` على مستوى قاعدة البيانات ولا يمكن أن يصبح `active` قبل اجتياز معايرة مرجعية ناجحة على المجموعة النشطة.
-- سياسة Pass/Fail صريحة بلا trust score مركبة: **10 حالات على الأقل، ≥95% اتفاق المحاور، ≥90% recall، ≥90% precision، صفر واقعة عالية الحساسية فائتة، وأقصى فرق شدة = 1**.
-- مقارنة الوقائع deterministic حسب المحور والتوقيت، وتتطلب overlap مع فرق بداية لا يزيد عن 20 ثانية؛ لا يوجد AI/semantic matching في المعايرة.
-- الـAdmin وحده ينشئ/يفعّل المجموعة المرجعية، والمراجع يبدأ محاولته من حسابه من دون اختيار المجموعة أو رؤية الإجابات المرجعية.
-- SQLite تمنع أكثر من مجموعة مرجعية نشطة، وتمنع تفعيل مجموعة ناقصة، وتمنع إضافة/تعديل/حذف الحالات بعد التفعيل.
-- هوية attempt (`reviewer_id`, `set_id`, `purpose`, `started_at`) ثابتة بعد البداية، والنتائج append-only، والـPass النهائي يعيد حساب metrics من case results المخزنة بدل الثقة في summary من التطبيق.
-- reference case يجب أن تأتي من submission حالية معتمدة داخل bundle `verified`، وأن تكون مستقلة عن المراجع الجاري اختباره؛ self-reference ونفس مجموعة الاستقلال مرفوضان.
-- صلاحية المرجع يعاد التحقق منها عند بدء المحاولة، وعند كتابة كل case result، وعند الإقفال النهائي؛ سحب المرجع أو دخوله conflict أثناء المحاولة يفشل المسار مغلقًا.
-- تقاعد المجموعة ممنوع أثناء وجود attempts مفتوحة، وإعادة تفعيل reviewer موقوفة تحتاج Pass حديثًا بعد وقت الإيقاف.
-- `drizzle.config.ts` صار يقرأ `db/schema.ts` و`db/review-workflow-schema.ts` معًا، وتمت مطابقة partial unique indexes في Drizzle مع SQLite الفعلية.
-- P2Q-03 دُمجت على `main` عبر PR #14 في commit `6c2c6fdd9db420de36d88fac9b67e49320792313`.
-- CI #199 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+- كل ملف له شروطه الخاصة؛ لا نفترض أن كل صورة تحمل نفس الرخصة.
+- لا تستخدم صورة حتى نسجل المؤلف والرخصة والعزو المطلوب لكل ملف.
+- لا نفترض أن poster أو screenshot حديثًا متاح تجاريًا لمجرد وجوده على الإنترنت.
 
-## P2Q-04 — Safety Hold تلقائي وآمن — مكتملة على main
+### محظور آليًا بدون ترخيص تجاري صريح
 
-- السياسة versioned في `lib/reviewer-safety-hold.ts` ولا تنتج trust score أو ranking.
-- Hold فوري مؤقت عند أحدث audit مستقلة إذا ظهر **حدث عالي الحساسية فائت** أو `maxSeverityDelta = 3`.
-- قواعد النمط المتكرر لا تعمل قبل **20 audit مكتملة في دورة المراجع الحالية**؛ داخل آخر 20: **5 correction_required** أو **3 audits بها missed events** أو **3 audits بها severity delta ≥2** تؤدي إلى Hold.
-- الـepoch الحالية مرتبطة بوقت آخر activation/reactivation، وSQLite تمنع timestamp-only update لمراجع active من تصفير النافذة بالخطأ.
-- hold/resolution تُسجل كأحداث append-only في `internal_audit_events`؛ لا يوجد جدول حالة موازٍ قابل للانحراف.
-- أي Hold صالح يعلق `reviewers.status` والحساب الداخلي المقابل، مع الحفاظ على الهوية والدور والتاريخ.
-- الـHold تسقط الثقة الحالية من أي bundle تعتمد على نفس الهوية **كمراجع أو كمدقق audit أو كمعتمد تحريري**، وتحولها إلى `conflicted` وتسقط `current_approval_id` من غير حذف التاريخ؛ الحزم غير المرتبطة تظل سليمة.
-- الحزمة التي أنتجت `correction_required` مستثناة من invalidation العام حتى يستطيع نفس transaction إكمال `changes_requested` و`under_review` بعد وضع الـHold.
-- الاشتباه اليدوي في التواطؤ Admin-only، ويتطلب 1–20 audit evidence IDs موجودة، ويجب أن يكون بعضها مرتبطًا بالمراجع المستهدف. `COLLUSION_SUSPICION` يعني تحقيقًا مطلوبًا وليس إثبات تواطؤ.
-- المتصفح لا يحدد reviewerId/source/policyVersion/triggerCodes/actor؛ الخادم يملك هذه الهوية والقيم.
-- unresolved hold يمنع activation ويمنع بدء reference reactivation/drift. الحسم البشري Admin-only ومرة واحدة، لكنه لا يعيد التفعيل وحده.
-- مسار العودة: **Human resolution → fresh P2Q-03 reference calibration → Admin activation**؛ لذلك لا قرار بشري وحده ولا calibration قديمة تكفي.
-- اختبارات SQLite تثبت 4/20 لا توقف و5/20 توقف، وأن الـ20th `confirmed` تقيّم النافذة، وأن Hold لا تكسر transaction التصحيح للحزمة التي كشفت الخطأ.
-- لم تُضف جداول منتج جديدة؛ checkpoint = **18 migration files / 24 product tables**.
-- P2Q-04 دُمجت على `main` عبر PR #16 في commit `70eeb381bdb834ff89b646ac20263602e531d61f`.
-- CI #234 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
-- آخر checkpoint قبل الدمج كان **122/122 اختبارًا، 0 فشل**؛ التفاصيل التشغيلية في `docs/P2Q-04_SAFETY_HOLD_CHECKPOINT.md`.
+- TMDB developer API/data/images.
+- IMDb datasets/site/Parents Guide/User Reviews أو scraping.
+- Common Sense Media، Kids-In-Mind، DoesTheDogDie وأي review/parents-guide site مشابه بدون إذن تجاري واضح.
 
-## P2Q-05 — لوحة الجودة والأدلة — مكتملة على main
+جهات التصنيف الرسمية يمكن أن تكون **مرجع تحقق لحقيقة تصنيف أو descriptor** بعد مراجعة شروط الجهة المحددة؛ لا نعمل scraping آليًا لوصفها التحريري قبل ذلك، والتصنيف الأجنبي لا يصبح قرار الأسرة العربية عندنا.
 
-- أضيفت صفحة داخلية مرئية `/internal/quality` تعرض أدلة الجودة الفعلية من D1 بدل إنشاء score أو حالة موازية.
-- الوصول محصور server-side في `admin` و`editorial_reviewer` النشطين؛ المراجع والمنسق لا يملكان مدخل اللوحة.
-- الصفحة read-only بالكامل؛ لا توجد mutation لتغيير Hold أو حسمه أو تعديل نتيجة تدقيق أو معايرة من لوحة الجودة.
-- تعرض Safety Holds مع أسبابها وقرارات الحسم البشري، الحزم والبلاغات المتعارضة، Audit Calibration، وReference Calibration.
-- normalized audit rates تظل مخفية قبل **20 تدقيقًا مكتملًا** بما يطابق P2Q-02، ولا توجد `trustScore` أو ranking أو leaderboard.
-- أضيف مدخل مرئي من `/internal` للأدوار المصرح لها، والخدمة نفسها تعيد التحقق من الدور والحالة على الخادم حتى لو عُرف الرابط يدويًا.
-- اختبارات P2Q-05 تغطي policy الوصول، parsing للـHold/Resolution، إخفاء المعدلات تحت 20 عينة، وعدم وجود score/ranking.
-- استعلامات لوحة الجودة نفسها تُنفذ داخل `test:migrations` على SQLite بعد تطبيق جميع migrations، حتى لا يكفي مجرد نجاح TypeScript build.
-- لا schema أو migrations جديدة في P2Q-05؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- التفاصيل التشغيلية موثقة في `docs/P2Q-05_QUALITY_DASHBOARD_CHECKPOINT.md`.
-- P2Q-05 دُمجت على `main` عبر PR #18 في commit `f2bccaa7a92ba07bf73523139774c05c92f08b1d`.
-- CI #250 على `main` بعد الدمج نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل.
+## P3S-01 — Allowlist للمصادر التجارية — مكتمل على الفرع الحالي
 
-## P3-01 — البحث العربي الحقيقي — مكتملة على main
+- أضيف `lib/content-source-policy.ts` كعقد fail-closed.
+- المصدر الآلي الوحيد حاليًا هو `wikidata:catalog_metadata`.
+- استخدام المصدر مقسم إلى `catalog_metadata`, `analysis_evidence`, و`media` حتى لا يتحول حق استخدام الكتالوج تلقائيًا إلى حق نسخ مراجعة أو صورة.
+- TMDB وIMDb ومواقع أدلة الآباء تبقى blocked بدون commercial license.
+- `assertAutomatedSourceUseAllowed` يرفض أي source/use غير مسموح صراحة.
 
-- أضيفت سياسة بحث deterministic في `lib/public-title-search.ts` تدعم `canonical_name` و`original_name` من غير fuzzy AI أو تشابه دلالي مخفي.
-- التطبيع يدعم NFKC، إزالة التشكيل والتطويل، توحيد أشكال الألف/الياء والهمزات، وتحويل الأرقام العربية والفارسية إلى ASCII، مع إزالة علامات الترقيم ودمج المسافات.
-- مدخل البحث fail-closed ومحدود: من **2 إلى 80 حرفًا**، وبحد أقصى **8 tokens** مختلفة؛ الطلب يقبل `query` فقط ويرفض mass-assignment fields.
-- D1 تستخدم query parameterized بالكامل؛ لا يُدمج نص المستخدم داخل SQL. طبقة candidates محدودة بـ **256** صفًا، ثم ranking نهائي deterministic بحد أقصى **8 نتائج**.
-- ترتيب المطابقة: canonical exact ثم original exact ثم prefix ثم contains ثم token match؛ وجود مراجعة موثقة يعمل tie-break فقط ولا يتغلب على مطابقة نصية أدق.
-- `hasVerifiedReview` لا يصبح true إلا بوجود نسخة `active` وحزمة `verified` و`current_approval_id` فعلية؛ وجود العنوان في جدول `titles` وحده لا يُعرض كمراجعة موثقة.
-- أضيفت خدمة D1 server-side وServer Action عامة تعيد رسائل عربية آمنة؛ أخطاء الإدخال لا تتحول إلى 500، وأخطاء D1 غير المتوقعة لا تكشف تفاصيل داخلية للمستخدم.
-- اختبارات policy تغطي العربية والاسم الأصلي والـranking والحدود وSQL parameterization ومدخلات شبيهة بالحقن.
-- `scripts/verify-public-title-search.mts` يطبق كل migrations على SQLite ثم ينفذ **نفس SQL المولدة** ببيانات عربية/إنجليزية فعلية، ويثبت أن wildcard/injection-like text لا يغير دلالة الاستعلام.
-- P3-01 لا تضيف migration أو جدولًا جديدًا؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- P3-01 دُمجت على `main` عبر PR #20 في commit `5b35f66fcd10beead3e022afcc5e98faffb478e0`.
-- CI #261 على `main` بعد الدمج نجح في **143/143 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local` أيضًا.
+## P3S-02 — عقد Wikidata للكتالوج — مكتمل على الفرع الحالي
 
-## P3-02 — نتائج البحث الحقيقية — مكتملة على main
+- أضيف `lib/wikidata-catalog.ts`.
+- endpoint: Wikidata Query Service الرسمي.
+- User-Agent: `QablAlmushahadaBot/0.1 (+https://github.com/Hosyss/qabl-almushahada)`.
+- query محدودة بـ200 نتيجة كحد أقصى في الطلب، مع offset bounded.
+- تقبل أفلامًا ومسلسلات فقط، QID صالحًا، سنة منطقية، وlabel صالحًا.
+- parser يفشل عند payload غير صحيح ويزيل التكرار.
+- SQL generator يحدث جدول `titles` فقط ولا يلمس `review_bundles` أو submissions أو approvals.
+- أضيف `scripts/preview-wikidata-catalog.mts` و`npm run content:wikidata:preview` للمعاينة قبل أي كتابة production.
+- **لا يوجد import production في هذا checkpoint**؛ الاستيراد الفعلي مؤجل حتى P3S-04 provenance persistence.
 
-- أضيفت صفحة `/search` عامة تقرأ من خدمة P3-01 الحقيقية وتعرض الاسم العربي، الاسم الأصلي، النوع، وسنة الإصدار.
-- حالة النتيجة لا تُستنتج من UI: **مراجعة موثقة** تعني نسخة active داخل bundle `verified` ذات `current_approval_id`، و**قيد المراجعة** يتطلب workflow فعليًا على نسخة active في `draft/under_review/conflicted`.
-- إذا كان العنوان مسجلًا بلا مراجعة نشطة أو منشورة تظهر حالة **موجود في الدليل**، وعدم وجود مطابقة يعرض **غير موجود**.
-- عند وجود مراجعة موثقة ونسخة أخرى قيد المراجعة لنفس العنوان، الحالة المنشورة الموثقة لها الأولوية ولا يتم تخفيضها بصريًا.
-- Hero الصفحة الرئيسية صار يرسل البحث إلى `/search?q=...` بدل رسالة placeholder القديمة، مع ترميز الاستعلام بـ`encodeURIComponent` ومنع الإرسال الفارغ.
-- صفحة النتائج لا تربط إلى `/review` الوهمية؛ الربط بمراجعة فعلية مؤجل عمدًا لـP3-03.
-- أضيفت اختبارات `public-search-result-state` وثُبّتت حالات verified/in_review/catalog_only، وتم توسيع SQLite verifier لإدخال bundle حقيقية `under_review` والتحقق من الحالة من SQL نفسها.
-- لا schema أو migrations جديدة في P3-02؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- PR #22 نُظّفت قبل الدمج من تغييرات تنسيق غير وظيفية؛ الـdiff النهائي كان 468 إضافة / 13 حذف بدل 182 حذفًا مضللًا.
-- P3-02 دُمجت على `main` عبر PR #22 في commit `a34ae4c67305553b90a53b1b943ce8cad3cf040f`.
-- CI #271 على `main` بعد الدمج نجح في **146/146 اختبارًا، 0 فشل**، ونجح `test:migrations`, `lint:local`, و`build:local` أيضًا.
+## P3S-03 — معايير الأسرة العربية — مكتمل على الفرع الحالي
 
-## P3-03 — صفحة المراجعة الحقيقية — مكتملة على main
+راجع `docs/ARAB_FAMILY_POLICY.md` و`lib/arab-family-policy.ts`.
 
-- `/review` أصبحت Server Page تقرأ locator محددًا `bundleId` من الرابط وتطلب المراجعة عبر خدمة D1 الحقيقية؛ لا يوجد fallback إلى النموذج التجريبي عند missing/invalid/stale locator.
-- بوابة العرض العام تشترط حزمة `verified` منشورة، نسخة `active`، `current_approval_id` حالية وحالتها `approved`، وعدم وجود بلاغ `open` أو `investigating`.
-- القراءة تلتقط `bundle revision` و`current approval` قبل hydration ثم تعيد نفس البوابة بعده؛ أي تغيير بين القراءتين يفشل الطلب مغلقًا بدل خلط state قديمة بجديدة.
-- DTO العامة تتحقق كذلك من title/version/runtime/content fingerprint ووقت الاعتماد مقابل الحزمة المحملة، ولا تعرّض هوية المراجعين أو fingerprint للواجهة.
-- `/search` يعيد `verifiedBundleId` للحزمة المنشورة الفعلية، ويربط النتيجة الموثقة مباشرة بـ`/review?bundleId=...` بدل title id أو اختيار نسخة عشوائية.
-- Client المراجعة يستقبل `PublicReviewView` فقط ولا يقرأ D1. النصوص القديمة التي كانت تصدر قرار أسرة/عمرًا ثابتًا أو تفاصيل Demo حُذفت.
-- وضع «من غير حرق» يخفي summary المخزنة عندما `spoilerLevel` ليس `none`، ولا يؤلف حدثًا بديلًا. الثقة تعرض label نوعيًا فقط ولا توجد numeric trust score جديدة.
-- `scripts/verify-public-review.mts` يطبق كل migrations على SQLite ويثبت: الحالة الصالحة تمر، report المفتوح/قيد التحقيق يمنع، bundle conflicted/withdrawn يمنع، version superseded/withdrawn يمنع، وإزالة/تغيير current approval يمنع stale request مع سلامة foreign keys.
-- لا schema أو migration جديدة في P3-03؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- P3-03 دُمجت إلى `main` عبر PR #24 في commit `adc037eafb5ac9ba6f9089f2ed503ef9084f82a7`.
-- قبل الدمج اجتاز checkpoint **155/155 اختبارًا، 0 فشل**، مع `test:migrations`, `lint:local`, و`build:local` ناجحة.
+- الإصدار الحالي: `2026-08-13.1`.
+- السياسة تصف نفسها بوضوح كـ**افتراضي تحريري عربي محافظ نسبيًا وقابل للتخصيص**، لا كتصنيف حكومي موحد للعالم العربي.
+- القرار لا يأخذ رقم age rating أجنبي ويعيد تسميته؛ لكل محور حد مستقل.
+- السياسة الحالية أشد افتراضيًا في `sexualContent`, `language`, `substances`, و`selfHarm` من الحد العام للعمر.
+- `fearLimit` وخيار تجنب التنمر يظلان قابلين لتعديل الأسرة محليًا.
+- helper القديم `createExampleFamilyProfile` أصبح يستخدم السياسة العربية الجديدة مع الحفاظ على واجهته الحالية.
+- coarse age helper في فلتر البحث يبقى فلترًا استكشافيًا فقط ولا يمثل قرار الأسرة أو rating رسميًا.
 
-## P3-04 — حفظ حدود الأسرة محليًا — مكتملة على main
+### الحدود العربية الافتراضية الحالية
 
-- أضيف عقد تخزين versioned بالمفتاح `qabl-almushahada.family-settings.v1` داخل `lib/local-family-settings.ts`.
-- البيانات المحفوظة محصورة صراحة في `childAge`, `fearLimit`, و`avoidBullying` فقط؛ لا اسم طفل ولا تاريخ ميلاد ولا معرف شخصي.
-- parser يرفض JSON التالف، النسخة غير المعروفة، القيم خارج حدود الواجهة، وأي حقول إضافية بدل الاحتفاظ بها بصمت.
-- الصفحة الرئيسية تستعيد الإعدادات المحفوظة بعد التحميل، وتحفظ التغييرات عند تفاعل المستخدم. إذا كان `localStorage` غير متاح تستمر الإعدادات للجلسة الحالية فقط وتعرض الواجهة ذلك بدل ادعاء نجاح الحفظ.
-- لا تُرسل حدود الأسرة إلى D1 أو Worker، ولا توجد schema/migration جديدة؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- اختبارات P3-04 تثبت round-trip للحقول المسموح بها، رفض `childName` و`dateOfBirth` كحقول إضافية، ورفض القيم malformed/stale/out-of-range.
-- P3-04 دُمجت على `main` عبر PR #30 في commit `f63941ed45ac9984fe1776efa9d8d29bf70715f3`، ونجح بعدها CI والنشر على Cloudflare وsmoke tests العامة.
+| العمر | المحتوى العام | المحتوى الجنسي | اللغة | المواد | إيذاء النفس |
+|---|---:|---:|---:|---:|---:|
+| 3–5 | 0 | 0 | 0 | 0 | 0 |
+| 6–8 | 1 | 0 | 0 | 0 | 0 |
+| 9–11 | 2 | 1 | 1 | 0 | 1 |
+| 12–14 | 3 | 2 | 2 | 1 | 2 |
+| 15–18 | 4 | 3 | 3 | 2 | 3 |
 
-## P3-05 — فلاتر البحث — مكتملة على main
+هذه نقطة بداية وليست حكمًا دينيًا أو أخلاقيًا مطلقًا على العمل.
 
-- صفحة `/search` تدعم فلاتر GET قابلة للمشاركة حسب النوع، نطاق العمر، وحالة التحقق، من غير تغيير ترتيب المطابقة النصية الأصلي.
-- فلتر العمر لا ينشئ تصنيفًا عمريًا ثابتًا؛ يستخدم نفس `agePreset` التجريبي المعلن في UI ويقارن فقط بأعلى شدة مشتقة من المراجعة الموثقة الحالية.
-- أعلى شدة تُقرأ من submissions المرتبطة بالـ`current_approval_id` نفسها عبر `editorial_approval_submissions`؛ النتائج غير الموثقة أو قيد المراجعة لا تحصل على رقم مخترع.
-- عند تفعيل فلتر العمر تُستبعد النتائج غير الموثقة fail-closed، وتوضح الواجهة أن الفلتر ليس rating رسميًا وأن بلوغ الحد قد يعني المشاهدة بمرافقة.
-- النوع وحالة التحقق يعملان على كل النتائج، والفلاتر لا تغير ranking الأصلي.
-- لا schema أو migrations جديدة؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- اختبارات P3-05 تغطي parsing للفلاتر، حفظ الترتيب، استبعاد غير الموثق عند فلتر العمر، وربط severity بالاعتماد الحالي في SQL.
-- P3-05 دُمجت على `main` عبر PR #31 في commit `38bc3cd0c1f4a472927a9806b672e64477dc6ce3`.
-- CI وCloudflare production deploy بعد الدمج نجحا بالكامل؛ `test:engine` = **166/166**، وD1 بقيت على **18 migrations / 24 product tables**، وsmoke tests العامة نجحت.
+## الإنچين — الحالة الحالية
 
-## P3-06 — صفحات السياسات العامة — مكتملة وظيفيًا
+الإنچين نفسه مبني ويعمل:
 
-- أضيفت الصفحات `/review-policy`, `/privacy`, و`/corrections` كصفحات عامة RTL متجاوبة، مع Metadata مستقلة وروابط متبادلة بينها.
-- سياسة المراجعة لا تنسخ أرقامًا قابلة للانحراف يدويًا: نسب التدقيق 10%/50% وقواعد الحساسية تُقرأ من نفس constants المستخدمة في `review-audit-selection` و`risk-policy`.
-- سياسة الخصوصية تطابق عقد الحفظ المحلي الحالي: `childAge`, `fearLimit`, و`avoidBullying` فقط تحت `qabl-almushahada.family-settings.v1`، مع تصريح واضح أن الحفظ المحلي لا يرسل هذه الحقول إلى D1 وأن اسم الطفل وتاريخ الميلاد غير مطلوبين.
-- صفحة الخصوصية تفرق بين التخزين المحلي وطلبات البحث التي تصل إلى الخادم، ولا تدّعي أن بيانات الشبكة أو بنية Cloudflare تبقى داخل المتصفح.
-- سياسة التصحيح توثق fail-closed الحالي: البلاغ `open/investigating` يوقف النتيجة، والحسم محصور في `no_issue`, `correction_required`, أو `different_version`، والتاريخ يبقى append-only.
-- الصفحة توضح صراحة أن قناة البلاغ العامة في الواجهة لم تُوصل تقنيًا بعد، بدل عرض نموذج وهمي أو ادعاء استقبال بلاغ لا يصل للخادم.
-- أضيف شريط روابط سياسات عام من `RootLayout` حتى تكون الصفحات قابلة للوصول من كل المسارات العامة الحالية.
-- اختبارات P3-06 تثبت ثبات المسارات الثلاثة، تطابق سياسة المراجعة مع constants الحية، تطابق الخصوصية مع serializer الفعلي، وعدم ادعاء أن قناة البلاغ العامة موصولة.
-- لا schema أو migrations جديدة؛ الإجمالي يظل **18 migration files / 24 product tables**.
-- checkpoint الفرع `03c927ce92210ff076969e2f3d31996f29462680` نجح في `test:engine`, `test:migrations`, `lint:local`, و`build:local` بالكامل قبل تحديث التوثيق.
+- TypeScript domain schema للنسخة والوقائع والمحاور وحدود الأسرة.
+- fail-closed: نقص أو تعارض حرج يعيد `insufficient_data` بدل «مناسب».
+- القرار deterministic وقابل لإعادة الإنتاج من نفس المدخلات.
+- الأسباب مرتبطة بالوقائع التي فعّلت القرار.
+- قواعد الخطر والحساسية منفصلة ومختبرة.
+- P3S-03 غيّرت default family profile إلى معايير عربية category-specific من غير تغيير مبدأ fail-closed.
+
+الـengine لا يجب أن يخترع الوقائع. P3S-04/P3S-05 سيبنيان طبقة evidence التي تمده بوقائع قانونية قابلة للتتبع من غير تزوير reviewer identity.
+
+## سير المراجعين البشر — موجود لكنه لم يعد نموذج التوسع الإجباري
+
+كل ما بُني في P2/P2Q ما زال في المستودع ومختبرًا:
+
+- Admin / Coordinator / Reviewer / Editorial roles.
+- استقلال المراجعين وفصل الواجبات.
+- revision locking وappend-only history.
+- reviewer third-pass للحالات الحساسة.
+- random audit 10%/50%.
+- audit outcomes/calibration/reference calibration.
+- Safety Holds ولوحة الجودة.
+- correction workflow وحماية current approval.
+
+لا نحذف هذا العمل، لكن P3S-05/P3S-06 سيضيفان **مسار evidence-based مستقل** للنشر العام. المسار البشري يبقى اختياريًا للحالات ذات القيمة أو النزاع أو التحقق اليدوي.
+
+## تجربة المستخدم العامة — المنجز
+
+- هوية عربية وRTL وصفحة رئيسية متجاوبة.
+- `/search` متصل بـD1 ومحرك بحث عربي deterministic.
+- فلاتر النوع والعمر وحالة التحقق.
+- `/review` تقرأ bundle حقيقية وتفشل مغلقًا عند stale/conflicted/invalid state.
+- حدود الأسرة محفوظة محليًا من غير اسم طفل أو تاريخ ميلاد.
+- `/review-policy`, `/privacy`, `/corrections` موجودة ومربوطة من الموقع.
+- سياسة التصحيح لا تدعي أن public report intake موصول وهو غير موصول.
+
+## P3-06 — آخر مرحلة عامة منشورة على main
+
+- صفحات السياسات الثلاث منشورة.
+- production smoke test يفحص `/`, `/review`, `/search?q=nemo`, `/review-policy`, `/privacy`, و`/corrections`.
+- آخر hardening للنشر على main قبل فرع P3S هو commit `5af603d2d65e0877b28df3f8674ac13c47a58627`.
+- Worker Version لذلك النشر: `f9875276-17ad-46c6-a952-55ccc8721ae6`.
+
+## الاختبارات في checkpoint P3S-01/02/03
+
+على branch `agent/p3-07-legal-content-sources` عند commit `b595e0ba88e969bacf94f7ae57ff6cca7c3b8078`:
+
+- `test:engine`: **179/179 ناجحة، 0 فشل**.
+- `test:migrations`: ناجح.
+- `lint:local`: ناجح.
+- `build:local`: ناجح.
+- schema لم تتغير في هذا checkpoint: **18 migration files / 24 product tables**.
+- اختبارات جديدة تثبت أن:
+  - Wikidata وحدها مسموحة آليًا للكتالوج الآن.
+  - TMDB/IMDb والمصادر غير الجاهزة للامتثال تفشل مغلقًا.
+  - Wikidata query bounded وذات User-Agent واضح.
+  - SQL الناتجة لا تغير review state.
+  - سياسة الأسرة العربية category-specific وليست copied foreign rating.
 
 ## Cloudflare — الإنتاج الفعلي
 
-- الإنتاج يعمل على Cloudflare Workers + D1 من نفس المستودع؛ راجع `docs/CLOUDFLARE_DEPLOYMENT.md`.
-- D1 الإنتاجية `qabl-almushahada-production` موجودة ومطبّق عليها **18/18 migrations**، والتحقق البعيد أكد وجود جداول المشروع المطلوبة.
-- Worker الإنتاج يملك bindings فعلية: `DB`, `IMAGES`, و`ASSETS`. إضافة `ASSETS` كانت مطلوبة لمنع 404 على المسارات العامة مع Vinext.
-- آخر نشر مؤكد حتى هذا checkpoint هو commit `38bc3cd0c1f4a472927a9806b672e64477dc6ce3`، ونجح كاملًا بما فيه smoke tests على `/`, `/review`, و`/search?q=nemo`.
-- Worker Version ID لذلك النشر: `2cd877a3-1ad1-4487-a458-9f02745b358c`.
-- رابط Worker العام: `https://qabl-almushahada.buildtools.workers.dev`.
-- Cloudflare Access للمسارات الداخلية يظل fail-closed ما لم تُضبط متغيرات Access الكاملة؛ لا يوجد fallback صامت لهوية غير موثقة.
-- لا تُنسخ API tokens أو Account IDs إلى Worker config.
+- Worker العام: `https://qabl-almushahada.buildtools.workers.dev`.
+- D1: `qabl-almushahada-production`.
+- bindings: `DB`, `IMAGES`, `ASSETS`.
+- D1 production الحالية عند **18/18 migrations**.
+- branch P3S الحالي **غير منشور بعد**؛ لا يعتبر production حتى يمر PR/merge/main CI/Cloudflare smoke test.
+- لا API tokens أو Account IDs تُنسخ إلى Worker config.
+
+## ما لا نفعله
+
+- لا fake/synthetic reviewers لتمرير بوابات المراجعة القديمة.
+- لا scraper لـIMDb/TMDB/Parents Guide في الموقع التجاري بدون ترخيص.
+- لا تحويل metadata وحدها إلى «مراجعة موثقة».
+- لا نسخ review أجنبي ثم الادعاء أن «قبل المشاهدة» راجعه بنفسه.
+- لا ادعاء أن إنسانًا شاهد النسخة إذا لم يحدث ذلك.
+- لا rating رقمي واحد للعمل يحل محل الأسباب والوقائع.
+- لا حسابات أطفال أو جمع اسم الطفل/تاريخ الميلاد.
 
 ## ما يزال تجريبيًا أو مؤجلًا
 
-- أسماء الأعمال والوقائع الموجودة داخل أقسام العرض التجريبية في الصفحة الرئيسية ما زالت أمثلة تصميمية وليست مراجعات منشورة.
-- زر الإبلاغ الظاهر في الواجهة العامة غير موصول بخدمة فتح البلاغ؛ صفحة `/corrections` تصرح بذلك بدل اعتباره قناة استقبال فعلية.
-- لم تُزرع بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب bundle موثقة حقيقية يظل fail-closed.
-- `P0-05` المراجعة البصرية النهائية مع المستخدم ومراحل الجودة/الإطلاق P4 ما زالت لاحقة حسب ROADMAP.
-
-## الروابط الحالية
-
-- المستودع: `https://github.com/Hosyss/qabl-almushahada`
-- الموقع العام على Cloudflare: `https://qabl-almushahada.buildtools.workers.dev`
-- الموقع القديم `https://qabl-almushahada.hosys.chatgpt.site` ليس مصدر النشر الحالي.
+- بعض أعمال وأمثلة الصفحة الرئيسية ما زالت أمثلة تصميمية وليست مراجعات production.
+- زر البلاغ العام غير موصول حتى الآن.
+- taxonomy العربية تحتاج توسعة موضوعية قبل ingestion واسع: العري، الحميمية/التقبيل، الحوار الجنسي، التدخين/الكحول/المخدرات منفصلة، القمار، والحساسية الدينية عندما يمكن وصفها كواقعة قابلة للرصد.
+- لا صور posters غير مرخصة؛ غياب الصورة أفضل من استخدام غير قانوني.
+- P0-05 والمراحل P4 تبقى لاحقة بعد تثبيت مسار المحتوى الجديد.
 
 ## نقطة البدء التالية
 
-1. ثبّت P3-06 على `main` فقط بعد PR وCI أخضر، ثم تحقق من Cloudflare deploy والمسارات `/review-policy`, `/privacy`, و`/corrections` على الإنتاج.
-2. لا تُدخل بيانات مراجعات إنتاج مصطنعة لمجرد إظهار الصفحة؛ غياب مراجعة حقيقية يجب أن يظل fail-closed.
-3. بعد تثبيت P3-06، لا تبدأ P4 داخل نفس PR؛ البند التالي في مسار الجودة هو `P4-01`، مع بقاء `P0-05` مراجعة بصرية نهائية مؤجلة لتفاعل المستخدم.
+1. دمج P3S-01/02/03 فقط بعد PR وCI أخضر ثم Cloudflare deploy أخضر.
+2. `P3S-04` — تصميم وتخزين provenance لكل evidence في D1: source key/URL/revision/license/retrieved-at، مع فصل catalog metadata عن analysis evidence.
+3. `P3S-05` — بناء evidence-based review pipeline واختبارات coverage/conflict من غير synthetic reviewers.
+4. `P3S-06` — بوابة نشر جديدة للمسار المستقل؛ يجب أن تحافظ على الحقيقة: **المراجعة النهائية والقرار من منهجنا نحن**، لكنها لا تقول إن بشرًا شاهدوا النسخة إذا لم يحدث ذلك.
+5. `P3S-07` — توسيع taxonomy العربية بوقائع موضوعية قبل التوسع.
+6. `P3S-08` — استيراد أول catalog production من Wikidata وتوليد صفحات SEO حقيقية، من غير زرع verified reviews مصطنعة.
 
-راجع `docs/ENGINE_TRUST_MODEL.md` و`docs/CLOUDFLARE_DEPLOYMENT.md` قبل أي تعديل في الثقة أو النشر.
+راجع قبل تعديل المصدر/الثقة/النشر:
+
+- `docs/CONTENT_SOURCE_POLICY.md`
+- `docs/ARAB_FAMILY_POLICY.md`
+- `docs/ENGINE_TRUST_MODEL.md`
+- `docs/CLOUDFLARE_DEPLOYMENT.md`
+- `docs/ROADMAP.md`
+
+## الروابط
+
+- المستودع: `https://github.com/Hosyss/qabl-almushahada`
+- الإنتاج: `https://qabl-almushahada.buildtools.workers.dev`
+- الموقع القديم `https://qabl-almushahada.hosys.chatgpt.site` ليس مصدر النشر الحالي.
