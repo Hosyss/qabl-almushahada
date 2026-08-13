@@ -50,7 +50,7 @@ decisionStatus = insufficient_data
 
 - Catalog ID: `wd:Q11621`.
 - Editorial ID: `et-1982-editorial-batch-v1`.
-- المصادر المستقلة: **4**.
+- المصادر المستقلة المستخدمة في الدفعة: **3 مراجعات منشورة**.
 - الوقائع `corroborated`: **5**: `fear`, `violence`, `language`, `substances`, `sexualContent`.
 - المحاور `uncertain`: **5/10**: `bullying`, `discrimination`, `selfHarm`, `grief`, `flashingLights`.
 - القرار: `insufficient_data`.
@@ -59,7 +59,7 @@ decisionStatus = insufficient_data
 
 - Catalog ID: `wd:Q102438`.
 - Editorial ID: `harry-potter-philosophers-stone-2001-editorial-batch-v1`.
-- المصادر المستقلة: **5**.
+- المصادر المستقلة المستخدمة في الدفعة: **4 مراجعات منشورة**.
 - الوقائع `corroborated`: **4**: `fear`, `violence`, `language`, `grief`.
 - المحاور `uncertain`: **6/10**: `bullying`, `sexualContent`, `substances`, `discrimination`, `selfHarm`, `flashingLights`.
 - القرار: `insufficient_data`.
@@ -68,7 +68,7 @@ decisionStatus = insufficient_data
 
 - Catalog ID: `wd:Q13619743`.
 - Editorial ID: `minions-2015-editorial-batch-v1`.
-- المصادر المستقلة: **5**.
+- المصادر المستقلة المستخدمة في الدفعة: **4 مراجعات منشورة**.
 - الوقائع `corroborated`: **5**: `violence`, `fear`, `language`, `substances`, `sexualContent`.
 - المحاور `uncertain`: **5/10**: `bullying`, `discrimination`, `selfHarm`, `grief`, `flashingLights`.
 - القرار: `insufficient_data`.
