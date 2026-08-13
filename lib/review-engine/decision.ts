@@ -1,4 +1,5 @@
 import { assessReviewQuality } from "./quality-gated.ts";
+import { CONTENT_FLAG_LABELS_AR } from "./content-taxonomy.ts";
 import {
   CONTENT_CATEGORIES,
   CONTENT_FLAGS,
@@ -15,8 +16,8 @@ export const CATEGORY_LABELS_AR: Record<ContentCategory, string> = {
   violence: "العنف والإصابة",
   language: "الألفاظ",
   bullying: "التنمر",
-  sexualContent: "المحتوى الجنسي",
-  substances: "التدخين والمواد",
+  sexualContent: "المحتوى الجنسي والحميمي",
+  substances: "التدخين والكحول والمخدرات والقمار",
   discrimination: "التمييز والكراهية",
   selfHarm: "إيذاء النفس",
   grief: "الفقد والموضوعات العاطفية",
@@ -137,7 +138,7 @@ export function decideForFamily(bundle: ReviewBundle, family: FamilyProfile): Fa
       code: "blocked_flag",
       flag: blockedFlag,
       evidenceObservationIds: [...new Set(evidence)],
-      messageAr: `يوجد عنصر منع صريح في إعدادات الأسرة: ${blockedFlag}.`,
+      messageAr: `يوجد عنصر منع صريح في إعدادات الأسرة: ${CONTENT_FLAG_LABELS_AR[blockedFlag]}.`,
     });
   }
 

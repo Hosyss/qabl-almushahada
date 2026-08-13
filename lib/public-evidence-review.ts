@@ -2,6 +2,7 @@ import {
   CATEGORY_LABELS_AR,
   CONTENT_CATEGORIES,
   type ContentCategory,
+  type ContentFlag,
   type Severity,
 } from "./review-engine/index.ts";
 import {
@@ -61,6 +62,7 @@ export interface PublicEvidenceReviewFact {
   summary: string;
   startSecond: number | null;
   endSecond: number | null;
+  flags: ContentFlag[];
 }
 
 export interface PublicEvidenceReviewCategory {
@@ -162,6 +164,7 @@ export function buildPublicEvidenceReviewView(options: {
       summary: fact.summaryAr,
       startSecond: fact.startSecond,
       endSecond: fact.endSecond,
+      flags: [...fact.flags],
     });
   }
 

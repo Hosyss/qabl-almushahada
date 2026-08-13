@@ -11,6 +11,7 @@ import {
   type ReviewVersion,
   type ReviewerIdentity,
 } from "./review-engine/types.ts";
+import { isContentFlagAllowedForCategory } from "./review-engine/content-taxonomy.ts";
 
 export const INTERNAL_ROLES = [
   "admin",
@@ -467,6 +468,13 @@ function parseObservations(
     const summary = typeof value.summary === "string" ? value.summary.trim() : "";
     if (!summary) errors.push(`${prefix}: summary required`);
     const flags = parseFlags(value.flags, prefix, errors);
+    if (isContentCategory(category)) {
+      for (const flag of flags) {
+        if (!isContentFlagAllowedForCategory(flag, category)) {
+          errors.push(`${prefix}: flag ${flag} is incompatible with category ${category}`);
+        }
+      }
+    }
 
     if (
       id &&

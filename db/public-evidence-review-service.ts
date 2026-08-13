@@ -13,6 +13,11 @@ import type {
   EvidenceSourceRef,
 } from "@/lib/evidence-review";
 import {
+  CONTENT_CATEGORIES,
+  isContentFlagAllowedForCategory,
+  isKnownContentFlag,
+} from "@/lib/review-engine";
+import {
   buildPublicEvidenceReviewGateQuery,
   type PublicEvidenceReviewGateExpectation,
 } from "./public-evidence-review-query";
@@ -219,7 +224,7 @@ async function loadSnapshot(publicationId: string, versionId: string) {
 
   const flagsByFact = new Map<string, string[]>();
   for (const row of flagRows) {
-    if (!isNonEmptyString(row.factId) || !isContentFlag(row.flag)) return null;
+    if (!isNonEmptyString(row.factId) || !isKnownContentFlag(row.flag)) return null;
     const current = flagsByFact.get(row.factId) ?? [];
     if (current.includes(row.flag)) return null;
     current.push(row.flag);
@@ -342,7 +347,8 @@ function parseFactRow(row: FactRow, flags: string[]): EvidenceFact | null {
   if (!isNonEmptyString(row.id) || !isNonEmptyString(row.assertionId)) return null;
   if (!isContentCategory(row.category) || !Number.isInteger(row.severity) || row.severity < 1 || row.severity > 4) return null;
   if (!isFrequency(row.frequency) || !isContext(row.context) || !isSpoilerLevel(row.spoilerLevel)) return null;
-  if (!isNonEmptyString(row.summaryAr) || !flags.every(isContentFlag)) return null;
+  if (!isNonEmptyString(row.summaryAr) || !flags.every(isKnownContentFlag)) return null;
+  if (flags.some((flag) => !isContentFlagAllowedForCategory(flag, row.category))) return null;
   const validTiming =
     (row.startSecond === null && row.endSecond === null) ||
     (Number.isInteger(row.startSecond) && Number.isInteger(row.endSecond) && (row.startSecond as number) >= 0 && (row.endSecond as number) >= (row.startSecond as number));
@@ -367,7 +373,7 @@ function isTitleKind(value: string): value is PublicEvidenceReviewMetadata["kind
 }
 
 function isContentCategory(value: string): value is EvidenceCategoryAssertion["category"] {
-  return ["fear", "violence", "language", "bullying", "sexualContent", "substances", "discrimination", "selfHarm", "grief", "flashingLights"].includes(value);
+  return (CONTENT_CATEGORIES as readonly string[]).includes(value);
 }
 
 function isAssertionResult(value: string): value is EvidenceCategoryAssertion["result"] {
@@ -388,10 +394,6 @@ function isContext(value: string): value is EvidenceFact["context"] {
 
 function isSpoilerLevel(value: string): value is EvidenceFact["spoilerLevel"] {
   return value === "none" || value === "contextual" || value === "major";
-}
-
-function isContentFlag(value: string): value is EvidenceFact["flags"][number] {
-  return ["jump_scare", "blood", "weapon", "verbal_bullying", "physical_bullying", "bereavement", "separation", "flashing_sequence"].includes(value);
 }
 
 function isNonEmptyString(value: unknown): value is string {

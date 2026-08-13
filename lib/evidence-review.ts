@@ -6,6 +6,7 @@ import {
   type ObservedSeverity,
   type Severity,
 } from "./review-engine/types.ts";
+import { isContentFlagAllowedForCategory } from "./review-engine/content-taxonomy.ts";
 
 export const EVIDENCE_EXTRACTION_METHODS = ["manual", "deterministic", "model_assisted"] as const;
 export type EvidenceExtractionMethod = (typeof EVIDENCE_EXTRACTION_METHODS)[number];
@@ -303,7 +304,7 @@ export function assessEvidenceReview(input: EvidenceReviewInput): EvidenceReview
         category: fact.category,
         assertionIds: [assertion.id],
         factIds: [fact.id],
-        messageAr: "واقعة evidence تحتوي شدة أو وصفًا أو flag أو توقيتًا غير صالح.",
+        messageAr: "واقعة evidence تحتوي شدة أو وصفًا أو flag أو توقيتًا غير صالح أو subtype لا يطابق محورها.",
       });
     }
 
@@ -461,7 +462,11 @@ function isValidFact(fact: EvidenceFact): boolean {
     ["none", "contextual", "major"].includes(fact.spoilerLevel) &&
     isBoundedText(fact.summaryAr, 1, 1000) &&
     validTiming &&
-    fact.flags.every((flag) => (CONTENT_FLAGS as readonly string[]).includes(flag)) &&
+    fact.flags.every(
+      (flag) =>
+        (CONTENT_FLAGS as readonly string[]).includes(flag) &&
+        isContentFlagAllowedForCategory(flag, fact.category),
+    ) &&
     unique(fact.flags).length === fact.flags.length
   );
 }

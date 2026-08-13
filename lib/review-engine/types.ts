@@ -26,6 +26,15 @@ export const CONTENT_FLAGS = [
   "bereavement",
   "separation",
   "flashing_sequence",
+  "nudity",
+  "kissing",
+  "intimate_touching",
+  "sexual_dialogue",
+  "smoking_or_vaping",
+  "alcohol_use",
+  "drug_use",
+  "gambling_activity",
+  "religious_reference_or_practice",
 ] as const;
 
 export type ContentFlag = (typeof CONTENT_FLAGS)[number];
