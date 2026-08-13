@@ -8,14 +8,16 @@
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`
 - D1: `qabl-almushahada-production`
-- آخر production feature commit مؤكد: `d914b223c9db1d8622c4ba33a5681b7436842cf9`
-- Cloudflare production Run: `31679684634`
-- main Checkpoint verification Run: `31679684679`
-- D1: **21/21 migrations**
+- آخر production feature commit مؤكد: `8b8ae4d535881d439c9097f2729df421b787c879`
+- Cloudflare production Run: `31686061613`
+- main Checkpoint verification Run: `31686061646`
+- D1: **22/22 migrations**
+- product tables محليًا بعد كل migrations: **33**
+- remote objective taxonomy CHECKs/category guards: verified
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`
-- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`
+- Worker Version ID: `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`
 
-P3S-06 منشورة ومتحقق منها فعليًا على production.
+P3S-07 منشورة ومتحقق منها فعليًا على production.
 
 ## قواعد الأمان
 
@@ -25,7 +27,7 @@ P3S-06 منشورة ومتحقق منها فعليًا على production.
 - إذا لم تُضبط Access، المسارات الداخلية تفشل مغلقًا بدل fallback صامت.
 - D1 production لا تُربط بمعرف وهمي.
 - `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` خاصان بـWrangler/CI ولا يتم نسخ أي منهما إلى Worker vars أو Git.
-- لا يُعد أي deploy ناجحًا قبل migration verification + schema verification + Worker deploy + smoke tests.
+- لا يُعد أي deploy ناجحًا قبل migration verification + schema verification + أي remote feature guards المطلوبة + Worker deploy + smoke tests.
 
 ## إعداد الإنتاج المولد
 
@@ -42,6 +44,7 @@ P3S-06 منشورة ومتحقق منها فعليًا على production.
 - D1 binding باسم `DB`.
 - Images binding باسم `IMAGES`.
 - Workers AI binding باسم `AI`.
+- static assets binding باسم `ASSETS`.
 - `nodejs_compat`.
 - `workers_dev: true`.
 - observability sampling المحددة في مولد الإعداد.
@@ -85,9 +88,10 @@ P3S-06 منشورة ومتحقق منها فعليًا على production.
 8. `npm run cloudflare:build`.
 9. `npm run cloudflare:migrate`.
 10. remote D1 schema verification.
-11. Worker deploy.
-12. public smoke tests.
-13. summary بالـWorker URL وD1 والcommit.
+11. remote P3S-07 objective taxonomy CHECK/trigger verification.
+12. Worker deploy.
+13. public smoke tests.
+14. summary بالـWorker URL وD1 والcommit.
 
 لو credentials ناقصة، workflow تكتب بوضوح أن النشر لم يبدأ ولا تلمس Cloudflare resources.
 
@@ -103,7 +107,7 @@ Cloudflare Run `31676888290` أثبت:
 
 Worker Version ID وقتها: `a0de055e-8a85-4cd9-9ab6-57971b909fae`.
 
-## P3S-06 — deploy الإنتاجي المؤكد
+## P3S-06 — checkpoint السابق
 
 PR #38 دُمجت إلى main commit `d914b223c9db1d8622c4ba33a5681b7436842cf9`.
 
@@ -140,22 +144,53 @@ Cloudflare Run `31679684634` أثبت:
 
 لذلك **P3S-06 production-complete**.
 
-## ما الذي سيتغير في P3S-07؟
+## P3S-07 — deploy الإنتاجي المؤكد
 
-P3S-07 هي الخطوة التالية، وهدفها توسيع taxonomy العربية بوقائع موضوعية فقط. لا ينبغي أن تغير Architecture أو Cloudflare deployment contract إلا لو ظهر احتياج حقيقي ومثبت.
+PR #40 دُمجت إلى main commit `8b8ae4d535881d439c9097f2729df421b787c879`.
 
-أي migration جديدة في P3S-07 يجب أن تمر بنفس السلسلة:
+Cloudflare Run `31686061613` أثبت:
 
-```text
-Branch CI
-  → PR CI
-  → Merge
-  → Main CI
-  → Remote migrations
-  → Remote schema verification
-  → Worker deploy
-  → Smoke tests
-```
+- `test:engine`: **227/227 passed, 0 failed**.
+- `test:migrations`: **22 migration files / 33 product tables** محليًا.
+- migration `0019_objective_content_taxonomy.sql` نُفذت remote عبر atomic file ingestion.
+- Cloudflare D1 migrations اكتملت: **22/22**.
+- remote schema verification نجح بعد migration رقم 22.
+- remote objective taxonomy verification قرأ `sqlite_master` وأكد:
+  - وجود كل subtypes الجديدة في CHECKs لكل من `observation_flags` و`evidence_publication_fact_flags`.
+  - وجود `observation_flags_p3s07_category_guard`.
+  - وجود `evidence_publication_fact_flags_p3s07_category_guard`.
+  - وجود قواعد توافق `sexualContent`, `substances`, و`religious_reference_or_practice` داخل الـtriggers.
+- Worker bindings بعد النشر:
+  - `env.DB` → `qabl-almushahada-production`
+  - `env.IMAGES`
+  - `env.AI`
+  - `env.ASSETS`
+- Worker deploy نجح على:
+  - `https://qabl-almushahada.buildtools.workers.dev`
+- Worker Version ID:
+  - `3b0ab9e1-f66c-426b-9547-a543bb1dbca5`
+- smoke tests نجحت للمسارات:
+  - `/`
+  - `/review`
+  - `/review?publicationId=missing-publication`
+  - `/search?q=nemo`
+  - `/review-policy`
+  - `/privacy`
+  - `/corrections`
+
+لذلك **P3S-07 production-complete**.
+
+## الخطوة التالية: P3S-08
+
+P3S-08 هي أول catalog production من Wikidata إلى D1 ثم أول صفحات SEO حقيقية من البيانات القانونية.
+
+قواعدها قبل أي كتابة production:
+
+- preview/validation/provenance أولًا.
+- metadata الكتالوجية لا تصبح review أو evidence publication تلقائيًا.
+- لا زرع مراجعات موثقة مصطنعة لأغراض SEO.
+- لا posters أو مصادر غير مرخصة.
+- أي تغيير في deployment contract أو D1 schema يمر بنفس سلسلة الجودة الكاملة.
 
 ## Cloudflare Access
 
@@ -182,7 +217,7 @@ Branch CI
   → Merge
   → Main CI
   → Remote migrations
-  → Remote schema verification
+  → Remote schema/feature-guard verification
   → Worker deploy
   → Smoke tests
 ```
