@@ -7,6 +7,7 @@ import { CARS_2006_EDITORIAL_REVIEW } from "./editorial-review-publications/cars
 import { ET_1982_EDITORIAL_REVIEW } from "./editorial-review-publications/et-1982.ts";
 import { HARRY_POTTER_2001_EDITORIAL_REVIEW } from "./editorial-review-publications/harry-potter-2001.ts";
 import { MINIONS_2015_EDITORIAL_REVIEW } from "./editorial-review-publications/minions-2015.ts";
+import { normalizePublicEditorialArabicText } from "./public-editorial-copy.ts";
 
 const EDITORIAL_REVIEW_PUBLICATIONS = [
   CARS_2006_EDITORIAL_REVIEW,
@@ -47,11 +48,18 @@ function getValidatedPublication(
   if (!assessment.publishable || assessment.decisionEligible !== false) return null;
   return {
     ...publication,
+    scopeAr: normalizePublicEditorialArabicText(publication.scopeAr),
+    analysisAr: normalizePublicEditorialArabicText(publication.analysisAr),
     sources: publication.sources.map((source) => ({
       ...source,
+      usageNoteAr: normalizePublicEditorialArabicText(source.usageNoteAr),
       supportedClaimIds: [...source.supportedClaimIds],
     })),
-    claims: publication.claims.map((claim) => ({ ...claim, sourceIds: [...claim.sourceIds] })),
+    claims: publication.claims.map((claim) => ({
+      ...claim,
+      summaryAr: normalizePublicEditorialArabicText(claim.summaryAr),
+      sourceIds: [...claim.sourceIds],
+    })),
     uncertainCategories: [...publication.uncertainCategories],
   };
 }
