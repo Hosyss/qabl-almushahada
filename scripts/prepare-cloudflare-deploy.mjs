@@ -36,6 +36,9 @@ export function buildCloudflareProductionConfig(env = process.env) {
     images: {
       binding: "IMAGES",
     },
+    ai: {
+      binding: "AI",
+    },
     ...(Object.keys(vars).length > 0 ? { vars } : {}),
     observability: {
       enabled: true,
