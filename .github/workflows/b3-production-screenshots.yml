@@ -1,0 +1,55 @@
+name: B3 production screenshots
+
+on:
+  push:
+    branches:
+      - agent/p4-03-b3-source-wording-fix
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: https://qabl-almushahada.buildtools.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          echo "CHROME=$CHROME" >> "$GITHUB_ENV"
+      - name: Verify rendered homepage and capture pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p visual-qa/desktop visual-qa/mobile
+          "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage --virtual-time-budget=4000 --dump-dom "$SITE_URL/" > visual-qa/home-rendered.html
+          grep -F 'تحليلات منشورة حديثًا' visual-qa/home-rendered.html >/dev/null
+          grep -F 'تحليل تحريري جزئي — الحكم غير مكتمل' visual-qa/home-rendered.html >/dev/null
+
+          pages=(
+            'home|/'
+            'titles|/titles'
+            'cars|/review?editorialId=cars-2006-editorial-pilot-v1'
+            'et|/review?editorialId=et-1982-editorial-batch-v1'
+            'harry|/review?editorialId=harry-potter-philosophers-stone-2001-editorial-batch-v1'
+            'minions|/review?editorialId=minions-2015-editorial-batch-v1'
+          )
+          for item in "${pages[@]}"; do
+            name="${item%%|*}"
+            route="${item#*|}"
+            "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=3500 --window-size=1440,1000 --screenshot="visual-qa/desktop/${name}.png" "$SITE_URL$route"
+            "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=3500 --window-size=390,844 --screenshot="visual-qa/mobile/${name}.png" "$SITE_URL$route"
+          done
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-03-b3-production-screenshots
+          path: visual-qa/
+          if-no-files-found: error
+          retention-days: 30
