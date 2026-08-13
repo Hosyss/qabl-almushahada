@@ -7,10 +7,10 @@
 - الكتالوج الحقيقي: **200/200** عنوان داخل D1.
 - صفحات التحليل التحريري الجزئي الحالية: **4 فقط** — Cars وE.T. وHarry Potter 1 وMinions.
 - `P4-03B2`: **مكتملة ومتحققة إنتاجيًا**.
-- `P4-03B3` — تحسين البحث والجودة العامة: **منفذة على الفرع، والتحقق الإنتاجي ما زال مطلوبًا قبل الإغلاق**.
+- `P4-03B3` — البحث والجودة العامة: **التنفيذ والبوابات الإنتاجية الآلية مكتملة؛ التحقق المرئي Desktop/Mobile وصور التسليم ما زالت قيد الإغلاق قبل إعلان checkpoint مكتملة بالكامل**.
 - لم نضف عنوانًا خامسًا ولم نبدأ `P4-03C` ولم نخفض أي بوابة حكم أو ثقة.
 
-## ما ينفذه P4-03B3
+## ما نُفذ في P4-03B3
 
 - البحث والاقتراحات تأتي من D1 فقط، مع تطبيع عربي/إنجليزي محافظ، aliases مخزنة في D1، وفصل المطابقة المباشرة عن «هل تقصد؟» التقريبية.
 - `HarryPotter` لا يتحول إلى نتيجة مؤكدة؛ يظهر كاقتراح محافظ للعمل الصحيح، بينما `harry potter` و`هارى بوتر` يستفيدان من المطابقة المباشرة الموثوقة.
@@ -28,6 +28,7 @@
 - الرئيسية تحتوي WebSite وOrganization JSON-LD فقط، بدون SearchAction حاليًا.
 - `/review` بلا locator أو مع locators مختلطة يظل fail-closed ويحمل noindex ورابطًا واضحًا للبحث.
 - وصف Kids-In-Mind يظل `link_only_factual_reference`: ربط ومرجع وقائع فقط، بلا ادعاء ترخيص إعادة نشر وبلا نقل نص أو ترجمة أو درجات أو بنية المصدر.
+- تم تنظيف الصياغة العامة القديمة التي كانت تصف مصادر بأنها «مؤهلة»؛ حدود العرض العامة تستخدم وصفًا محايدًا ولا تغيّر raw audit records أو قوة الأدلة.
 
 ## قاعدة الحكم لم تتغير
 
@@ -36,15 +37,26 @@
 - التحليل التحريري الجزئي لا يدعي مشاهدة نسخة محددة ولا يملك سلطة إصدار «مناسب/غير مناسب».
 - مسار المراجعة الموثقة لنسخة محددة يحتفظ بكل بوابات النسخة/المراجعين/الاعتماد/التدقيق والبلاغات كما هو.
 
-## اختبارات B3
+## اختبارات B3 والبوابات الإنتاجية
 
-- `npm run test:engine`.
-- اختبارات SQLite مستقلة لـ`/titles`: pagination/count، نفس الفلاتر، parameterization، server-side search/type/year، وحالة current verified review.
-- `npm run test:migrations`.
-- `npm run lint:local`.
-- `npm run build:local`.
-- Public quality regression مستقل للرئيسية، روابط التحليل، SEO/robots/sitemap، اللغة، وسياسة المصادر.
-- بعد الدمج يجب أن ينجح `main` ثم Cloudflare production deploy ثم Live Product Smoke قبل اعتبار B3 مكتملة.
+- `npm run test:engine`: ناجح.
+- اختبارات SQLite مستقلة لـ`/titles`: pagination/count، نفس الفلاتر، parameterization، server-side search/type/year، وحالة current verified review: ناجحة.
+- `npm run test:migrations`: ناجح.
+- `npm run lint:local`: ناجح.
+- `npm run build:local`: ناجح.
+- Public Quality checkpoint للرئيسية، روابط التحليل، SEO/robots/sitemap، اللغة، وسياسة المصادر: ناجح.
+- PRs: #59 للتنفيذ الرئيسي، #60 لتصحيح صياغة المصدر، #61 لتقوية Live Smoke على النص المرئي.
+- آخر product main: `40f8b598fb7f127b44ee1eae977290165eaeed1b`.
+- Main Checkpoint: `31732758999` — **success**.
+- Public Quality: `31732758997` — **success**.
+- Cloudflare production deploy: `31732758983` — **success**.
+- Live Product Smoke: `31732852436` — **success**، ويغطي الرئيسية، `HarryPotter → هل تقصد؟`، الأربع صفحات، `/titles`، invalid/mixed locators، وsitemap.
+
+## التحقق المرئي Desktop/Mobile
+
+- بدأ اختبار Chrome حقيقي على الإنتاج بمقاسي 1440px و390px لاختبار overflow والبحث بالكيبورد وARIA وDialog/focus والصور.
+- أول تشغيل للـQA المرئي توقف عند أول assertion في الرئيسية قبل الوصول إلى باقي الفحوص؛ الـLive Product Smoke لنفس الإنتاج كان أخضر، لذلك لا نسجل هذا كفشل منتج قبل إعادة التحقق من harness/توقيت التنقل.
+- **لا تعتبر Desktop/Mobile QA مكتملة حتى ينجح تشغيل Chrome الفعلي وتُحفظ صور التسليم.**
 
 ## Blocker مستقل بعد B3 — Editorial persistence migration
 
@@ -64,13 +76,6 @@
 
 الـbackend الداخلي لدورة البلاغات موجود، لكن public intake ما زال `false`. ربط زر عام يحتاج checkpoint أمني مستقلًا يشمل server-owned binding للصفحة/الواقعة/المصدر، validation، rate limiting/anti-spam، وحماية دورة التصحيح. لذلك B3 لا يضيف زرًا وهميًا أو endpoint عامًا جزئيًا.
 
-## آخر checkpoint إنتاجي قبل B3
-
-- B2 production main: `7e4b9e26bafc040f5e828d867e5d5483fc05ac21`.
-- Checkpoint `31718668444`: **success**.
-- Cloudflare `31718668438`: **success**.
-- Live Smoke `31718765121`: **success**.
-
 ## الخطوة الحالية
 
-إنهاء Quality Gates للـB3، فتح PR مستقل، ثم التحقق من `main` وCloudflare وLive Product Smoke. **بعد نجاح ذلك نتوقف؛ لا يضاف فيلم خامس ولا يبدأ P4-03C.**
+إغلاق Desktop/Mobile Chrome QA وصور التسليم فقط، ثم تحديث `PROJECT_STATE` و`ROADMAP` إلى الحالة النهائية عبر docs-only checkpoint. **بعد ذلك نتوقف؛ لا يضاف فيلم خامس ولا يبدأ P4-03C.**
