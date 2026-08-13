@@ -1,26 +1,61 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
+import {
+  buildEditorialReviewDescription,
+  buildPublicEditorialReviewCanonicalUrl,
+} from "@/lib/editorial-review";
 import { getEditorialReviewPublicationById } from "@/lib/editorial-review-registry";
 
 import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
 import ReviewClient from "./review-client";
 
-type ReviewPageProps = {
-  searchParams: Promise<{
-    bundleId?: string | string[];
-    publicationId?: string | string[];
-    editorialId?: string | string[];
-  }>;
+type ReviewSearchParams = {
+  bundleId?: string | string[];
+  publicationId?: string | string[];
+  editorialId?: string | string[];
 };
+
+type ReviewPageProps = { searchParams: Promise<ReviewSearchParams> };
+
+export async function generateMetadata({ searchParams }: ReviewPageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
+  const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
+  const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
+  const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
+
+  if (locatorCount !== 1 || !editorialId) return {};
+
+  const review = loadEditorialReviewFailClosed(editorialId);
+  if (!review) {
+    return {
+      title: "تحليل غير متاح | قبل المشاهدة",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${review.titleLabel} (${review.releaseYear}) — تحليل محتوى موثق جزئيًا | قبل المشاهدة`;
+  const description = buildEditorialReviewDescription(review);
+  const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: { index: true, follow: true },
+    openGraph: { title, description, type: "article", url: canonical, locale: "ar_EG" },
+    twitter: { card: "summary", title, description },
+  };
+}
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const params = await searchParams;
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
-  const publicationId =
-    typeof params.publicationId === "string" ? params.publicationId.trim() : "";
+  const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
   const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
 
