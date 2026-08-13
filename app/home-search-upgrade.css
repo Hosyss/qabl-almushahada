@@ -1,0 +1,23 @@
+.search-panel.search-panel--b3 > .hero-search,
+.search-panel.search-panel--b3 > .suggestions,
+.search-panel.search-panel--b3 > .search-message {
+  display: none !important;
+}
+
+.home-search-upgrade,
+.home-search-upgrade__inner {
+  width: 100%;
+}
+
+.home-search-upgrade__inner > p {
+  margin: 9px 4px 0;
+  color: #435950;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+@media (max-width: 680px) {
+  .home-search-upgrade__inner > p {
+    font-size: 13px;
+  }
+}
