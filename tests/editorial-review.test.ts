@@ -238,11 +238,10 @@ test("review route contains per-editorial canonical metadata and Article structu
 
 test("public review route retains a single-locator fail-closed guard", () => {
   const routeSource = readFileSync(new URL("../app/review/page.tsx", import.meta.url), "utf8");
-  assert.match(routeSource, /const locatorCount = \[bundleId, publicationId, editorialId\]\.filter\(Boolean\)\.length/u);
-  assert.match(routeSource, /if \(locatorCount !== 1\) return <ReviewUnavailable \/>/u);
+  assert.match(routeSource, /if \(\[bundleId, publicationId, editorialId\]\.filter\(Boolean\)\.length !== 1\) return <ReviewUnavailable \/>/u);
 });
 
-test("all four editorial pages build dedicated locators and sitemap derives from the registry", () => {
+test("all four editorial pages build dedicated locators and sitemap derives from D1 current heads", () => {
   for (const editorialId of ALL_IDS) {
     assert.equal(
       buildPublicEditorialReviewHref(editorialId),
@@ -250,6 +249,7 @@ test("all four editorial pages build dedicated locators and sitemap derives from
     );
   }
   const sitemapSource = readFileSync(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8");
-  assert.match(sitemapSource, /listEditorialReviewPublications/u);
+  assert.match(sitemapSource, /listEditorialPublications/u);
+  assert.doesNotMatch(sitemapSource, /listEditorialReviewPublications|editorial-review-registry/u);
   assert.match(sitemapSource, /buildPublicEditorialReviewCanonicalUrl|buildPublicEditorialReviewHref/u);
 });
