@@ -1,4 +1,5 @@
 import { listPublicCatalogTitles } from "@/db/public-catalog-service";
+import { buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
 import { listEditorialReviewPublications } from "@/lib/editorial-review-registry";
 import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 
@@ -15,7 +16,7 @@ export async function GET() {
       ),
       ...editorialReviews.map(
         (review) =>
-          `<url><loc>${PUBLIC_SITE_ORIGIN}/review?editorialId=${encodeURIComponent(review.id)}</loc><lastmod>${review.publishedAt.slice(0, 10)}</lastmod></url>`,
+          `<url><loc>${buildPublicEditorialReviewCanonicalUrl(review.id)}</loc><lastmod>${review.publishedAt.slice(0, 10)}</lastmod></url>`,
       ),
     ];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`;
