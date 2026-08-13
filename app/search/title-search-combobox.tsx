@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import styles from "./title-search-combobox.module.css";
 
 type Suggestion = { id: string; arabicName: string; englishName: string; releaseYear: number; href: string };
@@ -19,36 +19,79 @@ export default function TitleSearchCombobox({ initialQuery = "", hiddenFields = 
 
   useEffect(() => {
     const value = query.trim();
-    if (value.length < 2) { abortRef.current?.abort(); setItems([]); setOpen(false); setActive(-1); setMode("empty"); return; }
+    if (value.length < 2) {
+      abortRef.current?.abort();
+      return;
+    }
     const timer = window.setTimeout(async () => {
       abortRef.current?.abort();
-      const controller = new AbortController(); abortRef.current = controller;
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const response = await fetch(`/api/search-suggestions?q=${encodeURIComponent(value)}`, { signal: controller.signal, headers: { accept: "application/json" } });
+        const response = await fetch(`/api/search-suggestions?q=${encodeURIComponent(value)}`, {
+          signal: controller.signal,
+          headers: { accept: "application/json" },
+        });
         const payload = (await response.json()) as Payload;
         if (!response.ok) throw new Error(payload.error ?? "search_failed");
         const next = Array.isArray(payload.suggestions) ? payload.suggestions : [];
-        setItems(next); setMode(payload.mode ?? (next.length ? "matches" : "none")); setOpen(next.length > 0); setActive(-1);
+        setItems(next);
+        setMode(payload.mode ?? (next.length ? "matches" : "none"));
+        setOpen(next.length > 0);
+        setActive(-1);
         setStatus(next.length ? `${next.length} اقتراحات حقيقية متاحة.` : "لا توجد اقتراحات قريبة موثوقة.");
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setItems([]); setOpen(false); setActive(-1); setStatus("تعذّر تحميل الاقتراحات الآن.");
+        setItems([]);
+        setOpen(false);
+        setActive(-1);
+        setStatus("تعذّر تحميل الاقتراحات الآن.");
       }
     }, 220);
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  function onQueryChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextQuery = event.target.value;
+    setQuery(nextQuery);
+    if (nextQuery.trim().length >= 2) return;
+    abortRef.current?.abort();
+    setItems([]);
+    setOpen(false);
+    setActive(-1);
+    setMode("empty");
+    setStatus("");
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") { setOpen(false); setActive(-1); return; }
+    if (event.key === "Escape") {
+      setOpen(false);
+      setActive(-1);
+      return;
+    }
     if (!items.length) return;
-    if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); setActive((index) => (index + 1) % items.length); return; }
-    if (event.key === "ArrowUp") { event.preventDefault(); setOpen(true); setActive((index) => index <= 0 ? items.length - 1 : index - 1); return; }
-    if (event.key === "Enter" && open && active >= 0) { event.preventDefault(); window.location.assign(items[active].href); }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActive((index) => (index + 1) % items.length);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActive((index) => index <= 0 ? items.length - 1 : index - 1);
+      return;
+    }
+    if (event.key === "Enter" && open && active >= 0) {
+      event.preventDefault();
+      window.location.assign(items[active].href);
+    }
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     if (query.trim().length >= 2) return;
-    event.preventDefault(); setStatus("اكتب حرفين على الأقل للبحث.");
+    event.preventDefault();
+    setStatus("اكتب حرفين على الأقل للبحث.");
   }
 
   return <form className={styles.form} action="/search" method="get" role="search" onSubmit={onSubmit}>
@@ -57,7 +100,7 @@ export default function TitleSearchCombobox({ initialQuery = "", hiddenFields = 
       <input className={styles.input} name="q" type="search" value={query} maxLength={80} autoComplete="off" spellCheck={false}
         placeholder="اكتب اسم الفيلم بالعربي أو الإنجليزي" role="combobox" aria-autocomplete="list" aria-expanded={open}
         aria-controls={listId} aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined} aria-describedby={statusId}
-        onChange={(event) => setQuery(event.target.value)} onFocus={() => items.length > 0 && setOpen(true)} onKeyDown={onKeyDown} />
+        onChange={onQueryChange} onFocus={() => items.length > 0 && setOpen(true)} onKeyDown={onKeyDown} />
       {open && items.length > 0 ? <div className={styles.popup}>
         <div className={styles.heading}>{mode === "did_you_mean" ? "هل تقصد؟" : "اقتراحات من العناوين الموجودة"}</div>
         <div id={listId} className={styles.list} role="listbox">
