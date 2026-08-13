@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PolicyLinks } from "./policy-links";
 
 export const metadata: Metadata = {
   title: "قبل المشاهدة",
@@ -20,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body>{children}</body>
+      <body>
+        {children}
+        <PolicyLinks />
+      </body>
     </html>
   );
 }
