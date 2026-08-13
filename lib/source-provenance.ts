@@ -37,6 +37,20 @@ export interface CatalogSourceProvenanceRecord {
   ingestionMode: SourceIngestionMode;
 }
 
+export interface AnalysisEvidenceSourceProvenanceRecord {
+  id: string;
+  versionId: string;
+  policySnapshotId: string;
+  sourceUrl: string;
+  sourceRevision: string | null;
+  sourceLicense: string;
+  licenseUrl: string;
+  attributionText: string | null;
+  retrievedAt: string;
+  contentSha256: string;
+  ingestionMode: SourceIngestionMode;
+}
+
 export function buildCurrentSourcePolicySnapshot(
   source: ContentSourceKey,
   use: ContentSourceUse,
@@ -110,11 +124,6 @@ export function prepareCatalogSourceProvenance(input: {
   };
 }
 
-/**
- * Evidence persistence deliberately remains fail-closed until P3S-05 enables a
- * source-specific analysis-evidence policy snapshot. Calling this today for Wikipedia,
- * IMDb, TMDB, or a generic classification authority throws rather than inventing rights.
- */
 export function assertAnalysisEvidenceSourceReady(
   source: ContentSourceKey,
   ingestionMode: SourceIngestionMode,
@@ -124,6 +133,63 @@ export function assertAnalysisEvidenceSourceReady(
     assertAutomatedSourceUseAllowed(source, "analysis_evidence");
   }
   return snapshot;
+}
+
+export function prepareAnalysisEvidenceSourceProvenance(input: {
+  id: string;
+  versionId: string;
+  source: ContentSourceKey;
+  sourceUrl: string;
+  sourceRevision?: string | null;
+  sourceLicense: string;
+  licenseUrl: string;
+  attributionText?: string | null;
+  retrievedAt: string;
+  contentSha256: string;
+  ingestionMode: SourceIngestionMode;
+}): AnalysisEvidenceSourceProvenanceRecord {
+  const snapshot = assertAnalysisEvidenceSourceReady(input.source, input.ingestionMode);
+  const id = boundedText(input.id, "id", 1, 160);
+  const versionId = boundedText(input.versionId, "versionId", 1, 160);
+  const sourceUrl = requireHttpsUrl(input.sourceUrl, "sourceUrl");
+  const sourceRevision = optionalBoundedText(input.sourceRevision, "sourceRevision", 160);
+  const sourceLicense = boundedText(input.sourceLicense, "sourceLicense", 1, 160);
+  const licenseUrl = requireHttpsUrl(input.licenseUrl, "licenseUrl");
+  const attributionText = optionalBoundedText(input.attributionText, "attributionText", 2000);
+  const retrievedAt = normalizeInstant(input.retrievedAt);
+  const contentSha256 = normalizeSha256(input.contentSha256);
+
+  if (sourceLicense !== snapshot.licenseLabel || licenseUrl !== snapshot.licenseUrl) {
+    throw new TypeError("Evidence license must exactly match the approved source policy snapshot");
+  }
+  if (snapshot.attributionRequired && (!attributionText || attributionText.length < 20)) {
+    throw new TypeError("Evidence source requires explicit attribution text");
+  }
+
+  if (input.source === "wikipedia") {
+    const url = new URL(sourceUrl);
+    if (
+      (url.hostname !== "ar.wikipedia.org" && url.hostname !== "en.wikipedia.org") ||
+      !url.pathname.startsWith("/wiki/") ||
+      !sourceRevision
+    ) {
+      throw new TypeError("Wikipedia evidence requires an ar/en article URL and revision id");
+    }
+  }
+
+  return {
+    id,
+    versionId,
+    policySnapshotId: snapshot.id,
+    sourceUrl,
+    sourceRevision,
+    sourceLicense,
+    licenseUrl,
+    attributionText,
+    retrievedAt,
+    contentSha256,
+    ingestionMode: input.ingestionMode,
+  };
 }
 
 function boundedText(value: string, label: string, min: number, max: number): string {

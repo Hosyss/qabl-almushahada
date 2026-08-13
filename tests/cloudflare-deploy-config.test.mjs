@@ -19,7 +19,7 @@ const ACCESS_ENV = {
   INTERNAL_BOOTSTRAP_ADMIN_EMAIL: "Admin@Example.COM",
 };
 
-test("production config binds real D1, static assets, Images and current compatibility date", () => {
+test("production config binds real D1, static assets, Images, Workers AI and current compatibility date", () => {
   const config = buildCloudflareProductionConfig(BASE_ENV);
 
   assert.equal(config.name, "qabl-almushahada");
@@ -32,6 +32,7 @@ test("production config binds real D1, static assets, Images and current compati
     binding: "ASSETS",
   });
   assert.deepEqual(config.images, { binding: "IMAGES" });
+  assert.deepEqual(config.ai, { binding: "AI" });
   assert.deepEqual(config.d1_databases, [
     {
       binding: "DB",

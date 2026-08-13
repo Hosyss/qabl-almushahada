@@ -7,7 +7,7 @@ import {
   prepareCatalogSourceProvenance,
 } from "../lib/source-provenance.ts";
 
-test("current persistable policy snapshot is exactly Wikidata catalog CC0", () => {
+test("current Wikidata catalog policy snapshot remains exact CC0", () => {
   const snapshot = buildCurrentSourcePolicySnapshot("wikidata", "catalog_metadata");
   assert.deepEqual(snapshot, {
     id: "source-policy:wikidata:2026-08-13.1:catalog_metadata",
@@ -20,6 +20,25 @@ test("current persistable policy snapshot is exactly Wikidata catalog CC0", () =
     policyUrl: "https://www.wikidata.org/wiki/Wikidata:Licensing",
     attributionRequired: false,
     shareAlike: false,
+    automatedIngestionAllowed: true,
+    commercialUseAllowed: true,
+    verifiedOn: "2026-08-13",
+  });
+});
+
+test("current Wikipedia analysis-evidence snapshot requires attribution and share-alike", () => {
+  const snapshot = assertAnalysisEvidenceSourceReady("wikipedia", "automated");
+  assert.deepEqual(snapshot, {
+    id: "source-policy:wikipedia:2026-08-13.1:analysis_evidence",
+    sourceKey: "wikipedia",
+    policyVersion: "2026-08-13.1",
+    useScope: "analysis_evidence",
+    decision: "allow_with_attribution",
+    licenseLabel: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    policyUrl: "https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use",
+    attributionRequired: true,
+    shareAlike: true,
     automatedIngestionAllowed: true,
     commercialUseAllowed: true,
     verifiedOn: "2026-08-13",
@@ -75,17 +94,17 @@ test("catalog provenance rejects mismatched QID URLs, non-HTTPS and invalid hash
   );
 });
 
-test("analysis evidence stays disabled until a source-specific persistable policy is enabled", () => {
-  assert.throws(
-    () => assertAnalysisEvidenceSourceReady("wikipedia", "manual"),
-    /provenance persistence is not allowed/,
-  );
+test("restricted analysis sources stay disabled even after Wikipedia is enabled", () => {
   assert.throws(
     () => assertAnalysisEvidenceSourceReady("imdb", "manual"),
     /provenance persistence is not allowed/,
   );
   assert.throws(
     () => assertAnalysisEvidenceSourceReady("tmdb", "automated"),
+    /provenance persistence is not allowed/,
+  );
+  assert.throws(
+    () => assertAnalysisEvidenceSourceReady("wikidata", "automated"),
     /provenance persistence is not allowed/,
   );
 });
