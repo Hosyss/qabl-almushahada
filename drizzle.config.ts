@@ -6,6 +6,7 @@ export default defineConfig({
     "./db/schema.ts",
     "./db/review-workflow-schema.ts",
     "./db/content-source-schema.ts",
+    "./db/evidence-review-schema.ts",
   ],
   dialect: "sqlite",
 });
