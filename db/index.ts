@@ -2,8 +2,9 @@ import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import * as baseSchema from "./schema";
 import * as workflowSchema from "./review-workflow-schema";
+import * as contentSourceSchema from "./content-source-schema";
 
-const schema = { ...baseSchema, ...workflowSchema };
+const schema = { ...baseSchema, ...workflowSchema, ...contentSourceSchema };
 
 export function getDb() {
   if (!env.DB) {
