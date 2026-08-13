@@ -39,6 +39,10 @@ async function editorialDb() {
   return { db, fixtures };
 }
 
+function getByPublicId(db, publicId) {
+  return db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get({ "?1": publicId });
+}
+
 test("production runtime has no TypeScript editorial registry or bootstrap-data fallback", async () => {
   assert.equal(existsSync(path.join(root, "lib", "editorial-review-registry.ts")), false);
   assert.equal(existsSync(path.join(root, "lib", "editorial-review-publications")), false);
@@ -56,10 +60,10 @@ test("public editorial lookup resolves only the current head and never an arbitr
   const { db, fixtures } = await editorialDb();
   const fixture = fixtures[0];
   const currentId = `${fixture.review.id}:r${fixture.presentation.revision}`;
-  const current = db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(fixture.review.id);
+  const current = getByPublicId(db, fixture.review.id);
   assert.equal(current?.snapshotId, currentId);
   assert.equal(current?.revision, fixture.presentation.revision);
-  assert.equal(db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(currentId), undefined);
+  assert.equal(getByPublicId(db, currentId), undefined);
   assert.match(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /h\.public_id=\?1/u);
   assert.match(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /r\.id=h\.current_revision_id/u);
   assert.doesNotMatch(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY, /r\.id\s*=\s*\?1/u);
@@ -83,7 +87,7 @@ test("a staged successor is not public until the current head moves", async () =
       fixture.review.publishedAt, fixture.presentation.updatedAt, fixture.review.scopeAr,
       fixture.review.analysisAr, fixture.fingerprint,
     );
-  const current = db.prepare(CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY).get(fixture.review.id);
+  const current = getByPublicId(db, fixture.review.id);
   assert.equal(current?.snapshotId, currentId);
   assert.notEqual(current?.snapshotId, nextId);
   db.close();
