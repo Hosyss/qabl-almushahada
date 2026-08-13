@@ -1,5 +1,11 @@
-import type { EditorialPublicationPresentation } from "./editorial-publication-presentation.ts";
 import type { EditorialReviewPublication } from "./editorial-review.ts";
+
+export interface EditorialPublicationPresentation {
+  titleAr: string;
+  titleEn: string;
+  revision: number;
+  updatedAt: string;
+}
 
 export async function buildEditorialPublicationFingerprint(
   review: EditorialReviewPublication,
