@@ -1,103 +1,71 @@
-import { env } from "cloudflare:workers";
-
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { buildPublicTitleCandidateQuery } from "./public-title-search-query.ts";
 import {
   parsePublicTitleSearchRequest,
   rankPublicTitleSearchCandidates,
-  type PublicTitleKind,
+  rankPublicTitleSearchDiscovery,
   type PublicTitleSearchCandidate,
+  type PublicTitleSearchDiscovery,
   type PublicTitleSearchResult,
-} from "@/lib/public-title-search";
-import type { Severity } from "@/lib/review-engine";
-import { buildPublicTitleCandidateQuery } from "@/db/public-title-search-query";
+} from "../lib/public-title-search.ts";
 
+interface D1PreparedStatementLike { bind(...values: unknown[]): D1PreparedStatementLike; all<T>(): Promise<{ results?: T[] }>; }
+interface D1DatabaseLike { prepare(query: string): D1PreparedStatementLike; }
 interface CandidateRow {
-  id: string;
-  canonicalName: string;
-  originalName: string | null;
-  kind: string;
-  releaseYear: number;
-  hasVerifiedReview: number;
-  hasReviewInProgress: number;
-  verifiedBundleId: string | null;
-  verifiedMaxSeverity: number | null;
+  id: string; canonicalName: string; originalName: string | null; aliasesJson: string;
+  kind: "movie" | "series" | "episode" | "special"; releaseYear: number;
+  hasVerifiedReview: number; hasReviewInProgress: number; verifiedBundleId: string | null; verifiedMaxSeverity: number | null;
 }
 
-export async function searchPublicTitles(input: unknown): Promise<PublicTitleSearchResult[]> {
-  const parsed = parsePublicTitleSearchRequest(input);
-  const candidateQuery = buildPublicTitleCandidateQuery(parsed);
-  const result = await requireD1()
-    .prepare(candidateQuery.sql)
-    .bind(...candidateQuery.bindings)
-    .all<CandidateRow>();
-
-  const candidates: PublicTitleSearchCandidate[] = [];
-  for (const row of result.results ?? []) {
-    const candidate = parseCandidateRow(row);
-    if (candidate) candidates.push(candidate);
-  }
-
+export async function searchPublicTitles(input: { query: string }): Promise<PublicTitleSearchResult[]> {
+  const { parsed, candidates } = await loadSearchCandidates(input);
   return rankPublicTitleSearchCandidates(parsed, candidates);
 }
 
-function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null {
-  if (typeof row.id !== "string" || !row.id.trim()) return null;
-  if (typeof row.canonicalName !== "string" || !row.canonicalName.trim()) return null;
-  if (row.originalName !== null && (typeof row.originalName !== "string" || !row.originalName.trim())) {
-    return null;
-  }
-  const kind = parseTitleKind(row.kind);
-  if (!kind) return null;
-  if (!Number.isInteger(row.releaseYear) || row.releaseYear < 1880 || row.releaseYear > 2200) {
-    return null;
-  }
-  if (row.hasVerifiedReview !== 0 && row.hasVerifiedReview !== 1) return null;
-  if (row.hasReviewInProgress !== 0 && row.hasReviewInProgress !== 1) return null;
-  if (
-    row.verifiedBundleId !== null &&
-    (typeof row.verifiedBundleId !== "string" || !row.verifiedBundleId.trim())
-  ) {
-    return null;
-  }
+export async function searchPublicTitleDiscovery(input: { query: string }): Promise<PublicTitleSearchDiscovery> {
+  const { parsed, candidates } = await loadSearchCandidates(input);
+  return rankPublicTitleSearchDiscovery(parsed, candidates);
+}
 
-  const verifiedBundleId = row.verifiedBundleId?.trim() ?? null;
-  const hasVerifiedReview = row.hasVerifiedReview === 1;
-  if (hasVerifiedReview !== (verifiedBundleId !== null)) return null;
-
-  if (hasVerifiedReview) {
-    if (
-      !Number.isInteger(row.verifiedMaxSeverity) ||
-      row.verifiedMaxSeverity === null ||
-      row.verifiedMaxSeverity < 0 ||
-      row.verifiedMaxSeverity > 4
-    ) {
-      return null;
-    }
-  } else if (row.verifiedMaxSeverity !== null) {
-    return null;
-  }
-
-  return {
+async function loadSearchCandidates(input: { query: string }) {
+  const parsed = parsePublicTitleSearchRequest(input);
+  const database = await getPublicDatabase();
+  const candidateQuery = buildPublicTitleCandidateQuery(parsed);
+  const response = await database.prepare(candidateQuery.sql).bind(...candidateQuery.bindings).all<CandidateRow>();
+  const rows = Array.isArray(response.results) ? response.results : [];
+  const candidates: PublicTitleSearchCandidate[] = rows.map((row) => ({
     id: row.id,
-    canonicalName: row.canonicalName.trim(),
-    originalName: row.originalName?.trim() ?? null,
-    kind,
+    canonicalName: row.canonicalName,
+    originalName: row.originalName,
+    aliases: parseAliases(row.aliasesJson),
+    kind: row.kind,
     releaseYear: row.releaseYear,
-    hasVerifiedReview,
+    hasVerifiedReview: row.hasVerifiedReview === 1,
     hasReviewInProgress: row.hasReviewInProgress === 1,
-    verifiedBundleId,
-    verifiedMaxSeverity: hasVerifiedReview ? (row.verifiedMaxSeverity as Severity) : null,
-  };
+    verifiedBundleId: row.verifiedBundleId,
+    verifiedMaxSeverity: row.verifiedMaxSeverity == null ? null : clampSeverity(row.verifiedMaxSeverity),
+  }));
+  return { parsed, candidates };
 }
 
-function parseTitleKind(value: string): PublicTitleKind | null {
-  if (value === "movie" || value === "series" || value === "episode" || value === "special") {
-    return value;
-  }
-  return null;
+async function getPublicDatabase(): Promise<D1DatabaseLike> {
+  const context = await getCloudflareContext({ async: true });
+  const database = (context.env as { DB?: D1DatabaseLike }).DB;
+  if (!database) throw new Error("Public D1 binding is unavailable");
+  return database;
 }
 
-function requireD1(): D1Database {
-  const db = (env as unknown as { DB?: D1Database }).DB;
-  if (!db) throw new Error("D1 binding DB is required.");
-  return db;
+function parseAliases(value: unknown): string[] {
+  if (typeof value !== "string" || value.length > 12000) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim()).filter((item) => item.length >= 2 && item.length <= 240))].slice(0, 32);
+  } catch { return []; }
+}
+
+function clampSeverity(value: number): 0 | 1 | 2 | 3 {
+  if (!Number.isInteger(value) || value < 0 || value > 3) throw new TypeError("Verified maximum severity from D1 is invalid");
+  return value as 0 | 1 | 2 | 3;
 }
