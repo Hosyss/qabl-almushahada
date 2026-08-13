@@ -10,7 +10,10 @@ const migrationFiles = (await readdir(migrationDirectory))
   .filter((name) => /^\d+.*\.sql$/u.test(name))
   .sort();
 
-assert.equal(migrationFiles.length, 22, "P3S-07 expects exactly 22 migration files.");
+assert.ok(
+  migrationFiles.includes("0019_objective_content_taxonomy.sql"),
+  "P3S-07 objective-taxonomy migration must remain present in repository history.",
+);
 
 const db = new DatabaseSync(":memory:");
 db.exec("PRAGMA foreign_keys = ON");
@@ -162,7 +165,7 @@ assert.throws(
 assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
 
 db.close();
-console.log("Verified P3S-07 objective taxonomy: 22 migrations / 33 tables, expanded subtype CHECKs, category guards, preserved P2Q-01 audit selection logic, cross-cutting religious marker, and immutable flag history.");
+console.log(`Verified P3S-07 objective taxonomy against ${migrationFiles.length} current migrations / 33 tables, expanded subtype CHECKs, category guards, preserved P2Q-01 audit selection logic, cross-cutting religious marker, and immutable flag history.`);
 
 function seedHumanReview() {
   db.prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES (?, ?, 'movie', 2026)").run(
