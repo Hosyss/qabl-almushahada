@@ -182,9 +182,9 @@ jobs:
             grep -F "المراجعة غير متاحة حاليًا" "$RUNNER_TEMP/${safe_label}-mixed.html" > /dev/null
           done <<'CASES'
           Cars|Q182153|Cars|cars-2006-editorial-pilot-v1|4|6|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
-          ET|Q11621|E.T.|et-1982-editorial-batch-v1|5|5|Common Sense Media,Plugged In,BBFC,Kids-In-Mind
-          Harry-Potter|Q102438|Harry Potter|harry-potter-philosophers-stone-2001-editorial-batch-v1|4|6|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
-          Minions|Q13619743|Minions|minions-2015-editorial-batch-v1|5|5|Common Sense Media,Plugged In,BBFC,Kids-In-Mind,Dove.org
+          ET|Q11621|E.T.|et-1982-editorial-batch-v1|5|5|Common Sense Media,Plugged In,Kids-In-Mind
+          Harry-Potter|Q102438|Harry Potter|harry-potter-philosophers-stone-2001-editorial-batch-v1|4|6|Common Sense Media,Plugged In,Kids-In-Mind,Dove.org
+          Minions|Q13619743|Minions|minions-2015-editorial-batch-v1|5|5|Common Sense Media,Plugged In,Kids-In-Mind,Dove.org
           CASES
 
       - name: Verify editorial pages are discoverable in sitemap
