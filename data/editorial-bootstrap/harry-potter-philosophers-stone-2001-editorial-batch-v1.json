@@ -1,0 +1,28 @@
+{
+  "review": {
+    "id": "harry-potter-philosophers-stone-2001-editorial-batch-v1",
+    "titleId": "wd:Q102438",
+    "titleLabel": "هاري بوتر وحجر الفيلسوف",
+    "releaseYear": 2001,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-13T15:11:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى هاري Potter and the Philosopher's Stone (2001). أعدنا تدقيق الإسناد وشروط المصادر وأبقينا المراجع المستخدمة حاليًا فقط. لا نعامل تقييمًا خارجيًا يقول «صفر» كإثبات عام للغياب في تصنيفنا، ولا ندّعي مشاهدة نسخة محددة.",
+    "analysisAr": "يتفق مرجعان مستقلان على وجود خطر خيالي ومواجهات مخيفة وعنف فانتازي، كما يتفقان على حضور موت والدي هاري في خلفية القصة. وجود الألفاظ الخفيفة مدعوم حاليًا بمرجع واحد فقط، لذلك نعرضه كدليل أحادي لا كاتفاق. ستة محاور أخرى تظل غير محسومة.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {"id":"hp1-source-kids-in-mind","publisher":"Kids-In-Mind","sourceType":"published_review","sourceUrl":"https://kids-in-mind.com/h/harry_potter_and_the_sorcerers_stone_2001.htm","accessedOn":"2026-08-13","independenceGroupId":"kids-in-mind","usageBasis":"link_only_factual_reference","rightsLabel":"ربط للمصدر ومرجع وقائع فقط — لا ندّعي ترخيص إعادة نشر","rightsUrl":"https://kids-in-mind.com/terms.htm","usageNoteAr":"نستخدم الصفحة كمرجع لوقائع عامة مع رابط واضح للمصدر، ونكتب الوصف العربي من الصفر. لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها، لأن شروط الموقع تمنع إعادة النشر التجاري دون إذن.","supportedClaimIds":["hp1-claim-fear","hp1-claim-violence","hp1-claim-language","hp1-claim-grief"]},
+      {"id":"hp1-source-wikipedia","publisher":"Wikipedia (English)","sourceType":"open_encyclopedia","sourceUrl":"https://en.wikipedia.org/w/index.php?title=Harry_Potter_and_the_Philosopher%27s_Stone_(film)&oldid=1368709802","accessedOn":"2026-08-13","independenceGroupId":"wikipedia-en","usageBasis":"open_license","rightsLabel":"CC BY-SA 4.0","rightsUrl":"https://creativecommons.org/licenses/by-sa/4.0/","usageNoteAr":"نحفظ رابط مراجعة ثابتة للمقال ونستخدم الوقائع فقط مع الإسناد. لا ننسخ جمل المقال؛ الصياغة العربية هنا أصلية، ومعلومات المصدر المفتوح معروضة للشفافية.","sourceVersion":"oldid=1368709802","supportedClaimIds":["hp1-claim-fear","hp1-claim-violence","hp1-claim-grief"]}
+    ],
+    "claims": [
+      {"id":"hp1-claim-fear","category":"fear","summaryAr":"توجد مخلوقات ومواقف تهديد داخل المدرسة والغابة ومواجهة نهائية قد تكون قوية على الأطفال الأصغر، ويظهر هذا السياق في مرجعين مستقلين.","verification":"corroborated","sourceIds":["hp1-source-kids-in-mind","hp1-source-wikipedia"]},
+      {"id":"hp1-claim-violence","category":"violence","summaryAr":"يتضمن الفيلم قتالًا فانتازيًا ومباراة شطرنج تتكسر فيها القطع ومواجهة ينتهي فيها جسد خصم بالتفتت بصورة غير واقعية.","verification":"corroborated","sourceIds":["hp1-source-kids-in-mind","hp1-source-wikipedia"]},
+      {"id":"hp1-claim-language","category":"language","summaryAr":"توجد ألفاظ خفيفة وإهانات متفرقة، لكن الدليل الحالي الحالي على هذا المحور يأتي من مرجع واحد فقط.","verification":"single_source","sourceIds":["hp1-source-kids-in-mind"]},
+      {"id":"hp1-claim-grief","category":"grief","summaryAr":"موت والدي هاري جزء أساسي من خلفية القصة وتعود الإشارة إلى مقتلهما وتضحية الأم، وهو سياق مثبت في مرجعين مستقلين.","verification":"corroborated","sourceIds":["hp1-source-kids-in-mind","hp1-source-wikipedia"]}
+    ],
+    "uncertainCategories": ["bullying","sexualContent","substances","discrimination","selfHarm","flashingLights"]
+  },
+  "presentation": {"titleAr":"هاري بوتر وحجر الفيلسوف","titleEn":"Harry Potter and the Philosopher's Stone","revision":4,"updatedAt":"2026-08-13T21:35:00+03:00"},
+  "fingerprint": "sha256:3ce8a43f965e1d5be0cb0445a3e2632c19c05a2b61a22a653373b5f8dd96afa7"
+}
