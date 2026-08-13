@@ -58,11 +58,9 @@ db.exec(plan.sql);
 db.exec(plan.sql);
 
 const title = db.prepare("SELECT canonical_name, kind, release_year FROM titles WHERE id = ?").get(fixture.id);
-assert.deepEqual(title, {
-  canonical_name: fixture.canonicalName,
-  kind: fixture.kind,
-  release_year: fixture.releaseYear,
-});
+assert.equal(title?.canonical_name, fixture.canonicalName);
+assert.equal(title?.kind, fixture.kind);
+assert.equal(title?.release_year, fixture.releaseYear);
 
 const provenanceRows = db.prepare(
   "SELECT title_id, policy_snapshot_id, source_entity_id, source_url, content_sha256, ingestion_mode FROM title_catalog_sources WHERE title_id = ?",
