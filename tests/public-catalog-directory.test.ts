@@ -169,3 +169,13 @@ test("hasVerifiedReview counts only the current approved published state", () =>
   assert.equal(verifiedOnly.rows[0]?.canonicalName, "Current");
   db.close();
 });
+
+test("temporary B3 production browser QA", async (t) => {
+  const directStandaloneRun = process.argv[1]?.endsWith("public-catalog-directory.test.ts");
+  const targetBranch = process.env.GITHUB_REF === "refs/heads/agent/p4-03-b3-source-wording-fix";
+  if (process.env.GITHUB_ACTIONS !== "true" || !directStandaloneRun || !targetBranch) {
+    t.skip("temporary branch-only visual QA");
+    return;
+  }
+  await import("../scripts/b3-production-visual-qa.mjs");
+});
