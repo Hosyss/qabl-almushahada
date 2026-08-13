@@ -1,3 +1,5 @@
+import type { Severity } from "./review-engine/index.ts";
+
 export const MIN_PUBLIC_TITLE_SEARCH_LENGTH = 2;
 export const MAX_PUBLIC_TITLE_SEARCH_LENGTH = 80;
 export const MAX_PUBLIC_TITLE_SEARCH_TOKENS = 8;
@@ -14,6 +16,8 @@ export interface PublicTitleSearchCandidate {
   hasVerifiedReview: boolean;
   hasReviewInProgress: boolean;
   verifiedBundleId?: string | null;
+  /** Highest observation severity from the exact current approved public bundle. */
+  verifiedMaxSeverity: Severity | null;
 }
 
 export type PublicTitleMatchKind =

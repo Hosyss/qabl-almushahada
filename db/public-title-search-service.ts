@@ -7,6 +7,7 @@ import {
   type PublicTitleSearchCandidate,
   type PublicTitleSearchResult,
 } from "@/lib/public-title-search";
+import type { Severity } from "@/lib/review-engine";
 import { buildPublicTitleCandidateQuery } from "@/db/public-title-search-query";
 
 interface CandidateRow {
@@ -18,6 +19,7 @@ interface CandidateRow {
   hasVerifiedReview: number;
   hasReviewInProgress: number;
   verifiedBundleId: string | null;
+  verifiedMaxSeverity: number | null;
 }
 
 export async function searchPublicTitles(input: unknown): Promise<PublicTitleSearchResult[]> {
@@ -58,7 +60,21 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
   }
 
   const verifiedBundleId = row.verifiedBundleId?.trim() ?? null;
-  if ((row.hasVerifiedReview === 1) !== (verifiedBundleId !== null)) return null;
+  const hasVerifiedReview = row.hasVerifiedReview === 1;
+  if (hasVerifiedReview !== (verifiedBundleId !== null)) return null;
+
+  if (hasVerifiedReview) {
+    if (
+      !Number.isInteger(row.verifiedMaxSeverity) ||
+      row.verifiedMaxSeverity === null ||
+      row.verifiedMaxSeverity < 0 ||
+      row.verifiedMaxSeverity > 4
+    ) {
+      return null;
+    }
+  } else if (row.verifiedMaxSeverity !== null) {
+    return null;
+  }
 
   return {
     id: row.id,
@@ -66,9 +82,10 @@ function parseCandidateRow(row: CandidateRow): PublicTitleSearchCandidate | null
     originalName: row.originalName?.trim() ?? null,
     kind,
     releaseYear: row.releaseYear,
-    hasVerifiedReview: row.hasVerifiedReview === 1,
+    hasVerifiedReview,
     hasReviewInProgress: row.hasReviewInProgress === 1,
     verifiedBundleId,
+    verifiedMaxSeverity: hasVerifiedReview ? (row.verifiedMaxSeverity as Severity) : null,
   };
 }
 

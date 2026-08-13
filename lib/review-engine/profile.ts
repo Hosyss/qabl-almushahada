@@ -13,6 +13,13 @@ function agePreset(age: number): Severity {
   return 4;
 }
 
+export function getExampleAgeSeverityLimit(age: number): Severity {
+  if (!Number.isInteger(age) || age < 3 || age > 18) {
+    throw new RangeError("age must be an integer between 3 and 18");
+  }
+  return agePreset(age);
+}
+
 /**
  * UI helper only. The returned limits are visible and editable by the family;
  * they are not a medical or universal age recommendation.
@@ -37,4 +44,3 @@ export function createExampleFamilyProfile(options: {
     blockedFlags: options.avoidBullying ? ["verbal_bullying", "physical_bullying"] : [],
   };
 }
-

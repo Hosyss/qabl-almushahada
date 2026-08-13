@@ -120,6 +120,76 @@
   line-height: 1.6;
 }
 
+.filters {
+  margin-bottom: 12px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.filterControl {
+  display: grid;
+  gap: 7px;
+}
+
+.filterControl > span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.filterControl select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--ink);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.filterActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.filterActions button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 18px;
+  background: var(--forest);
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.filterActions a {
+  color: var(--terracotta);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.filterNote {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
 .grid {
   display: grid;
   gap: 14px;
@@ -224,6 +294,16 @@
   line-height: 1.8;
 }
 
+@media (max-width: 840px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filterActions {
+    align-self: end;
+  }
+}
+
 @media (max-width: 680px) {
   .header,
   .hero,
@@ -247,6 +327,18 @@
     align-items: start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .filterActions {
+    flex-wrap: wrap;
+  }
+
+  .filterActions button {
+    flex: 1 1 160px;
   }
 
   .card {
