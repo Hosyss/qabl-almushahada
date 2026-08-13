@@ -54,16 +54,29 @@ export const contentSourcePolicySnapshots = sqliteTable(
     check("content_source_policy_policy_url_check", sql`${table.policyUrl} LIKE 'https://%'`),
     check(
       "content_source_policy_current_allowlist_check",
-      sql`${table.sourceKey} = 'wikidata'
-        AND ${table.useScope} = 'catalog_metadata'
-        AND ${table.decision} = 'allow'
-        AND ${table.licenseLabel} = 'CC0 1.0'
-        AND ${table.licenseUrl} = 'https://creativecommons.org/publicdomain/zero/1.0/'
-        AND ${table.policyUrl} = 'https://www.wikidata.org/wiki/Wikidata:Licensing'
-        AND ${table.attributionRequired} = 0
-        AND ${table.shareAlike} = 0
-        AND ${table.automatedIngestionAllowed} = 1
-        AND ${table.commercialUseAllowed} = 1`,
+      sql`(
+          ${table.sourceKey} = 'wikidata'
+          AND ${table.useScope} = 'catalog_metadata'
+          AND ${table.decision} = 'allow'
+          AND ${table.licenseLabel} = 'CC0 1.0'
+          AND ${table.licenseUrl} = 'https://creativecommons.org/publicdomain/zero/1.0/'
+          AND ${table.policyUrl} = 'https://www.wikidata.org/wiki/Wikidata:Licensing'
+          AND ${table.attributionRequired} = 0
+          AND ${table.shareAlike} = 0
+          AND ${table.automatedIngestionAllowed} = 1
+          AND ${table.commercialUseAllowed} = 1
+        ) OR (
+          ${table.sourceKey} = 'wikipedia'
+          AND ${table.useScope} = 'analysis_evidence'
+          AND ${table.decision} = 'allow_with_attribution'
+          AND ${table.licenseLabel} = 'CC BY-SA 4.0'
+          AND ${table.licenseUrl} = 'https://creativecommons.org/licenses/by-sa/4.0/'
+          AND ${table.policyUrl} = 'https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use'
+          AND ${table.attributionRequired} = 1
+          AND ${table.shareAlike} = 1
+          AND ${table.automatedIngestionAllowed} = 1
+          AND ${table.commercialUseAllowed} = 1
+        )`,
     ),
   ],
 );
