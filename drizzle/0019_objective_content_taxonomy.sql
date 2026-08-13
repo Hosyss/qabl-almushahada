@@ -28,7 +28,10 @@ WHEN NOT EXISTS (
 			OR (observation.`category` = 'sexualContent' AND NEW.`flag` IN ('nudity', 'kissing', 'intimate_touching', 'sexual_dialogue'))
 			OR (observation.`category` = 'substances' AND NEW.`flag` IN ('smoking_or_vaping', 'alcohol_use', 'drug_use', 'gambling_activity'))
 		)
-) THEN RAISE(ABORT, 'observation flag is incompatible with observation category') END;
+)
+BEGIN
+	SELECT RAISE(ABORT, 'observation flag is incompatible with observation category');
+END;
 --> statement-breakpoint
 INSERT INTO `observation_flags_p3s07` (`observation_id`, `flag`)
 SELECT `observation_id`, `flag` FROM `observation_flags`;
@@ -82,7 +85,10 @@ WHEN NOT EXISTS (
 			OR (fact.`category` = 'sexualContent' AND NEW.`flag` IN ('nudity', 'kissing', 'intimate_touching', 'sexual_dialogue'))
 			OR (fact.`category` = 'substances' AND NEW.`flag` IN ('smoking_or_vaping', 'alcohol_use', 'drug_use', 'gambling_activity'))
 		)
-) THEN RAISE(ABORT, 'evidence publication fact flag is incompatible with fact category') END;
+)
+BEGIN
+	SELECT RAISE(ABORT, 'evidence publication fact flag is incompatible with fact category');
+END;
 --> statement-breakpoint
 INSERT INTO `evidence_publication_fact_flags_p3s07` (`fact_id`, `flag`, `created_at`)
 SELECT `fact_id`, `flag`, `created_at` FROM `evidence_publication_fact_flags`;
