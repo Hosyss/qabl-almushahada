@@ -11,26 +11,26 @@ const PRESENTATION_BY_ID: Record<string, EditorialPublicationPresentation> = {
   "cars-2006-editorial-pilot-v1": {
     titleAr: "سيارات",
     titleEn: "Cars",
-    revision: 3,
-    updatedAt: "2026-08-13T19:15:00+03:00",
+    revision: 4,
+    updatedAt: "2026-08-13T21:35:00+03:00",
   },
   "et-1982-editorial-batch-v1": {
     titleAr: "إي تي",
     titleEn: "E.T. the Extra-Terrestrial",
-    revision: 3,
-    updatedAt: "2026-08-13T19:15:00+03:00",
+    revision: 4,
+    updatedAt: "2026-08-13T21:35:00+03:00",
   },
   "harry-potter-philosophers-stone-2001-editorial-batch-v1": {
     titleAr: "هاري بوتر وحجر الفيلسوف",
     titleEn: "Harry Potter and the Philosopher's Stone",
-    revision: 3,
-    updatedAt: "2026-08-13T19:15:00+03:00",
+    revision: 4,
+    updatedAt: "2026-08-13T21:35:00+03:00",
   },
   "minions-2015-editorial-batch-v1": {
     titleAr: "المينيون",
     titleEn: "Minions",
-    revision: 3,
-    updatedAt: "2026-08-13T19:15:00+03:00",
+    revision: 4,
+    updatedAt: "2026-08-13T21:35:00+03:00",
   },
 };
 

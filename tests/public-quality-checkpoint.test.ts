@@ -32,6 +32,19 @@ test("homepage has no generic /review CTA and is driven only by the four real ed
   }
 });
 
+test("public editorial copies use neutral source wording and Arabic names inside Arabic prose", () => {
+  for (const publication of listEditorialReviewPublications()) {
+    const publicArabicText = [
+      publication.scopeAr,
+      publication.analysisAr,
+      ...publication.claims.map((claim) => claim.summaryAr),
+      ...publication.sources.map((source) => source.usageNoteAr),
+    ].join("\n");
+    assert.doesNotMatch(publicArabicText, /مؤهل/u, `${publication.id} still describes a source as qualified`);
+    assert.doesNotMatch(publicArabicText, /\bHarry\b/u, `${publication.id} still mixes Harry into Arabic prose`);
+  }
+});
+
 test("title pages keep registry links as presentation only and never encode editorial IDs in catalog SQL", async () => {
   const titlePage = await source("app/title/[qid]/page.tsx");
   const catalogQuery = await source("db/public-catalog-query.ts");
