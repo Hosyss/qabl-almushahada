@@ -8,6 +8,8 @@ import {
   buildPublicCatalogDescription,
   parsePublicCatalogQid,
 } from "@/lib/public-catalog";
+import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
+import { getEditorialReviewPublicationForTitleId } from "@/lib/editorial-review-registry";
 
 import styles from "../catalog.module.css";
 
@@ -59,6 +61,7 @@ export default async function CatalogTitlePage({ params }: CatalogTitlePageProps
   }
   if (!title) notFound();
 
+  const editorialReview = getEditorialReviewPublicationForTitleId(title.titleId);
   const kindLabel = title.kind === "movie" ? "فيلم" : "مسلسل";
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
@@ -92,8 +95,8 @@ export default async function CatalogTitlePage({ params }: CatalogTitlePageProps
           </div>
 
           <p>
-            وجود هذا العمل في الدليل لا يعني وجود مراجعة ملاءمة منشورة. هذه الصفحة تعرض metadata قانونية قابلة للتتبع فقط،
-            وأي مراجعة محتوى تبقى مسارًا منفصلًا له بوابات تحقق خاصة به.
+            وجود هذا العمل في الدليل لا يعني وجود حكم ملاءمة منشور. هذه الصفحة تعرض metadata قانونية قابلة للتتبع فقط،
+            وأي تحليل محتوى أو حكم يبقى مسارًا منفصلًا له بوابات تحقق خاصة به.
           </p>
 
           <div className={styles.sourceBox}>
@@ -111,13 +114,21 @@ export default async function CatalogTitlePage({ params }: CatalogTitlePageProps
         </article>
 
         <section className={styles.notice}>
-          <h2>هل توجد مراجعة لهذا العمل؟</h2>
+          <h2>{editorialReview ? "يوجد تحليل تحريري جزئي لهذا العمل" : "هل توجد مراجعة لهذا العمل؟"}</h2>
           <p>
-            ابحث عنه في محرك الدليل. صفحة البحث تفرّق بوضوح بين «موجود في الدليل»، «قيد المراجعة»، و«مراجعة موثقة».
+            {editorialReview
+              ? "نشرنا الوقائع التي استطعنا تثبيتها من مصادر مستقلة، لكن قرار الملاءمة ما زال «البيانات غير كافية» لأن بعض المحاور غير محسومة."
+              : "ابحث عنه في محرك الدليل. صفحة البحث تفرّق بوضوح بين وجود العنوان وبين وجود حكم مراجعة مكتمل."}
           </p>
-          <Link className={styles.cardLink} href={`/search?q=${encodeURIComponent(title.canonicalName)}`}>
-            ابحث عن حالة المراجعة ←
-          </Link>
+          {editorialReview ? (
+            <Link className={styles.cardLink} href={buildPublicEditorialReviewHref(editorialReview.id)}>
+              افتح التحليل التحريري ←
+            </Link>
+          ) : (
+            <Link className={styles.cardLink} href={`/search?q=${encodeURIComponent(title.canonicalName)}`}>
+              ابحث عن حالة المراجعة ←
+            </Link>
+          )}
         </section>
       </div>
     </main>
