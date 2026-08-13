@@ -22,25 +22,21 @@ interface CatalogRow {
 }
 
 interface DirectoryRow extends CatalogRow {
-  hasEditorialReview: number;
   hasVerifiedReview: number;
 }
 
-export type PublicCatalogDirectoryStatus = "all" | "catalog_only" | "editorial" | "verified";
+export type PublicCatalogDirectoryReviewStatus = "all" | "verified" | "not_verified";
 
 export interface PublicCatalogDirectoryInput {
   query?: string;
   kind?: "all" | "movie" | "series";
   year?: number | null;
-  status?: PublicCatalogDirectoryStatus;
-  editorialOnly?: boolean;
+  reviewStatus?: PublicCatalogDirectoryReviewStatus;
   page?: number;
   pageSize?: number;
-  editorialTitleIds: readonly string[];
 }
 
 export interface PublicCatalogDirectoryItem extends PublicCatalogTitle {
-  hasEditorialReview: boolean;
   hasVerifiedReview: boolean;
 }
 
@@ -64,21 +60,24 @@ const DIRECTORY_CTE = `WITH directory AS (
     p.license_label AS sourceLicense,
     p.policy_version AS policyVersion,
     cs.retrieved_at AS retrievedAt,
-    CASE WHEN t.id IN (?, ?, ?, ?) THEN 1 ELSE 0 END AS hasEditorialReview,
     CASE WHEN EXISTS (
       SELECT 1
       FROM title_versions v
       INNER JOIN review_bundles b ON b.version_id = v.id
-      INNER JOIN editorial_approvals ea ON ea.id = b.current_approval_id AND ea.bundle_id = b.id
+      INNER JOIN editorial_approvals ea ON ea.id = b.current_approval_id
+        AND ea.bundle_id = b.id
       WHERE v.title_id = t.id
         AND v.status = 'active'
         AND b.status = 'verified'
         AND b.current_approval_id IS NOT NULL
         AND b.published_at IS NOT NULL
         AND ea.status = 'approved'
+        AND ea.version_fingerprint_confirmed = 1
         AND NOT EXISTS (
-          SELECT 1 FROM review_reports rr
-          WHERE rr.bundle_id = b.id AND rr.status IN ('open', 'investigating')
+          SELECT 1
+          FROM review_reports rr
+          WHERE rr.bundle_id = b.id
+            AND rr.status IN ('open', 'investigating')
         )
     ) THEN 1 ELSE 0 END AS hasVerifiedReview
   FROM titles t
@@ -108,12 +107,10 @@ const DIRECTORY_CTE = `WITH directory AS (
     AND (? IS NULL OR t.release_year = ?)
 )`;
 
-const DIRECTORY_FILTER = `
+const DIRECTORY_REVIEW_FILTER = `
 WHERE (? = 'all'
-  OR (? = 'catalog_only' AND hasEditorialReview = 0 AND hasVerifiedReview = 0)
-  OR (? = 'editorial' AND hasEditorialReview = 1 AND hasVerifiedReview = 0)
-  OR (? = 'verified' AND hasVerifiedReview = 1))
-  AND (? = 0 OR hasEditorialReview = 1)`;
+  OR (? = 'verified' AND hasVerifiedReview = 1)
+  OR (? = 'not_verified' AND hasVerifiedReview = 0))`;
 
 export async function loadPublicCatalogTitle(qidInput: unknown): Promise<PublicCatalogTitle | null> {
   const qid = parsePublicCatalogQid(qidInput);
@@ -141,28 +138,30 @@ export async function listPublicCatalogTitles(limit = 100): Promise<PublicCatalo
 export async function listPublicCatalogDirectory(input: PublicCatalogDirectoryInput): Promise<PublicCatalogDirectoryPage> {
   const query = (input.query ?? "").trim().toLocaleLowerCase("en-US");
   if (query.length > 80) throw new RangeError("Directory query is too long");
+
   const kind = input.kind ?? "all";
   if (kind !== "all" && kind !== "movie" && kind !== "series") throw new TypeError("Invalid directory kind");
-  const status = input.status ?? "all";
-  if (!(["all", "catalog_only", "editorial", "verified"] as const).includes(status)) throw new TypeError("Invalid directory status");
+
+  const reviewStatus = input.reviewStatus ?? "all";
+  if (reviewStatus !== "all" && reviewStatus !== "verified" && reviewStatus !== "not_verified") {
+    throw new TypeError("Invalid directory review status");
+  }
+
   const year = input.year ?? null;
-  if (year !== null && (!Number.isInteger(year) || year < 1880 || year > 2200)) throw new RangeError("Invalid directory year");
+  if (year !== null && (!Number.isInteger(year) || year < 1880 || year > 2200)) {
+    throw new RangeError("Invalid directory year");
+  }
+
   const page = input.page ?? 1;
   const pageSize = input.pageSize ?? 24;
   if (!Number.isInteger(page) || page < 1 || page > 1000) throw new RangeError("Invalid directory page");
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 48) throw new RangeError("Invalid directory page size");
-  if (input.editorialTitleIds.length > 4) throw new RangeError("Only the four current editorial titles are allowed in this checkpoint");
 
-  const editorialIds = [...input.editorialTitleIds];
-  for (const titleId of editorialIds) {
-    if (!/^wd:Q[1-9][0-9]{0,14}$/u.test(titleId)) throw new TypeError("Invalid editorial title id");
-  }
-  while (editorialIds.length < 4) editorialIds.push("__none__");
+  const offset = (page - 1) * pageSize;
+  if (offset > 20_000) throw new RangeError("Directory offset is too large");
 
   const pattern = `%${escapeLike(query)}%`;
-  const editorialOnly = input.editorialOnly === true ? 1 : 0;
-  const baseBindings = [
-    ...editorialIds,
+  const bindings = [
     query,
     pattern,
     pattern,
@@ -171,34 +170,27 @@ export async function listPublicCatalogDirectory(input: PublicCatalogDirectoryIn
     kind,
     year,
     year,
-    status,
-    status,
-    status,
-    status,
-    editorialOnly,
+    reviewStatus,
+    reviewStatus,
+    reviewStatus,
   ];
-  const offset = (page - 1) * pageSize;
-  if (offset > 20_000) throw new RangeError("Directory offset is too large");
 
+  const countSql = `${DIRECTORY_CTE}\nSELECT COUNT(*) AS count FROM directory\n${DIRECTORY_REVIEW_FILTER}`;
+  const listSql = `${DIRECTORY_CTE}\nSELECT * FROM directory\n${DIRECTORY_REVIEW_FILTER}\nORDER BY releaseYear DESC, canonicalName COLLATE NOCASE ASC, titleId ASC\nLIMIT ? OFFSET ?`;
   const database = requireD1();
-  const countSql = `${DIRECTORY_CTE}\nSELECT COUNT(*) AS count FROM directory\n${DIRECTORY_FILTER}`;
-  const listSql = `${DIRECTORY_CTE}\nSELECT * FROM directory\n${DIRECTORY_FILTER}\nORDER BY releaseYear DESC, canonicalName COLLATE NOCASE ASC, titleId ASC\nLIMIT ? OFFSET ?`;
-
   const [countRow, result] = await Promise.all([
-    database.prepare(countSql).bind(...baseBindings).first<{ count: number }>(),
-    database.prepare(listSql).bind(...baseBindings, pageSize, offset).all<DirectoryRow>(),
+    database.prepare(countSql).bind(...bindings).first<{ count: number }>(),
+    database.prepare(listSql).bind(...bindings, pageSize, offset).all<DirectoryRow>(),
   ]);
 
-  const total = Number.isInteger(countRow?.count) && (countRow?.count ?? -1) >= 0 ? countRow!.count : 0;
+  const total = typeof countRow?.count === "number" && Number.isInteger(countRow.count) && countRow.count >= 0
+    ? countRow.count
+    : 0;
   const items: PublicCatalogDirectoryItem[] = [];
   for (const row of result.results ?? []) {
     const parsed = parseCatalogRow(row);
     if (!parsed) continue;
-    items.push({
-      ...parsed,
-      hasEditorialReview: row.hasEditorialReview === 1,
-      hasVerifiedReview: row.hasVerifiedReview === 1,
-    });
+    items.push({ ...parsed, hasVerifiedReview: row.hasVerifiedReview === 1 });
   }
 
   return {
