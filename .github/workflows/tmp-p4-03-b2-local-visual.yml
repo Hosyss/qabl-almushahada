@@ -1,0 +1,57 @@
+name: Temporary P4-03B2 local visual review
+
+on:
+  push:
+    branches:
+      - agent/p4-03-b2-quality-audit
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Start local app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev:local -- --host 127.0.0.1 --port 4173 > "$RUNNER_TEMP/app.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/app.pid"
+          for attempt in {1..60}; do
+            if curl --fail --silent "http://127.0.0.1:4173/review?editorialId=cars-2006-editorial-pilot-v1" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/app.log" >&2
+          exit 1
+      - name: Capture four pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/visual"
+          chrome="$(command -v google-chrome || command -v chromium-browser || command -v chromium)"
+          test -n "$chrome"
+          while IFS='|' read -r slug editorial_id; do
+            url="http://127.0.0.1:4173/review?editorialId=$editorial_id"
+            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1600 --screenshot="$RUNNER_TEMP/visual/${slug}-desktop.png" "$url"
+            "$chrome" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --window-size=390,1200 --screenshot="$RUNNER_TEMP/visual/${slug}-mobile.png" "$url"
+          done <<'CASES'
+          cars|cars-2006-editorial-pilot-v1
+          et|et-1982-editorial-batch-v1
+          harry|harry-potter-philosophers-stone-2001-editorial-batch-v1
+          minions|minions-2015-editorial-batch-v1
+          CASES
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p4-03-b2-local-visual
+          path: ${{ runner.temp }}/visual
+          if-no-files-found: error
