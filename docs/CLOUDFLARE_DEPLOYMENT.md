@@ -8,13 +8,14 @@
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`
 - D1: `qabl-almushahada-production`
-- آخر production commit مؤكد قبل P3S-06: `701604e7570671671ff94b3b97e111d837ab626f`
-- D1 المؤكدة: **20/20 migrations**
-- bindings المؤكدة: `DB`, `IMAGES`, `AI`, `ASSETS`
-- Worker Version ID: `a0de055e-8a85-4cd9-9ab6-57971b909fae`
-- Cloudflare production Run الناجح لـP3S-05: `31676888290`
+- آخر production feature commit مؤكد: `d914b223c9db1d8622c4ba33a5681b7436842cf9`
+- Cloudflare production Run: `31679684634`
+- main Checkpoint verification Run: `31679684679`
+- D1: **21/21 migrations**
+- bindings: `DB`, `IMAGES`, `AI`, `ASSETS`
+- Worker Version ID: `cab77fad-1466-42c7-a057-736a18384020`
 
-P3S-06 ما تزال على feature branch في هذا checkpoint؛ migration رقم 21 وجداول publication الجديدة لا تعتبر production-active حتى merge + deploy ناجحين.
+P3S-06 منشورة ومتحقق منها فعليًا على production.
 
 ## قواعد الأمان
 
@@ -90,7 +91,7 @@ P3S-06 ما تزال على feature branch في هذا checkpoint؛ migration ر
 
 لو credentials ناقصة، workflow تكتب بوضوح أن النشر لم يبدأ ولا تلمس Cloudflare resources.
 
-## P3S-05 — آخر deploy ناجح مؤكد
+## P3S-05 — checkpoint السابق
 
 Cloudflare Run `31676888290` أثبت:
 
@@ -100,26 +101,61 @@ Cloudflare Run `31676888290` أثبت:
 - Worker deploy ناجح.
 - public smoke tests ناجحة.
 
-لذلك P3S-05 تعتبر production-complete.
+Worker Version ID وقتها: `a0de055e-8a85-4cd9-9ab6-57971b909fae`.
 
-## P3S-06 — ما الذي يجب أن يثبته deploy التالي؟
+## P3S-06 — deploy الإنتاجي المؤكد
 
-بعد merge P3S-06، لا تعتبر production-complete إلا إذا تحقق كله:
+PR #38 دُمجت إلى main commit `d914b223c9db1d8622c4ba33a5681b7436842cf9`.
 
-- main CI أخضر على squash commit.
-- D1 تصبح **21/21 migrations**.
-- migration `0018_evidence_publication_gate.sql` تطبق remote بنجاح.
-- remote schema verification يجد الجداول الستة:
+Cloudflare Run `31679684634` أثبت:
+
+- `test:engine`: **219/219 passed, 0 failed**.
+- `test:migrations`: **21 migration files / 33 product tables** محليًا.
+- migration `0018_evidence_publication_gate.sql` نُفذت remote عبر atomic file ingestion.
+- Cloudflare D1 migrations اكتملت: **21/21**.
+- remote schema verification وجد جداول P3S-06 الستة:
   - `evidence_review_publications`
   - `evidence_publication_sources`
   - `evidence_publication_assertions`
   - `evidence_publication_facts`
   - `evidence_publication_fact_flags`
   - `evidence_review_publication_heads`
-- `AI` binding تظل موجودة بعد deploy.
-- `/` و`/review` و`/search?q=nemo` تعمل.
-- `/review?publicationId=missing-publication` تعيد **حالة آمنة** ولا تعرض Demo/fallback.
-- `/review-policy`, `/privacy`, `/corrections` تظل سليمة.
+- Worker bindings بعد النشر:
+  - `env.DB` → `qabl-almushahada-production`
+  - `env.IMAGES`
+  - `env.AI`
+  - `env.ASSETS`
+- Worker deploy نجح على:
+  - `https://qabl-almushahada.buildtools.workers.dev`
+- Worker Version ID:
+  - `cab77fad-1466-42c7-a057-736a18384020`
+- smoke tests نجحت للمسارات:
+  - `/`
+  - `/review`
+  - `/search?q=nemo`
+  - `/review-policy`
+  - `/privacy`
+  - `/corrections`
+- `/review?publicationId=missing-publication` أعادت النص الآمن **«المراجعة غير متاحة حاليًا»**، أي لا Demo/fallback عند locator غير صالح.
+
+لذلك **P3S-06 production-complete**.
+
+## ما الذي سيتغير في P3S-07؟
+
+P3S-07 هي الخطوة التالية، وهدفها توسيع taxonomy العربية بوقائع موضوعية فقط. لا ينبغي أن تغير Architecture أو Cloudflare deployment contract إلا لو ظهر احتياج حقيقي ومثبت.
+
+أي migration جديدة في P3S-07 يجب أن تمر بنفس السلسلة:
+
+```text
+Branch CI
+  → PR CI
+  → Merge
+  → Main CI
+  → Remote migrations
+  → Remote schema verification
+  → Worker deploy
+  → Smoke tests
+```
 
 ## Cloudflare Access
 
