@@ -22,6 +22,12 @@ type ReviewSearchParams = {
 
 type ReviewPageProps = { searchParams: Promise<ReviewSearchParams> };
 
+const UNAVAILABLE_METADATA: Metadata = {
+  title: "المراجعة غير متاحة | قبل المشاهدة",
+  description: "رابط المراجعة غير صالح أو لا يشير إلى مراجعة عامة متاحة حاليًا.",
+  robots: { index: false, follow: true },
+};
+
 export async function generateMetadata({ searchParams }: ReviewPageProps): Promise<Metadata> {
   const params = await searchParams;
   const bundleId = typeof params.bundleId === "string" ? params.bundleId.trim() : "";
@@ -29,38 +35,37 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
   const locatorCount = [bundleId, publicationId, editorialId].filter(Boolean).length;
 
-  if (locatorCount !== 1 || !editorialId) return {};
+  if (locatorCount !== 1) return UNAVAILABLE_METADATA;
 
-  const review = loadEditorialReviewFailClosed(editorialId);
-  if (!review) {
+  if (editorialId) {
+    const review = loadEditorialReviewFailClosed(editorialId);
+    if (!review) return UNAVAILABLE_METADATA;
+
+    const presentation = getEditorialPublicationPresentation(review);
+    const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
+    const description = buildEditorialReviewDescription(review);
+    const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
+
     return {
-      title: "تحليل غير متاح | قبل المشاهدة",
-      robots: { index: false, follow: false },
+      title,
+      description,
+      alternates: { canonical },
+      robots: { index: true, follow: true },
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url: canonical,
+        locale: "ar_EG",
+        publishedTime: review.publishedAt,
+        modifiedTime: presentation.updatedAt,
+        authors: ["قبل المشاهدة"],
+      },
+      twitter: { card: "summary", title, description },
     };
   }
 
-  const presentation = getEditorialPublicationPresentation(review);
-  const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
-  const description = buildEditorialReviewDescription(review);
-  const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
-
-  return {
-    title,
-    description,
-    alternates: { canonical },
-    robots: { index: true, follow: true },
-    openGraph: {
-      title,
-      description,
-      type: "article",
-      url: canonical,
-      locale: "ar_EG",
-      publishedTime: review.publishedAt,
-      modifiedTime: presentation.updatedAt,
-      authors: ["قبل المشاهدة"],
-    },
-    twitter: { card: "summary", title, description },
-  };
+  return {};
 }
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
@@ -113,9 +118,9 @@ function ReviewUnavailable() {
         <div>
           <small>حالة آمنة</small>
           <h1 id="review-unavailable-title">المراجعة غير متاحة حاليًا.</h1>
-          <p>ممكن تكون النسخة أو الاعتماد أو snapshot الأدلة اتغيّرت، أو الرابط قديم. مش هنعرض بيانات بديلة أو نموذج تجريبي مكانها.</p>
+          <p>قد يكون الرابط قديمًا أو غير مكتمل، أو تغيّرت حالة المراجعة. لن نعرض بيانات بديلة أو مثالًا تجريبيًا مكان مراجعة غير متاحة.</p>
         </div>
-        <Link href="/search">ارجع للبحث <span aria-hidden="true">←</span></Link>
+        <Link href="/search">ابحث عن العمل <span aria-hidden="true">←</span></Link>
       </section>
     </main>
   );
