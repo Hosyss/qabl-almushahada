@@ -10,7 +10,9 @@ const migrationFiles = (await readdir(migrationDirectory)).filter((name) => /^\d
 const p3s07File = "0019_objective_content_taxonomy.sql";
 assert.ok(migrationFiles.includes(p3s07File), "P3S-07 objective-taxonomy migration must remain present in repository history.");
 const p3s07Sql = await readFile(path.join(migrationDirectory, p3s07File), "utf8");
-assert.doesNotMatch(p3s07Sql, /\bCREATE\s+TABLE\b/iu, "P3S-07 must not add product tables; it only rebuilds flag constraints.");
+assert.equal((p3s07Sql.match(/\bCREATE\s+TABLE\b/giu) ?? []).length, 2, "P3S-07 must only create its two rebuild tables.");
+assert.match(p3s07Sql, /CREATE TABLE `observation_flags_p3s07`/u, "Missing observation flag rebuild table.");
+assert.match(p3s07Sql, /CREATE TABLE `evidence_publication_fact_flags_p3s07`/u, "Missing evidence flag rebuild table.");
 
 const db = new DatabaseSync(":memory:");
 db.exec("PRAGMA foreign_keys = ON");
