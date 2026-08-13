@@ -36,6 +36,8 @@ END;
 INSERT INTO `observation_flags_p3s07` (`observation_id`, `flag`)
 SELECT `observation_id`, `flag` FROM `observation_flags`;
 --> statement-breakpoint
+DROP TRIGGER `review_audit_selections_insert_guard`;
+--> statement-breakpoint
 DROP TABLE `observation_flags`;
 --> statement-breakpoint
 ALTER TABLE `observation_flags_p3s07` RENAME TO `observation_flags`;
@@ -52,6 +54,84 @@ CREATE TRIGGER `observation_flags_immutable_delete`
 BEFORE DELETE ON `observation_flags`
 BEGIN
 	SELECT RAISE(ABORT, 'review observation flags are immutable revisions');
+END;
+--> statement-breakpoint
+CREATE TRIGGER `review_audit_selections_insert_guard`
+BEFORE INSERT ON `review_audit_selections`
+FOR EACH ROW
+WHEN NOT EXISTS (
+    SELECT 1
+    FROM `review_submissions` s
+    INNER JOIN `review_assignments` a ON a.`id` = s.`assignment_id`
+    WHERE s.`id` = NEW.`submission_id`
+      AND s.`assignment_id` = NEW.`assignment_id`
+      AND s.`bundle_id` = NEW.`bundle_id`
+      AND s.`version_id` = NEW.`version_id`
+      AND s.`reviewer_id` = NEW.`reviewer_id`
+      AND a.`bundle_id` = NEW.`bundle_id`
+      AND a.`version_id` = NEW.`version_id`
+      AND a.`reviewer_id` = NEW.`reviewer_id`
+      AND a.`submission_id` = NEW.`submission_id`
+      AND a.`state` = 'submitted'
+  )
+  OR (
+    EXISTS (
+      SELECT 1
+      FROM `observations` o
+      WHERE o.`submission_id` = NEW.`submission_id`
+        AND (
+          o.`severity` = 4
+          OR (o.`category` = 'selfHarm' AND o.`severity` >= 1)
+          OR (o.`category` IN ('sexualContent', 'flashingLights') AND o.`severity` >= 2)
+          OR (o.`category` IN ('violence', 'substances', 'discrimination', 'bullying') AND o.`severity` >= 3)
+          OR EXISTS (
+            SELECT 1 FROM `observation_flags` f
+            WHERE f.`observation_id` = o.`id`
+              AND (
+                f.`flag` = 'flashing_sequence'
+                OR (f.`flag` IN ('blood', 'weapon', 'physical_bullying') AND o.`severity` >= 3)
+              )
+          )
+        )
+    )
+    AND (
+      NEW.`risk_tier` != 'high_risk'
+      OR NEW.`sample_rate_bps` != 5000
+      OR json_array_length(NEW.`risk_triggers_json`) = 0
+    )
+  )
+  OR (
+    NOT EXISTS (
+      SELECT 1
+      FROM `observations` o
+      WHERE o.`submission_id` = NEW.`submission_id`
+        AND (
+          o.`severity` = 4
+          OR (o.`category` = 'selfHarm' AND o.`severity` >= 1)
+          OR (o.`category` IN ('sexualContent', 'flashingLights') AND o.`severity` >= 2)
+          OR (o.`category` IN ('violence', 'substances', 'discrimination', 'bullying') AND o.`severity` >= 3)
+          OR EXISTS (
+            SELECT 1 FROM `observation_flags` f
+            WHERE f.`observation_id` = o.`id`
+              AND (
+                f.`flag` = 'flashing_sequence'
+                OR (f.`flag` IN ('blood', 'weapon', 'physical_bullying') AND o.`severity` >= 3)
+              )
+          )
+        )
+    )
+    AND (
+      NEW.`risk_tier` != 'baseline'
+      OR NEW.`sample_rate_bps` != 1000
+      OR json_array_length(NEW.`risk_triggers_json`) != 0
+    )
+  )
+  OR NEW.`selected` != CASE
+    WHEN NEW.`draw_u32` < ((4294967296 * NEW.`sample_rate_bps`) / 10000) THEN 1
+    ELSE 0
+  END
+BEGIN
+  SELECT RAISE(ABORT, 'post-submission audit selection decision is invalid');
 END;
 --> statement-breakpoint
 CREATE TABLE `evidence_publication_fact_flags_p3s07` (
