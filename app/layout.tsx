@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./home-search-upgrade.css";
-import { HomeSearchUpgrade } from "./home-search-upgrade";
 import { PolicyLinks } from "./policy-links";
 
 export const metadata: Metadata = {
@@ -25,7 +24,6 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body>
         {children}
-        <HomeSearchUpgrade />
         <PolicyLinks />
       </body>
     </html>
