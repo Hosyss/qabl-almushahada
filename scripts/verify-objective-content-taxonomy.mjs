@@ -37,7 +37,8 @@ const triggerNames = new Set(
          'observation_flags_immutable_update',
          'observation_flags_immutable_delete',
          'evidence_publication_fact_flags_no_update',
-         'evidence_publication_fact_flags_no_delete'
+         'evidence_publication_fact_flags_no_delete',
+         'review_audit_selections_insert_guard'
        )`,
   ).all().map((row) => row.name),
 );
@@ -48,8 +49,29 @@ for (const expected of [
   "observation_flags_immutable_delete",
   "evidence_publication_fact_flags_no_update",
   "evidence_publication_fact_flags_no_delete",
+  "review_audit_selections_insert_guard",
 ]) {
-  assert.ok(triggerNames.has(expected), `Missing P3S-07/immutability trigger: ${expected}`);
+  assert.ok(triggerNames.has(expected), `Missing P3S-07/immutability/audit trigger: ${expected}`);
+}
+
+const restoredAuditGuardSql = String(
+  db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'review_audit_selections_insert_guard'",
+  ).get().sql,
+);
+for (const token of [
+  "observation_flags",
+  "flashing_sequence",
+  "blood",
+  "weapon",
+  "physical_bullying",
+  "5000",
+  "1000",
+]) {
+  assert.ok(
+    restoredAuditGuardSql.includes(token),
+    `Restored P2Q-01 audit-selection guard lost required logic token: ${token}`,
+  );
 }
 
 const humanTableSql = String(
@@ -140,7 +162,7 @@ assert.throws(
 assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
 
 db.close();
-console.log("Verified P3S-07 objective taxonomy: 22 migrations / 33 tables, expanded subtype CHECKs, category guards, cross-cutting religious marker, and immutable flag history.");
+console.log("Verified P3S-07 objective taxonomy: 22 migrations / 33 tables, expanded subtype CHECKs, category guards, preserved P2Q-01 audit selection logic, cross-cutting religious marker, and immutable flag history.");
 
 function seedHumanReview() {
   db.prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES (?, ?, 'movie', 2026)").run(
