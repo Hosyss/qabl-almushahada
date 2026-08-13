@@ -1,32 +1,39 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 
 import { buildPublicEditorialReviewHref } from "../lib/editorial-review.ts";
-import { listEditorialReviewPublications } from "../lib/editorial-review-registry.ts";
 import { buildPublicCatalogTitleHref } from "../lib/public-catalog.ts";
 
-async function source(path: string) {
-  return readFile(new URL(`../${path}`, import.meta.url), "utf8");
+async function source(file: string) {
+  return readFile(new URL(`../${file}`, import.meta.url), "utf8");
 }
 
-test("homepage has no generic /review CTA and is driven only by the four real editorial publications", async () => {
+async function frozenEditorialPublications() {
+  const directory = path.join(process.cwd(), "data", "editorial-bootstrap");
+  const files = (await readdir(directory)).filter((name) => name.endsWith(".json")).sort();
+  return Promise.all(files.map(async (name) => JSON.parse(await readFile(path.join(directory, name), "utf8"))));
+}
+
+test("homepage has no generic /review CTA and reads real editorial publications from D1", async () => {
   const home = await source("app/page.tsx");
   assert.doesNotMatch(home, /href\s*=\s*["']\/review["']/u);
   assert.doesNotMatch(home, /افتح المراجعة الكاملة/u);
   assert.doesNotMatch(home, /مناسب بمرافقة|ثقة مرتفعة|تمت مراجعة النسخة/u);
-  assert.match(home, /listEditorialReviewPublications/u);
+  assert.match(home, /listEditorialPublications/u);
+  assert.doesNotMatch(home, /editorial-review-registry|listEditorialReviewPublications/u);
   assert.match(home, /تحليلات منشورة حديثًا/u);
   assert.match(home, /تحليل تحريري جزئي — الحكم غير مكتمل/u);
   assert.match(home, /"@type": "WebSite"/u);
   assert.match(home, /"@type": "Organization"/u);
   assert.doesNotMatch(home, /SearchAction/u);
 
-  const publications = listEditorialReviewPublications();
+  const publications = await frozenEditorialPublications();
   assert.equal(publications.length, 4);
-  for (const publication of publications) {
-    const reviewHref = buildPublicEditorialReviewHref(publication.id);
-    const titleHref = buildPublicCatalogTitleHref(publication.titleId);
+  for (const { review } of publications) {
+    const reviewHref = buildPublicEditorialReviewHref(review.id);
+    const titleHref = buildPublicCatalogTitleHref(review.titleId);
     assert.match(reviewHref, /^\/review\?editorialId=/u);
     assert.ok(titleHref?.startsWith("/title/Q"));
   }
@@ -43,35 +50,35 @@ test("search combobox keeps its ARIA and keyboard navigation contract", async ()
     'role="listbox"',
     'role="option"',
     'maxLength={80}',
-  ]) {
-    assert.ok(combobox.includes(token), `Search combobox lost accessibility token: ${token}`);
-  }
+  ]) assert.ok(combobox.includes(token), `Search combobox lost accessibility token: ${token}`);
   for (const key of ["ArrowDown", "ArrowUp", "Enter", "Escape"]) {
     assert.ok(combobox.includes(`event.key === "${key}"`), `Search combobox lost keyboard handler: ${key}`);
   }
   assert.match(combobox, /window\.location\.assign\(items\[active\]\.href\)/u);
 });
 
-test("public editorial copies use neutral source wording and Arabic names inside Arabic prose", () => {
-  for (const publication of listEditorialReviewPublications()) {
+test("frozen editorial copies keep neutral source wording", async () => {
+  for (const { review } of await frozenEditorialPublications()) {
     const publicArabicText = [
-      publication.scopeAr,
-      publication.analysisAr,
-      ...publication.claims.map((claim) => claim.summaryAr),
-      ...publication.sources.map((source) => source.usageNoteAr),
+      review.scopeAr,
+      review.analysisAr,
+      ...review.claims.map((claim: { summaryAr: string }) => claim.summaryAr),
+      ...review.sources.map((item: { usageNoteAr: string }) => item.usageNoteAr),
     ].join("\n");
-    assert.doesNotMatch(publicArabicText, /مؤهل/u, `${publication.id} still describes a source as qualified`);
-    assert.doesNotMatch(publicArabicText, /\bHarry\b/u, `${publication.id} still mixes Harry into Arabic prose`);
+    assert.doesNotMatch(publicArabicText, /مؤهل/u, `${review.id} still describes a source as qualified`);
   }
 });
 
-test("title pages keep registry links as presentation only and never encode editorial IDs in catalog SQL", async () => {
+test("title pages read editorial state from D1 and catalog SQL contains no fixed editorial IDs", async () => {
   const titlePage = await source("app/title/[qid]/page.tsx");
   const catalogQuery = await source("db/public-catalog-query.ts");
-  assert.match(titlePage, /getEditorialReviewPublicationForTitleId/u);
+  assert.match(titlePage, /loadEditorialPublicationForTitleId/u);
   assert.match(titlePage, /buildPublicEditorialReviewHref/u);
-  assert.doesNotMatch(catalogQuery, /editorial-review-publications|editorialId|cars-2006|et-1982|minions-2015|harry-potter-philosophers/u);
-  assert.doesNotMatch(catalogQuery, /wd:Q\d+/u);
+  assert.doesNotMatch(titlePage, /editorial-review-registry|getEditorialReviewPublicationForTitleId/u);
+  assert.match(catalogQuery, /editorial_publication_heads/u);
+  assert.match(catalogQuery, /editorial_publication_revisions/u);
+  assert.match(catalogQuery, /current_revision_id/u);
+  assert.doesNotMatch(catalogQuery, /cars-2006|et-1982|minions-2015|harry-potter-philosophers|wd:Q\d+/u);
 });
 
 test("partial editorial UI does not expose engine internals or pretend to be a verified-version review", async () => {
@@ -93,20 +100,22 @@ test("invalid review routes remain noindex and fail closed with a search path", 
   const reviewPage = await source("app/review/page.tsx");
   assert.match(reviewPage, /title: "المراجعة غير متاحة \| قبل المشاهدة"/u);
   assert.match(reviewPage, /robots: \{ index: false, follow: true \}/u);
-  assert.match(reviewPage, /locatorCount !== 1/u);
+  assert.match(reviewPage, /\[bundleId, publicationId, editorialId\]\.filter\(Boolean\)\.length !== 1/u);
+  assert.match(reviewPage, /loadEditorialPublicationById/u);
   assert.match(reviewPage, /href="\/search"/u);
 });
 
-test("catalog-only title pages are noindex while rich editorial title pages can be indexed", async () => {
+test("catalog-only title pages are noindex while current editorial title pages can be indexed", async () => {
   const titlePage = await source("app/title/[qid]/page.tsx");
   assert.match(titlePage, /robots: \{ index: Boolean\(names\.editorial\), follow: true \}/u);
 });
 
-test("sitemap contains only indexable title detail pages from rich editorial registry entries", async () => {
+test("sitemap uses current D1 editorial heads rather than the TypeScript registry", async () => {
   const sitemap = await source("app/sitemap.xml/route.ts");
-  assert.match(sitemap, /listEditorialReviewPublications/u);
+  assert.match(sitemap, /listEditorialPublications/u);
   assert.match(sitemap, /buildPublicEditorialReviewCanonicalUrl/u);
   assert.match(sitemap, /buildPublicCatalogTitleHref\(review\.titleId\)/u);
+  assert.doesNotMatch(sitemap, /listEditorialReviewPublications|editorial-review-registry/u);
   assert.doesNotMatch(sitemap, /listPublicCatalogTitles|listPublicCatalogDirectory/u);
 });
 
@@ -117,9 +126,13 @@ test("review policy clearly separates partial editorial analysis from verified v
   assert.match(policy, /لا يدّعي أن فريقنا شاهد/u);
 });
 
-test("Kids-In-Mind stays link-only and never claims republication permission", async () => {
-  const sources = await source("lib/editorial-review-source-builders.ts");
-  assert.match(sources, /link_only_factual_reference/u);
-  assert.match(sources, /لا ندّعي ترخيص إعادة نشر/u);
-  assert.match(sources, /لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها/u);
+test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
+  const publications = await frozenEditorialPublications();
+  const kidSources = publications.flatMap(({ review }) => review.sources).filter((item: { publisher: string }) => item.publisher === "Kids-In-Mind");
+  assert.equal(kidSources.length, 4);
+  for (const item of kidSources) {
+    assert.equal(item.usageBasis, "link_only_factual_reference");
+    assert.match(item.rightsLabel, /لا ندّعي ترخيص إعادة نشر/u);
+    assert.match(item.usageNoteAr, /لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها/u);
+  }
 });
