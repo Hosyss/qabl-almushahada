@@ -12,18 +12,36 @@ import {
   WIKIDATA_USER_AGENT,
 } from "../lib/wikidata-catalog.ts";
 
-test("commercial source policy allows only Wikidata automated catalog ingestion initially", () => {
-  const automated = Object.values(CONTENT_SOURCE_POLICIES)
-    .filter((policy) => policy.automatedIngestion)
+test("commercial source policy separates automated catalog and analysis-evidence uses", () => {
+  const automatedCatalog = Object.values(CONTENT_SOURCE_POLICIES)
+    .filter(
+      (policy) =>
+        policy.automatedIngestion &&
+        (policy.allowedUses as readonly string[]).includes("catalog_metadata"),
+    )
     .map((policy) => policy.key);
-  assert.deepEqual(automated, ["wikidata"]);
+  const automatedEvidence = Object.values(CONTENT_SOURCE_POLICIES)
+    .filter(
+      (policy) =>
+        policy.automatedIngestion &&
+        (policy.allowedUses as readonly string[]).includes("analysis_evidence"),
+    )
+    .map((policy) => policy.key);
+
+  assert.deepEqual(automatedCatalog, ["wikidata"]);
+  assert.deepEqual(automatedEvidence, ["wikipedia"]);
   assert.equal(assertAutomatedSourceUseAllowed("wikidata", "catalog_metadata").licenseLabel, "CC0 1.0");
+  const wikipedia = assertAutomatedSourceUseAllowed("wikipedia", "analysis_evidence");
+  assert.equal(wikipedia.licenseLabel, "CC BY-SA 4.0");
+  assert.equal(wikipedia.attributionRequired, true);
+  assert.equal(wikipedia.shareAlike, true);
 });
 
-test("commercially restricted or attribution-incomplete sources fail closed for automation", () => {
+test("commercially restricted or wrong-scope sources remain fail-closed", () => {
   assert.throws(() => assertAutomatedSourceUseAllowed("tmdb", "catalog_metadata"), /not allowed/i);
-  assert.throws(() => assertAutomatedSourceUseAllowed("imdb", "catalog_metadata"), /not allowed/i);
-  assert.throws(() => assertAutomatedSourceUseAllowed("wikipedia", "analysis_evidence"), /not allowed/i);
+  assert.throws(() => assertAutomatedSourceUseAllowed("imdb", "analysis_evidence"), /not allowed/i);
+  assert.throws(() => assertAutomatedSourceUseAllowed("wikipedia", "catalog_metadata"), /not allowed/i);
+  assert.throws(() => assertAutomatedSourceUseAllowed("wikidata", "analysis_evidence"), /not allowed/i);
   assert.throws(() => assertAutomatedSourceUseAllowed("wikimediaCommons", "media"), /not allowed/i);
 });
 
