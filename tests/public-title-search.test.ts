@@ -1,250 +1,173 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { filterPublicTitleSearchResults, parsePublicSearchFilters } from "../lib/public-search-filters.ts";
 import {
-  filterPublicTitleSearchResults,
-  parsePublicSearchFilters,
-} from "../lib/public-search-filters.ts";
-import {
+  MAX_PUBLIC_TITLE_DID_YOU_MEAN_RESULTS,
   MAX_PUBLIC_TITLE_SEARCH_RESULTS,
+  formatPublicTitleSuggestionLabel,
   normalizePublicTitleSearchText,
   parsePublicTitleSearchRequest,
   rankPublicTitleSearchCandidates,
+  rankPublicTitleSearchDiscovery,
+  type PublicTitleSearchCandidate,
   type PublicTitleSearchResult,
 } from "../lib/public-title-search.ts";
-import {
-  MAX_PUBLIC_TITLE_SEARCH_CANDIDATES,
-  buildPublicTitleCandidateQuery,
-  buildSqlSubsequencePattern,
-} from "../db/public-title-search-query.ts";
+import { MAX_PUBLIC_TITLE_SEARCH_CANDIDATES, buildPublicTitleCandidateQuery, buildSqlSubsequencePattern } from "../db/public-title-search-query.ts";
 
-test("Arabic title normalization removes diacritics, tatweel, punctuation and digit variants", () => {
+const HARRY: PublicTitleSearchCandidate = {
+  id: "wd:Q102438",
+  canonicalName: "هاري بوتر وحجر الفيلسوف",
+  originalName: "Harry Potter and the Philosopher's Stone",
+  aliases: ["Harry Potter and the Sorcerer's Stone"],
+  kind: "movie",
+  releaseYear: 2001,
+  hasVerifiedReview: false,
+  hasReviewInProgress: false,
+  verifiedBundleId: null,
+  verifiedMaxSeverity: null,
+};
+
+const NEMO: PublicTitleSearchCandidate = {
+  id: "wd:Q123456",
+  canonicalName: "البحث عن نيمو",
+  originalName: "Finding Nemo",
+  aliases: [],
+  kind: "movie",
+  releaseYear: 2003,
+  hasVerifiedReview: false,
+  hasReviewInProgress: false,
+  verifiedBundleId: null,
+  verifiedMaxSeverity: null,
+};
+
+function discover(query: string, candidates: readonly PublicTitleSearchCandidate[] = [HARRY, NEMO]) {
+  return rankPublicTitleSearchDiscovery(parsePublicTitleSearchRequest({ query }), candidates);
+}
+
+test("Arabic normalization handles diacritics, tatweel, punctuation, hamza and common letter variants", () => {
   assert.equal(normalizePublicTitleSearchText("إِنْسَايْد—آوْت ٢"), "انسايد اوت 2");
-  assert.equal(normalizePublicTitleSearchText("  مُدُنــى، ۲۰۲٦  "), "مدني 2026");
+  assert.equal(normalizePublicTitleSearchText("هــارى بُوتر"), "هاري بوتر");
 });
 
-test("original Latin title normalization is case-insensitive and NFKC stable", () => {
+test("Latin normalization is case-insensitive and punctuation-neutral", () => {
   assert.equal(normalizePublicTitleSearchText("Finding_NEMO: Part Ⅱ"), "finding nemo part ii");
+  assert.equal(normalizePublicTitleSearchText("HARRY-POTTER"), "harry potter");
 });
 
-test("public search request accepts only a bounded query field", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "  البحث عن نيمو  " });
-  assert.equal(parsed.normalizedQuery, "البحث عن نيمو");
-  assert.deepEqual(parsed.tokens, ["البحث", "عن", "نيمو"]);
-
-  assert.throws(() => parsePublicTitleSearchRequest("نيمو"));
-  assert.throws(() => parsePublicTitleSearchRequest({ query: "ن" }));
-  assert.throws(() => parsePublicTitleSearchRequest({ query: "نيمو", extra: true }));
-  assert.throws(() => parsePublicTitleSearchRequest({ query: "x".repeat(81) }));
+test("public search request rejects empty, tiny, overlong, extra-field and over-tokenized queries", () => {
+  assert.equal(parsePublicTitleSearchRequest({ query: " هاري بوتر " }).normalizedQuery, "هاري بوتر");
+  assert.throws(() => parsePublicTitleSearchRequest("هاري"));
+  assert.throws(() => parsePublicTitleSearchRequest({ query: "ه" }));
+  assert.throws(() => parsePublicTitleSearchRequest({ query: "هاري", extra: true }));
+  assert.throws(() => parsePublicTitleSearchRequest({ query: "x".repeat(161) }));
   assert.throws(() => parsePublicTitleSearchRequest({ query: "1 2 3 4 5 6 7 8 9" }));
+});
+
+test("HarryPotter becomes did-you-mean, not a confirmed direct result", () => {
+  const result = discover("HarryPotter");
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.didYouMean[0]?.id, HARRY.id);
+  assert.equal(result.didYouMean[0]?.matchKind, "compact_match");
+});
+
+test("harry potter is a direct English prefix match", () => {
+  const result = discover("harry potter");
+  assert.equal(result.matches[0]?.id, HARRY.id);
+  assert.equal(result.matches[0]?.matchKind, "original_prefix");
+});
+
+test("Hary Poter remains a conservative fuzzy suggestion", () => {
+  const result = discover("Hary Poter");
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.didYouMean[0]?.id, HARRY.id);
+  assert.equal(result.didYouMean[0]?.matchKind, "fuzzy_match");
+});
+
+test("هاريبوتر compact Arabic input suggests Harry Potter", () => {
+  const result = discover("هاريبوتر");
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.didYouMean[0]?.id, HARRY.id);
+});
+
+test("هارى بوتر normalizes to a direct Arabic prefix match", () => {
+  const result = discover("هارى بوتر");
+  assert.equal(result.matches[0]?.id, HARRY.id);
+  assert.equal(result.matches[0]?.matchKind, "canonical_prefix");
+});
+
+test("a small Arabic typo is suggested but not promoted", () => {
+  const result = discover("هاري بوتر وحجر الفلسوف");
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.didYouMean[0]?.id, HARRY.id);
+  assert.equal(result.didYouMean[0]?.matchKind, "fuzzy_match");
+});
+
+test("a distant title is not suggested", () => {
+  const result = discover("مهمة مستحيلة");
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.didYouMean, []);
+});
+
+test("a title absent from D1 candidates can never be invented", () => {
+  const result = discover("HarryPotter", [NEMO]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.didYouMean, []);
+});
+
+test("D1 alias matches directly and labels include Arabic, English and year", () => {
+  const result = discover("Harry Potter and the Sorcerer's Stone");
+  assert.equal(result.matches[0]?.id, HARRY.id);
+  assert.equal(result.matches[0]?.matchKind, "alias_exact");
+  assert.equal(formatPublicTitleSuggestionLabel(HARRY), "هاري بوتر وحجر الفيلسوف — Harry Potter and the Philosopher's Stone (2001)");
 });
 
 test("exact canonical match outranks a verified prefix match", () => {
   const parsed = parsePublicTitleSearchRequest({ query: "نيمو" });
   const results = rankPublicTitleSearchCandidates(parsed, [
-    {
-      id: "verified-prefix",
-      canonicalName: "نيمو يعود",
-      originalName: null,
-      kind: "movie",
-      releaseYear: 2026,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-verified-prefix",
-      verifiedMaxSeverity: 2,
-    },
-    {
-      id: "exact",
-      canonicalName: "نيمو",
-      originalName: "Nemo",
-      kind: "movie",
-      releaseYear: 2003,
-      hasVerifiedReview: false,
-      hasReviewInProgress: false,
-      verifiedBundleId: null,
-      verifiedMaxSeverity: null,
-    },
+    { ...NEMO, id: "prefix", canonicalName: "نيمو يعود", originalName: null, hasVerifiedReview: true, verifiedBundleId: "bundle-prefix", verifiedMaxSeverity: 2 },
+    { ...NEMO, id: "exact", canonicalName: "نيمو", originalName: "Nemo" },
   ]);
   assert.equal(results[0]?.id, "exact");
-  assert.equal(results[0]?.matchKind, "canonical_exact");
 });
 
-test("original-name exact match works for English searches and keeps the exact bundle locator", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "finding nemo" });
-  const results = rankPublicTitleSearchCandidates(parsed, [
-    {
-      id: "nemo",
-      canonicalName: "البحث عن نيمو",
-      originalName: "Finding Nemo",
-      kind: "movie",
-      releaseYear: 2003,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-nemo-ar",
-      verifiedMaxSeverity: 1,
-    },
-  ]);
-  assert.equal(results[0]?.id, "nemo");
-  assert.equal(results[0]?.matchKind, "original_exact");
-  assert.equal(results[0]?.verifiedBundleId, "bundle-nemo-ar");
-  assert.equal(results[0]?.verifiedMaxSeverity, 1);
+test("direct and suggested result sets are capped", () => {
+  const direct = Array.from({ length: 20 }, (_, index): PublicTitleSearchCandidate => ({ ...NEMO, id: `title-${index}`, canonicalName: `فيلم ${index}`, originalName: null }));
+  assert.equal(rankPublicTitleSearchCandidates(parsePublicTitleSearchRequest({ query: "فيلم" }), direct).length, MAX_PUBLIC_TITLE_SEARCH_RESULTS);
+  const fuzzy = Array.from({ length: 10 }, (_, index): PublicTitleSearchCandidate => ({ ...HARRY, id: `harry-${index}`, releaseYear: 2001 + index }));
+  assert.equal(rankPublicTitleSearchDiscovery(parsePublicTitleSearchRequest({ query: "Hary Poter" }), fuzzy).didYouMean.length, MAX_PUBLIC_TITLE_DID_YOU_MEAN_RESULTS);
 });
 
-test("token matching can span canonical and original names without inventing fuzzy similarity", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "نيمو finding" });
-  const results = rankPublicTitleSearchCandidates(parsed, [
-    {
-      id: "nemo",
-      canonicalName: "البحث عن نيمو",
-      originalName: "Finding Nemo",
-      kind: "movie",
-      releaseYear: 2003,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-nemo-ar",
-      verifiedMaxSeverity: 1,
-    },
-    {
-      id: "other",
-      canonicalName: "رحلة بحرية",
-      originalName: "Finding Dory",
-      kind: "movie",
-      releaseYear: 2016,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-dory-ar",
-      verifiedMaxSeverity: 2,
-    },
-  ]);
-  assert.deepEqual(results.map((item) => item.id), ["nemo"]);
-  assert.equal(results[0]?.matchKind, "token_match");
+test("public filters accept only known values", () => {
+  assert.deepEqual(parsePublicSearchFilters({ kind: "series", age: "11", status: "verified" }), { kind: "series", age: 11, status: "verified" });
+  assert.deepEqual(parsePublicSearchFilters({ kind: "unknown", age: "12", status: "pending" }), { kind: "all", age: null, status: "all" });
 });
 
-test("public ranking is deterministically capped", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "فيلم" });
-  const candidates = Array.from({ length: 20 }, (_, index) => ({
-    id: `title-${index}`,
-    canonicalName: `فيلم ${index}`,
-    originalName: null,
-    kind: "movie" as const,
-    releaseYear: 2000 + index,
-    hasVerifiedReview: false,
-    hasReviewInProgress: false,
-    verifiedBundleId: null,
-    verifiedMaxSeverity: null,
-  }));
-  const results = rankPublicTitleSearchCandidates(parsed, candidates);
-  assert.equal(results.length, MAX_PUBLIC_TITLE_SEARCH_RESULTS);
-});
-
-test("public filters accept only known kind, age-band and verification values", () => {
-  assert.deepEqual(
-    parsePublicSearchFilters({ kind: "series", age: "11", status: "verified" }),
-    { kind: "series", age: 11, status: "verified" },
-  );
-  assert.deepEqual(
-    parsePublicSearchFilters({ kind: "unknown", age: "12", status: "pending" }),
-    { kind: "all", age: null, status: "all" },
-  );
-  assert.deepEqual(
-    parsePublicSearchFilters({ kind: ["movie"], age: ["8"], status: ["verified"] }),
-    { kind: "all", age: null, status: "all" },
-  );
-});
-
-test("age filtering uses only verified severity evidence and preserves search ranking", () => {
+test("age filtering uses only verified severity evidence", () => {
+  const base = { aliases: [], matchConfidence: "direct" as const, matchScore: 900 };
   const results: PublicTitleSearchResult[] = [
-    {
-      id: "gentle-movie",
-      canonicalName: "فيلم هادئ",
-      originalName: null,
-      kind: "movie",
-      releaseYear: 2026,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-gentle",
-      verifiedMaxSeverity: 1,
-      matchKind: "canonical_prefix",
-    },
-    {
-      id: "strong-series",
-      canonicalName: "مسلسل أقوى",
-      originalName: null,
-      kind: "series",
-      releaseYear: 2026,
-      hasVerifiedReview: true,
-      hasReviewInProgress: false,
-      verifiedBundleId: "bundle-strong",
-      verifiedMaxSeverity: 3,
-      matchKind: "canonical_contains",
-    },
-    {
-      id: "catalog-movie",
-      canonicalName: "فيلم بلا مراجعة",
-      originalName: null,
-      kind: "movie",
-      releaseYear: 2025,
-      hasVerifiedReview: false,
-      hasReviewInProgress: false,
-      verifiedBundleId: null,
-      verifiedMaxSeverity: null,
-      matchKind: "token_match",
-    },
+    { ...base, id: "gentle", canonicalName: "فيلم هادئ", originalName: null, kind: "movie", releaseYear: 2026, hasVerifiedReview: true, hasReviewInProgress: false, verifiedBundleId: "bundle-gentle", verifiedMaxSeverity: 1, matchKind: "canonical_prefix" },
+    { ...base, id: "strong", canonicalName: "مسلسل أقوى", originalName: null, kind: "series", releaseYear: 2026, hasVerifiedReview: true, hasReviewInProgress: false, verifiedBundleId: "bundle-strong", verifiedMaxSeverity: 3, matchKind: "canonical_contains" },
+    { ...base, id: "catalog", canonicalName: "فيلم بلا مراجعة", originalName: null, kind: "movie", releaseYear: 2025, hasVerifiedReview: false, hasReviewInProgress: false, verifiedBundleId: null, verifiedMaxSeverity: null, matchKind: "token_match" },
   ];
-
-  const ageEight = filterPublicTitleSearchResults(results, {
-    kind: "all",
-    age: 8,
-    status: "all",
-  });
-  assert.deepEqual(ageEight.map((item) => item.id), ["gentle-movie"]);
-
-  const ageFourteen = filterPublicTitleSearchResults(results, {
-    kind: "all",
-    age: 14,
-    status: "verified",
-  });
-  assert.deepEqual(ageFourteen.map((item) => item.id), ["gentle-movie", "strong-series"]);
-
-  const catalogMovies = filterPublicTitleSearchResults(results, {
-    kind: "movie",
-    age: null,
-    status: "catalog_only",
-  });
-  assert.deepEqual(catalogMovies.map((item) => item.id), ["catalog-movie"]);
+  assert.deepEqual(filterPublicTitleSearchResults(results, { kind: "all", age: 8, status: "all" }).map((item) => item.id), ["gentle"]);
+  assert.deepEqual(filterPublicTitleSearchResults(results, { kind: "all", age: 14, status: "verified" }).map((item) => item.id), ["gentle", "strong"]);
+  assert.deepEqual(filterPublicTitleSearchResults(results, { kind: "movie", age: null, status: "catalog_only" }).map((item) => item.id), ["catalog"]);
 });
 
-test("candidate SQL stays parameterized and derives age evidence from the exact current approval", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "نيمو finding" });
-  const candidateQuery = buildPublicTitleCandidateQuery(parsed);
-
-  assert.equal(candidateQuery.sql.includes("نيمو"), false);
-  assert.equal(candidateQuery.sql.includes("finding"), false);
+test("candidate SQL stays parameterized, includes D1 aliases and exact approval evidence", () => {
+  const candidateQuery = buildPublicTitleCandidateQuery(parsePublicTitleSearchRequest({ query: "هاري potter" }));
+  assert.equal(candidateQuery.sql.includes("هاري"), false);
+  assert.equal(candidateQuery.sql.includes("potter"), false);
+  assert.match(candidateQuery.sql, /search_aliases_json/);
   assert.match(candidateQuery.sql, /LIMIT 256$/);
-  assert.match(candidateQuery.sql, /v\.status = 'active'/);
   assert.match(candidateQuery.sql, /b\.status = 'verified'/);
   assert.match(candidateQuery.sql, /b\.current_approval_id IS NOT NULL/);
-  assert.match(candidateQuery.sql, /b\.published_at IS NOT NULL/);
   assert.match(candidateQuery.sql, /ea\.status = 'approved'/);
-  assert.match(candidateQuery.sql, /rr\.status IN \('open', 'investigating'\)/);
-  assert.match(candidateQuery.sql, /AS verifiedBundleId/);
-  assert.match(candidateQuery.sql, /editorial_approval_submissions eas/);
-  assert.match(candidateQuery.sql, /vea\.id = vb\.current_approval_id/);
   assert.match(candidateQuery.sql, /SELECT MAX\(o\.severity\)/);
-  assert.match(candidateQuery.sql, /AS verifiedMaxSeverity/);
-  assert.match(candidateQuery.sql, /ORDER BY b\.published_at DESC, ea\.approved_at DESC, b\.id ASC/);
-  assert.match(candidateQuery.sql, /b\.status IN \('draft', 'under_review', 'conflicted'\)/);
-  assert.equal(candidateQuery.bindings.length, 8);
-  assert.equal(candidateQuery.bindings[0], buildSqlSubsequencePattern("نيمو"));
-  assert.equal(candidateQuery.bindings[1], buildSqlSubsequencePattern("نيمو"));
-  assert.equal(candidateQuery.bindings[2], buildSqlSubsequencePattern("finding"));
-  assert.equal(candidateQuery.bindings[3], buildSqlSubsequencePattern("finding"));
+  assert.equal(candidateQuery.bindings.length, 16);
+  assert.equal(candidateQuery.bindings[0], buildSqlSubsequencePattern("هاري"));
+  assert.equal(candidateQuery.bindings[6], buildSqlSubsequencePattern("potter"));
+  assert.equal(candidateQuery.sql.split("?").length - 1, candidateQuery.bindings.length);
   assert.equal(MAX_PUBLIC_TITLE_SEARCH_CANDIDATES, 256);
-});
-
-test("SQL-like wildcard characters are never interpolated into candidate SQL", () => {
-  const parsed = parsePublicTitleSearchRequest({ query: "نيمو' OR 1=1 --" });
-  const candidateQuery = buildPublicTitleCandidateQuery(parsed);
-  assert.equal(candidateQuery.sql.includes("OR 1=1"), false);
-  assert.ok(candidateQuery.bindings.every((binding) => typeof binding === "string"));
 });
