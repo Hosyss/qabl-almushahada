@@ -52,6 +52,19 @@ export const contentSourcePolicySnapshots = sqliteTable(
     check("content_source_policy_version_check", sql`length(trim(${table.policyVersion})) BETWEEN 1 AND 64`),
     check("content_source_policy_license_url_check", sql`${table.licenseUrl} LIKE 'https://%'`),
     check("content_source_policy_policy_url_check", sql`${table.policyUrl} LIKE 'https://%'`),
+    check(
+      "content_source_policy_current_allowlist_check",
+      sql`${table.sourceKey} = 'wikidata'
+        AND ${table.useScope} = 'catalog_metadata'
+        AND ${table.decision} = 'allow'
+        AND ${table.licenseLabel} = 'CC0 1.0'
+        AND ${table.licenseUrl} = 'https://creativecommons.org/publicdomain/zero/1.0/'
+        AND ${table.policyUrl} = 'https://www.wikidata.org/wiki/Wikidata:Licensing'
+        AND ${table.attributionRequired} = 0
+        AND ${table.shareAlike} = 0
+        AND ${table.automatedIngestionAllowed} = 1
+        AND ${table.commercialUseAllowed} = 1`,
+    ),
   ],
 );
 
@@ -81,6 +94,7 @@ export const titleCatalogSources = sqliteTable(
     ),
     index("title_catalog_sources_title_idx").on(table.titleId),
     index("title_catalog_sources_policy_idx").on(table.policySnapshotId),
+    check("title_catalog_sources_entity_check", sql`length(trim(${table.sourceEntityId})) BETWEEN 2 AND 160`),
     check("title_catalog_sources_url_check", sql`${table.sourceUrl} LIKE 'https://%'`),
     check(
       "title_catalog_sources_hash_check",
