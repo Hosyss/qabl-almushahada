@@ -1,270 +1,328 @@
 # نموذج ثقة الإنچين
 
-## الحقيقة الصعبة
+آخر تحديث تشغيلي: 13 أغسطس 2026
 
-الإنچين لا يستطيع معرفة أن المراجع البشري صادق بمجرد استلام بياناته. لو أدخل شخص كاذب بيانات خاطئة، أي معادلة تتعامل معها كحقيقة ستصدر قرارًا خاطئًا. لذلك الحماية لا تكون بـ«ذكاء المعادلة» فقط، بل بمنع المصدر الواحد من امتلاك سلطة القرار، وبإضافة تدقيق لاحق لا يستطيع المراجع توقعه مسبقًا.
+هذه الوثيقة تشرح **من أين تأتي الثقة وما الذي يمنع النشر**. المشروع الآن يملك مسارين منفصلين: مسار مراجعة بشرية عالي الضبط من P2/P2Q، ومسار evidence-based قابل للتوسع من P3S. لا يجوز خلط هوياتهما أو تزوير أحدهما لتمرير بوابات الآخر.
 
-## طبقات الحماية المنفذة
+## الحقيقة الأساسية
 
-1. **نسخة محددة ببصمة**: كل مراجعة مرتبطة بلغة ومنصة ومدة وبصمة محتوى. اختلاف النسخة يوقف النشر.
-2. **قائمة فحص صريحة**: المراجع لا يترك المحور فارغًا؛ يختار موجود/غير موجود/غير محسوم. «غير محسوم» يوقف القرار.
-3. **تغطية مشاهدة**: أقل من 95% من مدة النسخة لا تكفي للاعتماد.
-4. **مراجعان مستقلان على الأقل**: لا يصدر قرار من شخص واحد، ولا من شخصين داخل نفس مجموعة الاستقلال.
-5. **تصعيد مخاطر إلى مراجع ثالث**: عندما تظهر واقعة عالية الحساسية، يرتفع الحد إلى ثلاثة مراجعين نشطين من ثلاث مجموعات استقلال مختلفة. القاعدة deterministic ومعلنة وليست استنتاجًا بالذكاء الاصطناعي.
-6. **كشف التعارض**:
-   - واحد يقول المحور موجود والآخر يقول غير موجود: توقف.
-   - فرق الشدة درجتان أو أكثر: توقف ومراجعة فاصلة.
-7. **تجميع محافظ**: بعد نجاح الجودة يأخذ القرار أعلى شدة متفقًا عليها ضمن هامش درجة واحدة، فلا يخفي تقليل مراجع واحد للخطر.
-8. **اعتماد تحريري مستقل**: المعتمد لا يكون داخل مجموعة أي مراجع، ويجب أن يغطي كل المراجعات الفعالة.
-9. **Revisions غير قابلة للمحو**: إعادة إرسال المراجعة أو إنشاء اعتماد جديد لا يكتب فوق الصف السابق. كل revision جديدة تشير مباشرة إلى سابقتها، والصفوف القديمة محمية من UPDATE/DELETE في SQLite.
-10. **مؤشرات صريحة للحالة الحالية**: الـassignment يشير إلى submission الحالية، والـbundle يشير إلى أحدث اعتماد تحريري حالي صالح؛ الإنچين لا يختار «الأحدث» بالصدفة من التاريخ.
-11. **دليل قابل للتتبع**: كل سبب في القرار يحمل معرّفات الوقائع التي فعّلته.
-12. **سجل تدقيق لا يُعدّل**: تغييرات سير المراجعة تُضاف كأحداث جديدة بدل محو التاريخ.
-13. **بلاغات وتصحيح fail-closed**: البلاغ الجوهري يبطل الاعتماد الحالي فورًا، ولا تعود النتيجة `verified` بعد تصحيح مؤكد إلا بعد مراجعات واعتماد revision جديدة.
-14. **اختيار تدقيق غير متوقع بعد الإرسال**: كل submission مقفولة تحصل على قرار اختيار server-side بعد تجميد payload؛ النتيجة لا تُكشف للمراجع، والحالات الحساسة تدخل عينة أعلى.
-15. **نتيجة تدقيق مستقلة قابلة للقياس**: audit المختارة لا تعتمد قبل outcome مستقلة؛ missed events وفروق الشدة تُسجل append-only وتعيد المهمة للتصحيح عند الحاجة.
-16. **معايرة مرجعية قبل سلطة الإنتاج**: المراجع الجديد أو العائد بعد الإيقاف لا يصبح active قبل Pass واضح على مجموعة مرجعية حالية ومستقلة.
-17. **Safety Hold مفسر وقابل للمراجعة**: نمط أخطاء صريح أو تحقيق Admin موثق يسحب سلطة الثقة مؤقتًا، ويحفظ السبب والدليل والتاريخ، ولا يسمح بالعودة إلا بعد حسم بشري ومعايرة جديدة.
+الإنچين لا يعرف أن الإنسان صادق لمجرد أنه أدخل بيانات، ولا يعرف أن مخرجات النموذج الآلي صحيحة لمجرد أنها بصيغة JSON صحيحة. لذلك لا يوجد مصدر واحد يملك سلطة الحقيقة أو النشر.
 
-## سياسة P2-03 للمراجعة الثالثة
+المبدأ العام:
 
-الحالات التالية تتطلب ثلاثة مراجعين نشطين وثلاث مجموعات استقلال مختلفة:
+```text
+source/evidence
+  → structured facts
+  → coverage + conflict gates
+  → immutable/current state gate
+  → family policy + engine
+  → public presentation
+```
 
-- أي واقعة severity = 4 في أي محور.
+أي نقص أو تعارض أو stale state يعيد أو يفرض حالة غير قابلة للنشر بدل التحول إلى «مناسب».
+
+## القواعد المشتركة بين المسارين
+
+1. **نسخة محددة**: كل حقيقة أو مراجعة مرتبطة بـ`title_version` محددة؛ cross-version evidence ممنوعة.
+2. **Coverage صريحة**: الحقل الحرج غير المعروف لا يُفترض أنه آمن.
+3. **Conflict fail-closed**: اختلاف وجود المحور أو فرق شدة كبير يمنع النشر.
+4. **History غير قابلة للمحو**: التصحيح ينشئ revision جديدة بدل الكتابة فوق التاريخ.
+5. **Current pointer صريح**: لا نختار أحدث صف بالصدفة؛ هناك current approval أو current evidence publication head.
+6. **Server-owned authority**: العميل لا يحدد reviewer identity أو actor أو policy version أو human-watch status.
+7. **Race protection**: القراءة العامة تعيد فحص الحالة الحالية بعد hydration قبل العرض.
+8. **No hidden trust score**: لا توجد درجة ثقة رقمية مركبة تختصر الأدلة أو تخفي حجم العينة.
+
+---
+
+# المسار البشري — P2 / P2Q
+
+هذا المسار باقٍ ومستخدم عند الحاجة إلى مراجعة بشرية فعلية، لكنه لم يعد شرط التوسع الوحيد للموقع.
+
+## طبقات الحماية البشرية
+
+- المراجعة مرتبطة ببصمة نسخة ومنصة ولغة ومدة.
+- قائمة فحص صريحة لكل محور: موجود / غير موجود / غير محسوم.
+- مشاهدة أقل من 95% لا تكفي للاعتماد.
+- مراجعان مستقلان على الأقل ومن مجموعتي استقلال مختلفتين.
+- اعتماد تحريري مستقل عن مجموعات المراجعين.
+- submissions وapprovals revisions append-only ومتصلة بسلسلة مباشرة.
+- `review_assignments.submission_id` و`review_bundles.current_approval_id` هما المؤشران للحالة الحالية.
+- البلاغ الجوهري يسقط current approval فورًا ويحوّل الحالة fail-closed.
+- audit selection/outcomes/calibration/reference calibration/Safety Hold محفوظة ومختبرة.
+
+## P2-03 — متى نحتاج المراجع الثالث؟
+
+تتطلب الحالة **3 مراجعين نشطين من 3 مجموعات استقلال مختلفة** عند:
+
+- أي severity = 4.
 - `selfHarm` من severity 1.
 - `sexualContent` أو `flashingLights` من severity 2.
 - `violence` أو `substances` أو `discrimination` أو `bullying` من severity 3.
 - flag `flashing_sequence` من severity 1.
 - flags `blood` أو `weapon` أو `physical_bullying` من severity 3.
 
-القواعد موجودة في `lib/review-engine/risk-policy.ts` كـconstants صريحة قابلة للاختبار والمراجعة. تغيير threshold مستقبلًا يجب أن يكون تغيير كود موثقًا واختباره، لا تعديلًا صامتًا في UI أو prompt.
+غياب المراجع الثالث = نقص دليل، أما disagreement حقيقي فيظل conflict.
 
-إذا تحقق trigger ولم توجد ثلاث هويات مراجعين نشطة وفريدة، تضيف بوابة الجودة `THIRD_REVIEW_REQUIRED`. وإذا وُجد ثلاثة مراجعين لكن أقل من ثلاث مجموعات استقلال، تضيف `THIRD_INDEPENDENT_REVIEW_REQUIRED`. كلتا الحالتين تمنع القرار والنشر والاعتماد التحريري.
+## P2Q-01 — التدقيق العشوائي
 
-غياب المراجع الثالث هو **نقص دليل** (`insufficient`) وليس تعارضًا بحد ذاته. إذا كان هناك disagreement حقيقي، تبقى حالة `conflicted` ذات الأولوية.
+- baseline: **10% = 1000 bps**.
+- high-risk: **50% = 5000 bps** وفق نفس P2-03 thresholds.
+- الاختيار server-side بعد تجميد submission، باستخدام CSPRNG.
+- لا يكشف للمراجع وقت الإرسال.
+- SQLite تعيد التحقق من risk tier والrate والdraw والselected.
 
-## سياسة P2-04 لحفظ التاريخ
+## P2Q-02 — نتيجة التدقيق
 
-- كل `review_submission` جديدة تحمل رقم `revision` وتربط `supersedes_submission_id` بالـrevision السابقة مباشرة لنفس assignment.
-- لا يُسمح بتعديل أو حذف submission أو category checks أو observations أو flags بعد إنشائها؛ أي تصحيح لاحق هو submission revision جديدة.
-- `review_assignments.submission_id` هو المؤشر إلى revision الحالية التي تدخل بوابات الجودة. revisions الأقدم تبقى أدلة تاريخية ولا تدخل القرار الحالي.
-- كل `editorial_approval` جديدة تحمل رقم `revision` وتربط `supersedes_approval_id` بالاعتماد السابق مباشرة.
-- لا يُسمح بتعديل أو حذف الاعتماد أو روابط submissions أو spot checks بعد إنشائها.
-- `review_bundles.current_approval_id` هو المؤشر الصريح للاعتماد الحالي فقط، ويجب أن يشير إلى أحدث revision معتمدة تابعة للحزمة نفسها.
-- SQLite يرفض lineage تقفز فوق predecessor مباشر، لذلك لا يمكن إنشاء تاريخ مزور ظاهريًا مثل revision 3 التي تدعي أنها جاءت مباشرة بعد revision 1.
+- selected audit تمنع الاعتماد حتى outcome مستقلة.
+- `confirmed` بلا findings.
+- `missed_event` أو `severity_difference` ينتج `correction_required`.
+- normalized rates لا تظهر قبل **20 audit مكتملة**.
+- لا trust score مركبة ولا ranking للمراجعين.
 
-الهدف ليس الاحتفاظ بنسخة احتياطية فقط؛ الهدف أن يظل **ما كان معروفًا ومَن اعتمده في كل لحظة قابلًا لإعادة البناء والمراجعة**، حتى بعد تصحيح البيانات لاحقًا.
+## P2Q-03 — المعايرة المرجعية
 
-## سياسة P2-05 للبلاغات والتصحيح وإعادة الاعتماد
+Pass قبل التفعيل يحتاج:
 
-### فتح البلاغ
+- 10 حالات على الأقل.
+- ≥95% اتفاق المحاور.
+- ≥90% recall.
+- ≥90% precision.
+- صفر high-sensitivity event فائت.
+- أقصى severity delta = 1.
 
-- البلاغ الجوهري لا يُفتح إلا ضد حزمة حالتها `verified` وبها `current_approval_id` فعلية.
-- D1 هي التي تلتقط `version_id` وstatus وrevision والاعتماد الجاري إبطاله؛ العميل لا يرسل هذه الهوية.
-- SQLite تقارن snapshot لحظة الإدخال بالحزمة الحالية حرفيًا: نفس النسخة، نفس revision، `verified`، ونفس أحدث approval معتمدة.
-- عند نجاح الفتح تتحول الحزمة إلى `conflicted` ويصبح `current_approval_id = NULL` فورًا، بينما صف الاعتماد التاريخي يبقى محفوظًا.
-- لا يسمح بأكثر من بلاغ `open/investigating` واحد للحزمة، ولا بإنشاء approval جديدة أثناء وجود البلاغ النشط.
-- الإنچين يحمّل `open` و`investigating` فقط كبلاغات مانعة؛ لا يبقى `resolved/dismissed` حظرًا أبديًا بعد الحسم الصحيح.
+المراجع الجديد يبدأ `probation`، والعودة بعد الإيقاف تحتاج Pass حديثة بعد الإيقاف.
 
-### حسم البلاغ
+## P2Q-04 — Safety Hold
 
-- الحسم عملية داخلية لا ينفذها إلا `editorial_reviewer` نشط بهوية reviewer نشطة.
-- الطلب من العميل يحمل معرف البلاغ، expected revisions، نوع الحسم، والملاحظة فقط. النسخة والاعتماد والفاعل تُحل server-side.
-- كل حسم يستخدم optimistic locking وtransition IDs؛ إذا تغيرت الحزمة أو البلاغ أو assignments عن الصورة المتوقعة يفشل مغلقًا.
+Immediate hold عند أحدث audit مستقلة إذا ظهر:
 
-### `no_issue`
+- high-sensitivity event فائت؛ أو
+- severity delta = 3.
 
-إذا أعاد التدقيق التحقق من أن البلاغ غير صحيح ولم تتغير الحزمة منذ فتحه:
-
-- البلاغ يصبح `dismissed`.
-- يُعاد **نفس الاعتماد الذي تم إبطاله**؛ لا يُنشأ اعتماد مزيف أو مختلف.
-- الحزمة تعود `verified` مع revision جديدة وسجل تدقيق.
-- إذا ظهرت revision أحدث أو تغيرت الحالة، لا تتم الاستعادة تلقائيًا.
-
-### `correction_required`
-
-إذا ثبت خطأ جوهري في وقائع نفس النسخة:
-
-- البلاغ يصبح `resolved` مع هوية المعتمد وملاحظة الحسم.
-- كل assignments المعتمدة لنفس النسخة تتحول إلى `changes_requested` وتزيد revisions الخاصة بها.
-- الحزمة تعود `under_review` من غير اعتماد حالي.
-- المراجعون ينشئون submission revisions جديدة؛ الصفوف القديمة لا تُمسح.
-- الاعتماد القديم أو أي approval تاريخية أقدم لا يمكن إعادتها كـcurrent.
-- لا تعود الحزمة `verified` إلا عندما تنشأ **editorial approval revision أحدث** تمر من كل بوابات الجودة المعتادة.
-
-إذا ثبت أن البلاغ سببه **نسخة مختلفة** (`different_version`):
-
-- لا نعدل الوقائع داخل هوية نسخة خاطئة.
-- الحزمة الحالية تتحول `withdrawn`.
-- النسخة الصحيحة تدخل workflow مستقلة بهويتها وبصمتها الصحيحة.
-
-## سياسة P2Q-01 لاختيار التدقيق العشوائي
-
-الهدف هنا ليس تنفيذ التدقيق نفسه، بل ضمان أن **اختيار العينة** لا يمكن للمراجع توقعه أو التحكم فيه، وأن لدينا سجلًا قابلًا للمراجعة لكل قرار اختيار.
-
-### متى تحدث القرعة؟
-
-- المراجع يحفظ المسودة ويكمل validation المعتاد أولًا.
-- بعد أن تصبح submission النهائية صالحة ويُجمَّد payload في ذاكرة الخادم، يولد الخادم `draw_u32` باستخدام `crypto.getRandomValues`.
-- لا يرسل العميل draw أو sample rate أو risk tier أو selected، ولا توجد قيمة client-side يمكنها تعطيل القرعة.
-- القرار يُكتب في **نفس D1 batch** الخاصة بانتقال المهمة إلى `submitted` وكتابة submission وfacts؛ إذا لم تُكتب decision بالضبط مرة واحدة يفشل الانتقال بدل fail-open.
-
-### نسب الاختيار الأولية
-
-- baseline: **10% = 1000 basis points**.
-- high-risk: **50% = 5000 basis points**.
-
-high-risk يعيد استخدام نفس P2-03 policy والـthresholds، وليس تعريفًا موازيًا. هذا يمنع حالة تعتبر فيها بوابة المراجع الثالث محتوى حساسًا بينما sampling تعتبره عاديًا.
-
-النسبة 50% وليست 100% عمدًا: الهدف رفع احتمال التدقيق بقوة مع إبقاء الاختيار غير قابل للتوقع مسبقًا. تعديل هذه النسب لاحقًا يجب أن يكون تغييرًا موثقًا ومختبرًا؛ P2Q-02 يقدم evidence تساعد في معايرة السياسة، لكن UI أو المراجع لا يملك override.
-
-### طريقة اختيار بلا modulo bias
-
-- القرعة عدد صحيح unsigned 32-bit من `0` إلى `2^32 - 1`.
-- يحسب الخادم threshold مباشرًا من `2^32 × rate / 10000`.
-- selected = `draw < threshold`.
-- لا نستخدم `% 10` أو `% 100`، وبالتالي لا نضيف انحيازًا ناتجًا عن modulo.
-
-### ما الذي يُخزن؟
-
-جدول `review_audit_selections` يحفظ قرارًا واحدًا لكل submission سواء اختيرت أم لا:
-
-- submission / assignment / bundle / version / reviewer identity.
-- `risk_tier`.
-- `sample_rate_bps`.
-- `draw_u32`.
-- `selected`.
-- trigger codes التي رفعت الحالة إلى high-risk.
-- وقت إنشاء القرار.
-
-هذا السجل append-only؛ UPDATE وDELETE مرفوضان في SQLite.
-
-### حماية مستقلة داخل SQLite
-
-قاعدة البيانات لا تثق في أن التطبيق حسب القرار صح فقط. قبل قبول row الاختيار تعيد التحقق من:
-
-- أن submission هي الحالية لنفس assignment/bundle/version/reviewer وأن المهمة `submitted`.
-- أن الوقائع والflags نفسها تستحق baseline أو high-risk وفق thresholds الحساسة.
-- أن high-risk تستخدم 5000 bps وليس 1000.
-- أن baseline تستخدم 1000 bps.
-- أن `selected` يطابق `draw_u32` والrate فعلًا.
-- أن submission لم تحصل على decision أخرى سابقًا.
-
-كذلك:
-
-- انتقال assignment إلى `approved` مرفوض إذا submission الحالية بلا audit-selection decision.
-- انتقال bundle إلى `verified` مرفوض إذا توجد submission حالية بلا decision.
-
-### عدم كشف الاختيار للمراجع
-
-استجابة `submitOwnReviewAssignment` لا تحتوي `selected` أو draw أو sample rate أو selection ID، والـserver action الخاصة بالمراجع تمرر نفس الاستجابة فقط. وجود القرار في قاعدة البيانات مطلوب لعمليات الجودة الداخلية اللاحقة، وليس feedback للمراجع وقت الإرسال.
-
-### حدود P2Q-01
-
-P2Q-01 **لا تدّعي أن التدقيق تم** ولا تنشئ trust score. هي تختار العينة وتحفظ قرار الاختيار فقط. P2Q-02 هي التي تسجل نتيجة التدقيق الفعلي، ولا يجوز استنتاج «مراجع موثوق» من قرار selected وحده أو من عينة صغيرة.
-
-## سياسة P2Q-02 لنتيجة التدقيق والمعايرة
-
-- selected audit لا تسمح بالاعتماد قبل outcome نهائية من `editorial_reviewer` نشط ومستقل عن المراجع الأصلي.
-- `confirmed` لا تحمل findings؛ وجود `missed_event` أو `severity_difference` ينتج `correction_required` ويرجع assignment إلى `changes_requested`.
-- هوية المراجع والمدقق وشدة المراجع الأصلية قيم server-owned من D1، لا حقول client-side.
-- outcome والfindings النهائية append-only وغير قابلة للتعديل أو الحذف.
-- raw counts تبقى قابلة للتدقيق، لكن normalized rates لا تظهر قبل **20 audit مكتملة**.
-- لا توجد composite trust score ولا ranking تنافسي للمراجعين.
-
-## سياسة P2Q-03 للمعايرة المرجعية
-
-- الحساب الجديد يبدأ `probation`، ولا يتحول إلى `active` قبل Pass على المجموعة المرجعية النشطة.
-- Pass يتطلب **10 حالات على الأقل، ≥95% اتفاق المحاور، ≥90% recall، ≥90% precision، صفر high-sensitivity event فائت، وأقصى severity delta = 1**.
-- المقارنة deterministic حسب نفس النسخة والمحور وتوقيت قريب؛ لا يوجد semantic AI matching.
-- reference evidence يجب أن تظل verified/current ومستقلة عن المراجع، وتُراجع صلاحيتها عند بداية attempt وكل case result والإقفال النهائي.
-- إعادة تفعيل reviewer موقوفة تتطلب Pass حديثة بعد الإيقاف، فلا تكفي calibration تاريخية قديمة.
-
-## سياسة P2Q-04 للـSafety Hold
-
-### المعنى
-
-Safety Hold هي **إزالة مؤقتة لسلطة الثقة** تحتاج تحقيقًا أو remediation. ليست حذف حساب، وليست تغيير role، وليست إدانة بالتواطؤ.
-
-كل hold تحمل `policyVersion`, trigger codes, evidence, actor identity, ووقت الإنشاء داخل سجل append-only.
-
-### قواعد التوقف التلقائي `2026-08-12.v1`
-
-Immediate trigger على أحدث audit مستقلة مكتملة:
-
-- حدث عالي الحساسية فائت؛ أو
-- أقصى فرق شدة = 3.
-
-Aggregate rules لا تعمل قبل **20 audit مكتملة في دورة المراجع الحالية**. داخل آخر 20:
+Aggregate rules لا تعمل قبل 20 audit مكتملة في active epoch. داخل آخر 20:
 
 - 5 `correction_required`؛ أو
-- 3 audits تحتوي missed events؛ أو
-- 3 audits تحتوي severity delta ≥2.
+- 3 audits بها missed events؛ أو
+- 3 audits بها severity delta ≥2.
 
-النافذة rolling latest-20 وليست lifetime score. التاريخ السابق يظل محفوظًا، لكن remediation ناجحة تفتح active epoch جديدة حتى لا يعاد تعليق الشخص للأبد بنفس الدليل القديم.
-
-SQLite تحمي epoch النشطة من reset عرضي: طالما status تظل `active` لا يجوز تغيير timestamp المرساة بتحديث metadata عادي.
-
-### أثر الـHold
-
-- reviewer identity والحساب الداخلي المقابل يصبحان `suspended`.
-- أي bundle تعتمد حاليًا على الهوية كمراجع أو كمدقق audit أو كمعتمد تحريري تفشل مغلقًا إلى `conflicted` وتفقد `current_approval_id`، من غير حذف التاريخ.
-- الحزم التي لا تعتمد على تلك الهوية لا تتأثر.
-- triggering bundle الناتجة عن `correction_required` لا تُعطل قبل إكمال transaction التصحيح نفسها؛ بعدها تظل تحت workflow التصحيح المعتاد.
-
-### الاشتباه اليدوي في التواطؤ
-
-- Admin نشط فقط يمكنه فتح `manual_collusion_suspicion`.
-- الطلب يحتاج 1–20 stored audit evidence IDs، ويجب أن يكون دليل واحد على الأقل مرتبطًا بالمراجع المستهدف.
-- الخادم يملك reviewer identity/source/policy/trigger codes؛ العميل لا يستطيع صياغة hold على أنها automatic أو تزوير actor.
-- الرمز `COLLUSION_SUSPICION` يعني **تحقيق مطلوب**، وليس استنتاجًا آليًا أن تواطؤًا حدث فعلًا.
-
-### الاستئناف
+الـHold يعلق سلطة الثقة، لا يمحو الحساب أو التاريخ. العودة:
 
 ```text
-Safety Hold
-  → Human Admin resolution
-  → Fresh P2Q-03 reference calibration
+Human resolution
+  → fresh reference calibration
   → Admin activation
 ```
 
-unresolved hold يمنع حتى بدء reactivation/drift calibration. وبعد resolution، الحساب يبقى suspended إلى أن تنجح معايرة جديدة؛ لا resolution وحدها ولا Pass قديمة تعيد سلطة الإنتاج.
+---
 
-## ما الذي لا يمكن ضمانه بالكامل؟
+# المسار evidence-based — P3S
 
-- تواطؤ عدة مراجعين ومعتمد معًا قد يظل صعب الاكتشاف إذا لم يترك evidence مستقلة كافية.
-- خطأ جماعي متطابق بسبب تدريب سيئ.
-- نسخة تغيرت من المنصة من غير تغير البصمة المستخدمة لدينا.
-- sampling لا يكتشف كل خطأ؛ هو يخفض المخاطر مع مرور الوقت ولا يحول البشر إلى مصدر معصوم.
-- Thresholds P2Q-04 أولية تشغيلية، ويجب معايرتها لاحقًا ببيانات إنتاج حقيقية من غير تخفيف fail-closed بصمت.
+الهدف هو تغطية آلاف الأعمال من **أدلة مرخصة قابلة للتتبع** من غير توظيف مراجعين يشاهدون كل عنوان، ومن غير إنشاء reviewers وهميين لتمرير بوابات المسار البشري.
 
-تقليل هذه المخاطر في التشغيل الحقيقي يحتاج:
+## P3S-04 — provenance
 
-- استمرار تنفيذ التدقيق المختار بواسطة مدقق مستقل.
-- مراجعة بشرية لأي Safety Hold بدل تحويل trigger إلى إدانة آلية.
-- مراجعة thresholds بعد عينة إنتاج حقيقية وكافية، كتغيير كود versioned ومختبر.
-- فصل من يوزع المهام عمن يراجع ومن يدقق ومن يعتمد.
-- عدم عرض «مناسب» أثناء التحقيق في بلاغ أو تعليق ثقة مؤثر؛ تتحول البيانات المرتبطة إلى حالة غير كافية/متعارضة حتى الاستيفاء.
+- `content_source_policy_snapshots`: policy قانونية versioned.
+- `title_catalog_sources`: provenance للكتالوج.
+- `version_evidence_sources`: evidence مرتبطة بنسخة محددة.
+- السجلات append-only ومحكومة بـsource/use scope والرخصة والـhash.
 
-## حالات البيانات
+## P3S-05 — الاستخراج وCoverage/Conflict
+
+### سلطة Workers AI
+
+Workers AI **ليست سلطة نشر**. دورها استخراج structured claims/facts من evidence مرخصة.
+
+بالنسبة إلى prose الآلية:
+
+- المخرجات المسموحة: `present` أو `uncertain` فقط.
+- `none` ممنوعة للنموذج؛ غياب الذكر ليس دليلًا على عدم الوجود.
+- `present` تحتاج fact وlocator `P####` حقيقي.
+- `uncertain` تحمل trace لنطاق الـchunk الذي تم فحصه، لا فقرة داعمة مزعومة.
+- لا نختلق runtime timestamps من نص لا يحتويها.
+
+### `assessEvidenceReview`
+
+تمنع readiness عند:
+
+- محور بلا coverage.
+- `uncertain`.
+- `present` بلا fact.
+- claim تشير لمصدر غير موجود أو نسخة أخرى.
+- presence conflict بين المصادر.
+- severity delta ≥2 بين المصادر في نفس المحور.
+- malformed fact/assertion/source identity.
+
+النتيجة الجاهزة من P3S-05 **ليست منشورة تلقائيًا**؛ candidate نفسها `publishable: false`.
+
+---
+
+# P3S-06 — بوابة النشر المستقلة
+
+P3S-06 تضيف سلطة نشر جديدة خاصة بالمسار evidence-based. هذه السلطة **موازية** للمسار البشري ولا تستخدم `review_bundles` أو `editorial_approvals` بصورة مزيفة.
+
+## قواعد ما قبل persistence
+
+`prepareEvidencePublication()` تعيد تشغيل بوابات P3S-05 ثم تفرض:
+
+- `status = ready` و`engineEligible = true`.
+- عدد المصادر/claims/facts bounded.
+- تطابق مجموعة `EvidenceSourceRef` مع مجموعة provenance واحدًا لواحد.
+- تطابق version/policy snapshot/URL/revision/hash حرفيًا.
+- source policy الحالية ما زالت تسمح `analysis_evidence` تجاريًا.
+- license label وlicense URL يطابقان policy.
+- attribution موجودة عندما تكون مطلوبة.
+- `model_assisted + none` ممنوعة.
+- `reviewMethod = evidence_based` server-owned.
+- `humanWatchConfirmed = false` server-owned.
+
+## Snapshot غير قابلة للمحو
+
+migration P3S-06 تضيف:
+
+- `evidence_review_publications`
+- `evidence_publication_sources`
+- `evidence_publication_assertions`
+- `evidence_publication_facts`
+- `evidence_publication_fact_flags`
+- `evidence_review_publication_heads`
+
+publication revisions متصلة مباشرة عبر `supersedes_publication_id`. الصفوف التاريخية وclaims/facts/flags لا تُعدّل ولا تُحذف.
+
+## لماذا الـDB نفسها بوابة نشر؟
+
+التطبيق لا يكفي وحده. `evidence_review_publication_heads` لا تسمح بإنشاء/تحريك current head إلا إذا تحقق داخل D1 نفسها:
+
+1. النسخة `active`.
+2. snapshot تحمل `review_method = evidence_based`.
+3. `human_watch_confirmed = 0`.
+4. يوجد مصدر واحد مرخص على الأقل.
+5. كل linked source هي `analysis_evidence` لنفس النسخة ورخصتها مطابقة للـpolicy.
+6. كل claim مرتبطة بمصدر داخل نفس publication snapshot.
+7. المحاور العشرة كلها محسومة صراحة بـ`none` أو `present`.
+8. لا `uncertain` يمكنها إغلاق coverage.
+9. لا presence conflict.
+10. كل `present` لها structured fact واحدة على الأقل.
+11. severity delta ≥2 عبر مصادر متعددة يمنع finalization.
+12. head الجديدة تكون revision التالية مباشرة وتsupersede current publication السابقة فقط.
+
+هذا يجعل fail-closed property موجودة حتى لو حدث bug في طبقة TypeScript قبل finalization.
+
+## معاملة النشر
+
+`publishEvidenceReview()` تكتب في D1 batch واحدة:
+
+- missing provenance إن لم تكن موجودة بعد.
+- immutable publication snapshot.
+- source links.
+- assertion snapshots.
+- fact snapshots والflags.
+- ثم current head كآخر statement.
+
+لو تغير head في نفس الوقت، optimistic condition تمنع overwrite الصامت ويجب إعادة البناء من الحالة الحالية.
+
+## العرض العام
+
+المساران في `/review` منفصلان:
+
+```text
+/review?bundleId=...       → human-reviewed path
+/review?publicationId=...  → evidence-based path
+```
+
+وجود الاثنين أو غيابهما يفشل مغلقًا.
+
+public evidence loader يعمل:
+
+```text
+initial gate
+  → hydrate sources/claims/facts
+  → validate rows + licenses
+  → re-run assessEvidenceReview
+  → final gate with same revision
+  → render
+```
+
+أي تغيير في current head أثناء القراءة يمنع العرض بدل مزج state قديمة وجديدة.
+
+## ما الذي يظهر للمستخدم؟
+
+الواجهة يجب أن تقول بوضوح:
+
+- **«مراجعة مبنية على أدلة»**.
+- **«المشاهدة البشرية — غير مدعاة»**.
+- **«لا ندّعي مشاهدة بشرية لم تحدث»**.
+- المصدر والرخصة والعزو والrevision متاحون من snapshot المنشورة.
+- التوقيت غير الموجود يظهر كغير متاح؛ لا يتم اختلاق timestamp.
+
+النص التحريري الثابت:
+
+> **نحن لا ننقل مراجعة الآخرين؛ المصادر تمدنا بالدليل، والمراجعة النهائية وتجميع الوقائع وقرار الأسرة من منهج «قبل المشاهدة».**
+
+هذه العبارة لا تعني أن الموقع شاهد العمل؛ هي تصف ملكية منهج التنظيم والتقييم والقرار فقط.
+
+## علاقة النشر بقرار الأسرة
+
+وجود evidence publication جاهزة يعني أن **الوقائع المنشورة اجتازت بوابة الأدلة**، وليس أن العمل «مناسب» لكل أسرة.
+
+قرار الأسرة يظل خطوة منفصلة:
+
+```text
+current evidence facts
+  + Arab Family Policy / family overrides
+  → deterministic engine verdict
+```
+
+لا يجوز اختزال publication نفسها إلى age rating أو suitable badge من غير تطبيق حدود الأسرة.
+
+---
+
+# ما لا يمكن ضمانه بالكامل؟
+
+- المصدر المرخص نفسه قد يحتوي خطأ أو نقصًا.
+- عدة مصادر قد تكرر نفس الخطأ الأصلي.
+- Wikipedia ليست exhaustive Parents Guide؛ لذلك silence لا يصبح `none`.
+- model extraction قد يخطئ رغم structured output.
+- human reviewers قد يتواطؤون أو يخطئون جماعيًا.
+- sampling لا يكتشف كل خطأ.
+
+تقليل هذه المخاطر يحتاج استمرار:
+
+- إضافة مصادر evidence مستقلة عند توفر حق استخدامها التجاري.
+- P3S-07 taxonomy أوضح وأكثر موضوعية.
+- P4-03 مقارنة 20 مراجعة evidence-based فعلية يدويًا قبل التوسع.
+- corrections علنية قابلة للتتبع.
+- عدم تخفيف fail-closed بصمت لتسريع SEO أو الإعلانات.
+
+## الحالات التشغيلية المختصرة
+
+### المسار البشري
 
 ```text
 draft → under_review → submitted + audit_selection_decision → verified
                      ↘ report_open → conflicted
-                                      ├─ no_issue → verified (نفس approval إذا لم تتغير الحالة)
-                                      ├─ correction_required → under_review → submissions جديدة → approval جديدة → verified
-                                      └─ different_version confirmed → withdrawn
-
-reviewer active
-  ↘ safety_hold → suspended
-                   → human_resolution
-                   → fresh_reference_calibration
-                   → admin_activation → active
+                                      ├─ no_issue → verified
+                                      ├─ correction_required → under_review → revisions جديدة → approval جديدة → verified
+                                      └─ different_version → withdrawn
 ```
 
-## مبدأ فشل آمن
+### المسار evidence-based
 
-أي فشل في هوية النسخة، التغطية، عدد المراجعين المطلوب حسب المخاطر، الاستقلال، الاتساق، lineage التاريخ، سلامة البلاغ، تسجيل/نتيجة التدقيق، المعايرة المرجعية، Safety Hold غير محسومة، أو الاعتماد يعيد أو يفرض حالة غير قابلة للنشر:
+```text
+licensed evidence
+  → extraction
+  → coverage/conflict assessment
+  → ready candidate (still not publish authority)
+  → P3S-06 publication snapshot
+  → D1 current-head gate
+  → public evidence review
+
+uncertain / missing / conflict / stale policy / cross-version / invalid licence
+  → not current / not public
+```
+
+## مبدأ الفشل الآمن
+
+أي فشل في هوية النسخة، التغطية، سلامة المصدر أو الرخصة، التتبع، الاتساق، lineage التاريخ، current state، استقلال المراجعة البشرية عندما تُستخدم، التدقيق، المعايرة، Safety Hold، أو publication gate يمنع النشر أو يعيد:
 
 ```text
 verdict = insufficient_data

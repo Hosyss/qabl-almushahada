@@ -1,90 +1,154 @@
 # Cloudflare deployment target
 
-هدف النشر النهائي لمشروع «قبل المشاهدة» هو Cloudflare Workers مع D1، وليس static Pages، لأن التطبيق يستخدم Server Actions وD1 ومسارات داخلية محمية.
+آخر تحديث تشغيلي: 13 أغسطس 2026
 
-## قواعد الأمان قبل النقل
+هدف النشر النهائي لمشروع «قبل المشاهدة» هو **Cloudflare Workers + D1** من نفس المستودع. هذا هو الإنتاج الفعلي الحالي؛ `chatgpt.site` ليس مصدر النشر.
 
-- الموقع العام يبقى مفتوحًا للقراءة.
-- `/internal` والـServer Actions الداخلية تستخدم مزود هوية صريحًا، ولا تعتمد تلقائيًا على هيدرز `oai-authenticated-user-*` خارج استضافة ChatGPT.
-- عند تفعيل Cloudflare Access يجب التحقق server-side من `Cf-Access-Jwt-Assertion` بالتوقيع و`issuer` و`audience`؛ لا يكفي هيدر البريد وحده.
-- إذا لم تُضبط Access بعد، يمكن نشر الصفحات العامة فقط؛ `/internal` يفشل مغلقًا لأن `INTERNAL_AUTH_MODE` غير موجود.
-- D1 production لا يُربط بمعرف وهمي. المعرّف المحلي `00000000-0000-4000-8000-000000000000` مرفوض صراحة في مولد إعداد الإنتاج.
-- API token وAccount ID خاصان بأداة Wrangler/CI ولا يتم نسخ أي منهما إلى Worker vars.
+## الإنتاج الحالي المؤكد
+
+- Worker: `https://qabl-almushahada.buildtools.workers.dev`
+- D1: `qabl-almushahada-production`
+- آخر production commit مؤكد قبل P3S-06: `701604e7570671671ff94b3b97e111d837ab626f`
+- D1 المؤكدة: **20/20 migrations**
+- bindings المؤكدة: `DB`, `IMAGES`, `AI`, `ASSETS`
+- Worker Version ID: `a0de055e-8a85-4cd9-9ab6-57971b909fae`
+- Cloudflare production Run الناجح لـP3S-05: `31676888290`
+
+P3S-06 ما تزال على feature branch في هذا checkpoint؛ migration رقم 21 وجداول publication الجديدة لا تعتبر production-active حتى merge + deploy ناجحين.
+
+## قواعد الأمان
+
+- الموقع العام مفتوح للقراءة.
+- `/internal` والـServer Actions الداخلية تستخدم مزود هوية صريحًا.
+- Cloudflare Access يتحقق server-side من `Cf-Access-Jwt-Assertion` بالتوقيع وissuer/audience/expiry؛ هيدر البريد وحده غير كافٍ.
+- إذا لم تُضبط Access، المسارات الداخلية تفشل مغلقًا بدل fallback صامت.
+- D1 production لا تُربط بمعرف وهمي.
+- `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` خاصان بـWrangler/CI ولا يتم نسخ أي منهما إلى Worker vars أو Git.
+- لا يُعد أي deploy ناجحًا قبل migration verification + schema verification + Worker deploy + smoke tests.
 
 ## إعداد الإنتاج المولد
 
-لا نلتزم بـ`wrangler.jsonc` يحتوي IDs ثابتة في Git. بدلًا من ذلك:
+لا نلتزم بـ`wrangler.jsonc` يحتوي IDs ثابتة في Git.
 
-- `scripts/prepare-cloudflare-deploy.mjs` يتحقق من قيم الإنتاج ثم يولد ملفًا داخل `.wrangler/production/wrangler.jsonc`؛ المجلد كله ignored من Git.
-- `vite.config.ts` يستخدم binding المحلي الوهمي فقط عند التطوير/المعاينة. عند وجود `CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH` يترك ملف Wrangler الخارجي مصدر الحقيقة بدل أن يطغى عليه بالـplaceholder.
-- إعداد الإنتاج يضيف:
-  - Worker باسم افتراضي `qabl-almushahada`.
-  - D1 binding باسم `DB` مع `migrations_dir` الذي يشير إلى `drizzle`.
-  - Images binding باسم `IMAGES` لأن `worker/index.ts` يستخدمه لمسار تحسين الصور.
-  - `nodejs_compat`.
-  - Workers observability بنسبة sampling قدرها 10%.
-
-## المتغيرات المطلوبة لبناء/نشر الإنتاج
-
-مطلوبة دائمًا:
+`scripts/prepare-cloudflare-deploy.mjs` يولد `.wrangler/production/wrangler.jsonc` بعد التحقق من:
 
 - `CF_D1_DATABASE_ID=<real-d1-uuid>`
 - `CF_D1_DATABASE_NAME=<real-d1-name>`
+- Worker name، افتراضيًا `qabl-almushahada`
 
-اختيارية:
+الإعداد يتضمن:
 
-- `CF_WORKER_NAME=qabl-almushahada`
+- D1 binding باسم `DB`.
+- Images binding باسم `IMAGES`.
+- Workers AI binding باسم `AI`.
+- `nodejs_compat`.
+- `workers_dev: true`.
+- observability sampling المحددة في مولد الإعداد.
 
-لتفعيل `/internal` عبر Cloudflare Access، يجب ضبط **الاثنين معًا**:
+`vite.config.ts` يستخدم placeholder محلي فقط للتطوير، ولا يطغى على config الإنتاج الخارجي.
+
+## أوامر المشروع
+
+- `npm run cloudflare:prepare` — يولد config فقط.
+- `npm run cloudflare:build` — يبني artifact الإنتاج بنفس config الحقيقي.
+- `npm run cloudflare:migrate` — يطبق migrations على D1 remote.
+- `npm run cloudflare:deploy` — build + `wrangler deploy`.
+
+## نقل migrations إلى D1
+
+المشروع لا يعتمد على `wrangler d1 migrations apply --remote` مباشرة لأن trigger-heavy migrations سببت سابقًا `SQLITE_ERROR: incomplete input` رغم نجاح نفس SQL محليًا.
+
+`scripts/cloudflare-migrate.mjs` يستخدم file ingestion محافظًا:
+
+1. يقرأ `d1_migrations` ويرفض gap/divergence.
+2. يجهز migration معلقة كملف مؤقت بعد تطبيع line endings.
+3. يضيف تسجيل migration داخل نفس import file.
+4. ينفذ `wrangler d1 execute --remote --file`.
+5. يعيد قراءة سجل migrations بعد كل ملف.
+6. يرفض الاستمرار لو لم تسجل migration الصحيحة بالترتيب.
+7. يحذف ملفات staging دائمًا.
+
+بهذا لا نعدل SQL الموثوق لمجرد تجاوز parser، ولا ندعي النجاح عند تنفيذ جزئي.
+
+## GitHub Actions — مسار الإنتاج
+
+`.github/workflows/deploy-cloudflare.yml` يعمل عند push إلى `main` أو `workflow_dispatch` ويطبق بالترتيب:
+
+1. Node 22 + `npm ci`.
+2. فحص وجود Cloudflare credentials.
+3. `npm run test:engine`.
+4. `npm run test:migrations`.
+5. `npm run lint:local`.
+6. `npm run build:local`.
+7. resolve/reuse exact D1 باسم `qabl-almushahada-production` أو إنشاء واحدة فقط إذا غير موجودة.
+8. `npm run cloudflare:build`.
+9. `npm run cloudflare:migrate`.
+10. remote D1 schema verification.
+11. Worker deploy.
+12. public smoke tests.
+13. summary بالـWorker URL وD1 والcommit.
+
+لو credentials ناقصة، workflow تكتب بوضوح أن النشر لم يبدأ ولا تلمس Cloudflare resources.
+
+## P3S-05 — آخر deploy ناجح مؤكد
+
+Cloudflare Run `31676888290` أثبت:
+
+- **20/20 migrations** applied.
+- source-policy verification ناجحة.
+- `env.AI` موجودة فعليًا في Worker bindings.
+- Worker deploy ناجح.
+- public smoke tests ناجحة.
+
+لذلك P3S-05 تعتبر production-complete.
+
+## P3S-06 — ما الذي يجب أن يثبته deploy التالي؟
+
+بعد merge P3S-06، لا تعتبر production-complete إلا إذا تحقق كله:
+
+- main CI أخضر على squash commit.
+- D1 تصبح **21/21 migrations**.
+- migration `0018_evidence_publication_gate.sql` تطبق remote بنجاح.
+- remote schema verification يجد الجداول الستة:
+  - `evidence_review_publications`
+  - `evidence_publication_sources`
+  - `evidence_publication_assertions`
+  - `evidence_publication_facts`
+  - `evidence_publication_fact_flags`
+  - `evidence_review_publication_heads`
+- `AI` binding تظل موجودة بعد deploy.
+- `/` و`/review` و`/search?q=nemo` تعمل.
+- `/review?publicationId=missing-publication` تعيد **حالة آمنة** ولا تعرض Demo/fallback.
+- `/review-policy`, `/privacy`, `/corrections` تظل سليمة.
+
+## Cloudflare Access
+
+لتفعيل `/internal` عبر Cloudflare Access:
 
 - `CF_ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`
 - `CF_ACCESS_AUD=<application-audience-tag>`
 
-ولأول bootstrap فقط يمكن إضافة:
+ولأول bootstrap فقط:
 
 - `INTERNAL_BOOTSTRAP_ADMIN_EMAIL=<first-admin-email>`
 
-بعد إنشاء أول Admin، احذف متغير bootstrap من بيئة الإنتاج.
+بعد إنشاء أول Admin، يحذف bootstrap variable.
 
-Wrangler authentication في الجهاز أو CI يستخدم `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` عند الحاجة؛ مولد الإعداد يتجاهلهما ولا يضعهما داخل Worker config.
+## قاعدة الإغلاق
 
-## أوامر المشروع
+لا تقل إن شيء «منشور» أو «ناجح» بناءً على build محلي أو branch CI فقط.
 
-- `npm run cloudflare:prepare` — يولد config فقط ويفشل إذا كان D1 ID/Name ناقصين أو placeholder.
-- `npm run cloudflare:build` — يولد config ثم يبني vinext/Vite مع نفس config الإنتاج؛ لا ينفذ remote writes.
-- `npm run cloudflare:migrate` — يطبق migrations على D1 remote عبر `scripts/cloudflare-migrate.mjs`. هذا أمر remote write صريح.
-- `npm run cloudflare:deploy` — يبني بإعداد الإنتاج ثم ينفذ `wrangler deploy`. يتطلب Wrangler authentication فعليًا.
+الحالة تصبح production-confirmed فقط بعد:
 
-Cloudflare Vite plugin يولد output Worker configuration أثناء build؛ بعد نجاح build يستخدم `wrangler deploy` ذلك output تلقائيًا.
+```text
+Branch CI
+  → PR CI
+  → Merge
+  → Main CI
+  → Remote migrations
+  → Remote schema verification
+  → Worker deploy
+  → Smoke tests
+```
 
-### نقل migrations إلى D1
-
-مسار `wrangler d1 migrations apply --remote` يرسل نص migration كـinline command. أثناء أول نشر حقيقي، D1/Wrangler أعاد `SQLITE_ERROR: incomplete input` عند migration تحتوي SQLite triggers رغم نجاح الملف نفسه في SQLite المحلي. هذا النوع من أعطال trigger parsing موثق في `cloudflare/workers-sdk` (منه issues `#4998` و`#14991`).
-
-لذلك مسار الإنتاج لا يغيّر SQL الموثوق لتجاوز parser. بدلًا من ذلك `scripts/cloudflare-migrate.mjs`:
-
-1. ينشئ جدول Wrangler القياسي `d1_migrations` إن لم يكن موجودًا.
-2. يقرأ التاريخ المطبق ويرفض أي gap أو divergence عن ترتيب ملفات المستودع.
-3. يطبّع line endings إلى LF ويجهز كل migration معلقة كملف مؤقت.
-4. يضيف تسجيل اسم migration في `d1_migrations` **داخل نفس ملف الاستيراد**.
-5. ينفذ الملف عبر `wrangler d1 execute --remote --file`؛ مسار file ingestion يعيد القاعدة لحالتها الأصلية إذا فشل الاستيراد.
-6. يعيد قراءة سجل migrations بعد كل ملف، ويرفض الاستمرار إذا لم تُسجل migration نفسها وبالترتيب المتوقع.
-7. يحذف ملفات staging المؤقتة دائمًا ثم يتحقق أن كل migrations المحلية أصبحت مطبقة.
-
-بهذا يظل schema وسجل migrations في خطوة ذرية واحدة لكل migration، ولا يتم الادعاء بالنجاح لمجرد أن بعض statements نُفذت.
-
-## ترتيب أول نشر
-
-1. في حساب Cloudflare الحالي، أنشئ D1 جديدًا **لهذا المشروع فقط**؛ لا تعيد استخدام قاعدة مشروع آخر.
-2. ضع الاسم والـUUID الحقيقيين في متغيرات بيئة البناء.
-3. شغّل الأربع فحوص الإلزامية للمشروع.
-4. شغّل `npm run cloudflare:build` للتأكد من أن production config نفسه يبني بنجاح.
-5. شغّل `npm run cloudflare:migrate` وراجع migrations التي ستطبق على D1 الجديدة.
-6. شغّل `npm run cloudflare:deploy` واحفظ URL الحقيقي الناتج من `workers.dev`.
-7. اختبر `/` و`/review` من الرابط الحقيقي.
-8. قبل فتح `/internal`، أنشئ Access application وحدد Team Domain وAUD ثم أعد deploy بمتغيرات Access.
-9. اختبر أن `/internal` مرفوض بدون Access، ويعمل للمستخدم المصرح فقط، ثم نفذ bootstrap لأول Admin واحذف متغير bootstrap بعد نجاحه.
-
-## حالة الاتصال الحالية
-
-GitHub Actions متصل الآن بحساب Cloudflare عبر Repository Secrets المخصصة للنشر. تم إنشاء D1 مخصصة باسم `qabl-almushahada-production`، ونجحت migrations من `0000` حتى `0008`. أول محاولتين للنشر توقفتا fail-closed عند `0009_reference_calibration_gate.sql` بسبب مسار parsing الخاص بـ`wrangler d1 migrations apply --remote`، قبل نشر أي Worker. المسار البديل بالـfile ingestion هو الإصلاح الحالي المطلوب قبل إعادة محاولة النشر.
+أي فشل في أي نقطة يوقف التقدم إلى المرحلة التالية حتى يُفهم السبب ويُصلح.
