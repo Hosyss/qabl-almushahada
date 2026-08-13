@@ -14,8 +14,12 @@ import {
 } from "./editorial-review.ts";
 import type { ContentCategory } from "./review-engine/index.ts";
 
+export interface PersistedEditorialReviewPublication extends EditorialReviewPublication {
+  publicationPresentation: EditorialPublicationPresentation;
+  contentFingerprint: string;
+}
 export interface PersistedEditorialPublication {
-  review: EditorialReviewPublication;
+  review: PersistedEditorialReviewPublication;
   presentation: EditorialPublicationPresentation;
   fingerprint: string;
 }
@@ -50,7 +54,7 @@ export async function hydratePersistedEditorialPublication(input: {
     verification: claim.verification as EditorialClaim["verification"],
     sourceIds: links.filter((link) => link.claimKey === claim.claimKey).map((link) => link.sourceKey),
   }));
-  const review: EditorialReviewPublication = {
+  const baseReview: EditorialReviewPublication = {
     id: head.publicId,
     titleId: head.titleId,
     titleLabel: head.titleLabel,
@@ -66,11 +70,12 @@ export async function hydratePersistedEditorialPublication(input: {
     claims,
     uncertainCategories: input.uncertain.map((row) => row.category as ContentCategory),
   };
-  const assessment = assessEditorialReviewPublication(review);
+  const assessment = assessEditorialReviewPublication(baseReview);
   if (!assessment.publishable || assessment.decisionEligible !== false) return null;
   const presentation = { titleAr: head.titleAr, titleEn: head.titleEn, revision: head.revision, updatedAt: head.updatedAt };
-  const fingerprint = await buildEditorialPublicationFingerprint(review, presentation);
+  const fingerprint = await buildEditorialPublicationFingerprint(baseReview, presentation);
   if (fingerprint !== head.contentFingerprint) return null;
+  const review: PersistedEditorialReviewPublication = { ...baseReview, publicationPresentation: presentation, contentFingerprint: fingerprint };
   return { review, presentation, fingerprint };
 }
 
