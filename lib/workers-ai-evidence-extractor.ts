@@ -4,6 +4,10 @@ import {
   type ContentCategory,
   type ContentFlag,
 } from "./review-engine/types.ts";
+import {
+  CONTENT_FLAG_EXTRACTION_GUIDANCE_AR,
+  isContentFlagAllowedForCategory,
+} from "./review-engine/content-taxonomy.ts";
 import type {
   EvidenceCategoryAssertion,
   EvidenceFact,
@@ -12,7 +16,7 @@ import type {
 
 export const WORKERS_AI_EVIDENCE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 export const WORKERS_AI_EVIDENCE_EXTRACTOR_VERSION =
-  "workers-ai-evidence:llama-3.1-8b-instruct-fast:2026-08-13.1";
+  "workers-ai-evidence:llama-3.1-8b-instruct-fast:2026-08-13.2";
 export const WORKERS_AI_EVIDENCE_CHUNK_MAX_CHARS = 36_000;
 export const WORKERS_AI_EVIDENCE_MAX_CHUNKS = 4;
 
@@ -137,7 +141,7 @@ export async function extractEvidenceWithWorkersAi(options: {
       messages: [
         {
           role: "system",
-          content: buildSystemPrompt(),
+          content: buildWorkersAiEvidenceSystemPrompt(),
         },
         {
           role: "user",
@@ -266,7 +270,7 @@ function buildChunkTraceLocator(chunk: readonly MarkedParagraph[]): string {
   return `chunk:${first}-${last}`;
 }
 
-function buildSystemPrompt(): string {
+export function buildWorkersAiEvidenceSystemPrompt(): string {
   return `أنت طبقة استخراج أدلة غير موثوقة داخل «قبل المشاهدة». مهمتك ليست إصدار قرار مشاهدة ولا تقييم عمري ولا مراجعة أدبية. استخرج فقط ما يقوله النص المرفق بوضوح عن محتوى العمل.
 
 قواعد إلزامية:
@@ -279,7 +283,11 @@ function buildSystemPrompt(): string {
 7. اكتب summaryAr عربية أصلية قصيرة ولا تنسخ جملًا طويلة من المصدر.
 8. لا تخترع توقيتًا داخل الفيلم؛ التوقيت لا يطلب منك أصلًا.
 9. الشدة 1–4 تصف قوة الواقعة المذكورة فقط، لا مدى ملاءمتها أخلاقيًا ولا قرار الأسرة.
-10. أخرج كل المحاور العشرة مرة واحدة بالضبط، حتى لو كانت uncertain.`;
+10. أخرج كل المحاور العشرة مرة واحدة بالضبط، حتى لو كانت uncertain.
+11. flags أوصاف موضوعية فرعية وليست أحكامًا. لا تستخدم flag إلا إذا كانت الواقعة نفسها تثبتها، والتزم بالمحور المسموح لكل flag. marker الديني يصف وجود مرجع/رمز/ممارسة فقط ولا يعني بذاته إساءة أو حساسية.
+
+تعريفات flags:
+${CONTENT_FLAG_EXTRACTION_GUIDANCE_AR}`;
 }
 
 function buildUserPrompt(chunk: readonly MarkedParagraph[]): string {
@@ -329,7 +337,7 @@ function parseClaim(raw: unknown, allowedLocators: ReadonlySet<string>): ParsedC
   if (!Array.isArray(raw.facts) || raw.facts.length > 12) {
     throw new TypeError("Workers AI facts must be a bounded array");
   }
-  const facts = raw.facts.map((fact) => parseFact(fact, allowedLocators));
+  const facts = raw.facts.map((fact) => parseFact(fact, allowedLocators, category));
 
   if (result === "present" && (sourceLocators.length === 0 || facts.length === 0)) {
     throw new TypeError("A present model claim requires locators and at least one structured fact");
@@ -341,7 +349,11 @@ function parseClaim(raw: unknown, allowedLocators: ReadonlySet<string>): ParsedC
   return { category, result, summaryAr, sourceLocators, facts };
 }
 
-function parseFact(raw: unknown, allowedLocators: ReadonlySet<string>): ParsedFact {
+function parseFact(
+  raw: unknown,
+  allowedLocators: ReadonlySet<string>,
+  category: ContentCategory,
+): ParsedFact {
   if (
     !isPlainObject(raw) ||
     !hasExactKeys(raw, [
@@ -377,6 +389,10 @@ function parseFact(raw: unknown, allowedLocators: ReadonlySet<string>): ParsedFa
   const flags = raw.flags.map((flag) => enumValue(flag, CONTENT_FLAGS, "flag"));
   if (new Set(flags).size !== flags.length) {
     throw new TypeError("Workers AI fact contains duplicate flags");
+  }
+  const incompatibleFlag = flags.find((flag) => !isContentFlagAllowedForCategory(flag, category));
+  if (incompatibleFlag) {
+    throw new TypeError(`Workers AI flag ${incompatibleFlag} is incompatible with category ${category}`);
   }
 
   return {
