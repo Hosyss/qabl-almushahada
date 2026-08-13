@@ -1,0 +1,26 @@
+name: Temporary P4-03 batch search diagnostic
+
+on:
+  push:
+    branches:
+      - agent/p4-03-batch-live-search-fix
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify exact catalog search paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://qabl-almushahada.buildtools.workers.dev"
+          curl --fail --silent --show-error --location --get --data-urlencode "q=هاري بوتر وحجر الفيلسوف" "$base/search" > "$RUNNER_TEMP/harry.html"
+          grep -F "تحليل تحريري جزئي" "$RUNNER_TEMP/harry.html" > /dev/null
+          grep -F "harry-potter-philosophers-stone-2001-editorial-batch-v1" "$RUNNER_TEMP/harry.html" > /dev/null
+          curl --fail --silent --show-error --location --get --data-urlencode "q=Minions" "$base/search" > "$RUNNER_TEMP/minions.html"
+          grep -F "تحليل تحريري جزئي" "$RUNNER_TEMP/minions.html" > /dev/null
+          grep -F "minions-2015-editorial-batch-v1" "$RUNNER_TEMP/minions.html" > /dev/null
+          echo "Exact Harry and Minions search paths are live."
