@@ -16,7 +16,7 @@ const migrationFiles = (await readdir(migrationDirectory))
   .filter((name) => /^\d+.*\.sql$/u.test(name))
   .sort();
 
-assert.equal(migrationFiles.length, 22, "P3S-08 must not require a new schema migration.");
+assert.ok(migrationFiles.length >= 22, "P3S-08 baseline migrations are missing.");
 
 const db = new DatabaseSync(":memory:");
 db.exec("PRAGMA foreign_keys = ON");
@@ -48,6 +48,11 @@ assert.equal(plan.records[0].provenance.policySnapshotId, plan.policySnapshot.id
 assert.match(plan.records[0].provenance.contentSha256, /^[0-9a-f]{64}$/u);
 assert.match(plan.sql, /INSERT INTO titles/u);
 assert.match(plan.sql, /INSERT INTO title_catalog_sources/u);
+assert.doesNotMatch(
+  plan.sql,
+  /\b(CREATE|ALTER|DROP)\s+(TABLE|INDEX|TRIGGER)\b/iu,
+  "P3S-08 catalog import must not carry schema DDL or require its own migration.",
+);
 assert.doesNotMatch(
   plan.sql,
   /INSERT INTO (title_versions|review_bundles|review_submissions|editorial_approvals|evidence_review_publications)/u,
@@ -95,5 +100,5 @@ assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
 db.close();
 
 console.log(
-  "Verified P3S-08 catalog import: 22 migrations / 33 tables, provenance-safe idempotent Wikidata metadata, no synthetic review state, and public catalog queries gated by legal source policy.",
+  `Verified P3S-08 catalog import against ${migrationFiles.length} current migrations: provenance-safe idempotent Wikidata metadata, no schema DDL, no synthetic review state, and public catalog queries gated by legal source policy.`,
 );
