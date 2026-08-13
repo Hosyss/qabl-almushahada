@@ -9,6 +9,7 @@ import {
   publicCatalogTitleIdFromQid,
 } from "../lib/public-catalog.ts";
 import {
+  parseWikidataCatalogResponse,
   prepareWikidataCatalogImportPlan,
   type WikidataCatalogTitle,
 } from "../lib/wikidata-catalog.ts";
@@ -37,6 +38,28 @@ test("P3S-08 production plan couples each catalog title to immutable Wikidata pr
   assert.equal(plan.records[0].provenance.sourceEntityId, TITLE.wikidataEntityId);
   assert.equal(plan.records[0].provenance.ingestionMode, "automated");
   assert.match(plan.records[0].provenance.contentSha256, /^[0-9a-f]{64}$/u);
+});
+
+test("WDQS canonical HTTP entity URI is accepted and normalized to an HTTPS source page", () => {
+  const parsed = parseWikidataCatalogResponse({
+    results: {
+      bindings: [
+        {
+          item: { type: "uri", value: "http://www.wikidata.org/entity/Q12345" },
+          arLabel: { type: "literal", value: "فيلم قانوني" },
+          enLabel: { type: "literal", value: "Legal Film" },
+          kind: { type: "literal", value: "movie" },
+          date: { type: "literal", value: "2026-01-01T00:00:00Z" },
+        },
+      ],
+    },
+  });
+
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].wikidataEntityId, "Q12345");
+  assert.equal(parsed[0].sourceUrl, "https://www.wikidata.org/wiki/Q12345");
+  assert.equal(parsed[0].canonicalName, "فيلم قانوني");
+  assert.equal(parsed[0].originalName, "Legal Film");
 });
 
 test("P3S-08 import SQL writes catalog metadata and provenance but no review state", async () => {
