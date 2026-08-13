@@ -150,8 +150,12 @@ assert.equal(
 assert.equal(originalResults[0]?.verifiedBundleId, null);
 assert.equal(originalResults[0]?.verifiedMaxSeverity, null);
 
-const unrelatedResults = executeSearch("نيمو finding");
-assert.deepEqual(unrelatedResults.map((row) => row.id), ["search-original"]);
+const arabicNameResults = executeSearch("نيمو");
+assert.deepEqual(
+  arabicNameResults.map((row) => row.id),
+  ["search-original"],
+  "Arabic-name search should resolve the same D1 record as the English original name.",
+);
 
 const injectionLikeResults = executeSearch("نيمو' OR 1=1 --");
 assert.deepEqual(injectionLikeResults, [], "Injection-like text changed SQL search semantics.");
@@ -160,4 +164,4 @@ const foreignKeyErrors = db.prepare("PRAGMA foreign_key_check").all();
 assert.deepEqual(foreignKeyErrors, [], "Public title-search verifier broke foreign keys.");
 
 db.close();
-console.log("Verified P3 public title-search SQL, bundle locator, review-progress state, and age-filter severity evidence against the migrated SQLite schema.");
+console.log("Verified P3 public title-search SQL, bilingual record resolution, bundle locator, review-progress state, and age-filter severity evidence against the migrated SQLite schema.");

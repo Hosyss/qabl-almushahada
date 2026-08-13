@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./home-search-upgrade.css";
 import { PolicyLinks } from "./policy-links";
 
 export const metadata: Metadata = {
