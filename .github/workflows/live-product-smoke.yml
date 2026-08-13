@@ -1,0 +1,107 @@
+name: Live product smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Cloudflare production deploy
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-product-smoke-main
+  cancel-in-progress: true
+
+env:
+  WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+  KNOWN_CATALOG_QID: Q44578
+  KNOWN_CATALOG_QUERY: Titanic
+
+jobs:
+  smoke:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Verify D1-backed search suggestions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --retry 3 \
+            --get --data-urlencode "q=$KNOWN_CATALOG_QUERY" \
+            "$WORKER_URL/api/search-suggestions" \
+            > "$RUNNER_TEMP/suggestions.json"
+
+          node --input-type=module - "$RUNNER_TEMP/suggestions.json" "$KNOWN_CATALOG_QID" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const [, , file, qid] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          if (!Array.isArray(payload.suggestions)) {
+            throw new Error('Live suggestions response does not contain an array.');
+          }
+          if (payload.suggestions.length < 1 || payload.suggestions.length > 5) {
+            throw new Error(`Live suggestions count is outside 1..5: ${payload.suggestions.length}`);
+          }
+          const expectedId = `wd:${qid}`;
+          const match = payload.suggestions.find((item) => item?.id === expectedId);
+          if (!match) {
+            throw new Error(`Known production catalog title ${expectedId} is missing from live suggestions.`);
+          }
+          if (typeof match.canonicalName !== 'string' || !match.canonicalName.trim()) {
+            throw new Error('Known live suggestion has no canonical name.');
+          }
+          if (!Number.isInteger(match.releaseYear)) {
+            throw new Error('Known live suggestion has no valid release year.');
+          }
+          console.log(`Live D1 suggestion verified: ${expectedId} -> ${match.canonicalName} (${match.releaseYear}).`);
+          NODE
+
+      - name: Verify search result states are real
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --retry 3 \
+            --get --data-urlencode "q=$KNOWN_CATALOG_QUERY" \
+            "$WORKER_URL/search" \
+            > "$RUNNER_TEMP/search.html"
+
+          grep -F "$KNOWN_CATALOG_QUERY" "$RUNNER_TEMP/search.html" > /dev/null
+
+          if ! grep -Eq 'مراجعة موثقة|قيد المراجعة|لم يُراجع بعد' "$RUNNER_TEMP/search.html"; then
+            echo "Live search did not expose one of the explicit review states." >&2
+            exit 1
+          fi
+
+      - name: Verify homepage has no static fake suggestions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location --retry 3 \
+            "$WORKER_URL/" > "$RUNNER_TEMP/home.html"
+
+          grep -F "وقائع موثقة" "$RUNNER_TEMP/home.html" > /dev/null
+          grep -F "الاقتراحات تظهر من العناوين الموجودة فعلًا في الدليل" "$RUNNER_TEMP/home.html" > /dev/null
+
+          for forbidden in "البحث عن نيمو" "إنسايد آوت 2" "وينزداي"; do
+            if grep -Fq "$forbidden" "$RUNNER_TEMP/home.html"; then
+              echo "Homepage still contains a static search suggestion: $forbidden" >&2
+              exit 1
+            fi
+          done
+
+      - name: Record live product smoke
+        shell: bash
+        run: |
+          echo "### Live product smoke succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "- D1-backed suggestion: \`wd:$KNOWN_CATALOG_QID\` found for \`$KNOWN_CATALOG_QUERY\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Search result exposes an explicit review state" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Homepage contains no static legacy suggestions" >> "$GITHUB_STEP_SUMMARY"
