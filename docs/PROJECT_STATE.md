@@ -6,45 +6,54 @@
 
 ## الهدف الحالي
 
-«قبل المشاهدة» دليل عربي مستقل يساعد الأسرة على معرفة محتوى الفيلم أو المسلسل قبل تشغيله، ثم يطبق حدود الأسرة على **وقائع موثقة** ليعطي قرارًا مفسرًا بدل درجة غامضة أو نقل تصنيف أجنبي كما هو.
+«قبل المشاهدة» دليل عربي مستقل يساعد الأسرة على معرفة محتوى الفيلم أو المسلسل قبل تشغيله. المنتج يفصل الآن بوضوح بين مستويين:
+
+1. **وقائع مفيدة قابلة للتتبع** يمكن نشرها في تحليل تحريري جزئي عندما تكون مثبتة بمصادر مستقلة.
+2. **قرار الملاءمة** لا يصدر إلا بعد اكتمال بوابات الحكم؛ أي نقص مهم يبقي النتيجة `insufficient_data`.
 
 المقياس العملي للمرحلة الحالية:
 
-> هل يستطيع الزائر البحث عن عمل معروف، ومعرفة هل له مراجعة أم لا، ثم — عند وجود مراجعة — رؤية وقائع قابلة للتتبع وقرار مفهوم يتغير مع حدود أسرته؟
+> هل يستطيع الزائر البحث عن عمل معروف، ورؤية ما استطعنا إثباته فعلًا مع مصادره، مع عدم تحويل المحاور المجهولة إلى «آمنة» أو تحويل التحليل الجزئي إلى حكم نهائي؟
 
 ## ترتيب العمل المعتمد الآن
 
 1. كتالوج حقيقي — **مكتمل إنتاجيًا**.
 2. بحث مفيد من D1 فقط — **مكتمل إنتاجيًا**.
-3. 10–20 مراجعة evidence-based حقيقية لأعمال عائلية معروفة — **التالي، لكنه blocked حاليًا على source coverage + exact version identity لأول عنوان**.
-4. توصيل البلاغ العام والتصحيح الكامل.
-5. اختبار المنتج مع 5 أسر، 3 أعمال لكل أسرة.
-6. بعد المحتوى فقط: اختصار الصفحة الرئيسية وعرض أعمال حقيقية بدل الأمثلة التصميمية.
-7. قبل التوسع: custom domain، أداء/إتاحة، rate limiting، monitoring، D1 backup/recovery، وتعطيل آمن عند الأعطال.
+3. P4-03: مسار مراجعة تحريرية مبنية على مصادر مستقلة — **Cars (2006) pilot قيد checkpoint الآن؛ لا توسع قبل نجاحه**.
+4. بعد نجاح Cars checkpoint: اختيار persistence للتوسع ثم بناء أول 10–20 تحليلًا تحريريًا موثوقًا.
+5. توصيل البلاغ العام والتصحيح الكامل.
+6. اختبار المنتج مع 5 أسر، 3 أعمال لكل أسرة.
+7. بعد المحتوى فقط: اختصار الصفحة الرئيسية وعرض أعمال حقيقية بدل الأمثلة التصميمية.
+8. قبل التوسع الكبير: custom domain، أداء/إتاحة، rate limiting، monitoring، D1 backup/recovery، وتعطيل آمن عند الأعطال.
 
 لا أولوية الآن لتسجيل مستخدمين أو توصيات AI أو نجوم أو تعليقات أو تطبيق موبايل أو إعادة تصميم كبيرة.
 
 ## المبدأ التحريري والثقة
 
-- المصادر الخارجية تمدنا **بالبيانات أو الدليل** فقط؛ لا تصبح مراجعتنا.
+- المصادر الخارجية تمدنا **بالبيانات أو الوقائع القابلة للتحقق** فقط؛ لا تصبح مراجعتنا.
 - Wikidata مخصصة للـcatalog metadata تحت CC0 1.0.
-- Wikipedia مخصصة لمسار analysis evidence وفق policy المشروع والعزو/الrevision المحفوظين.
+- Wikipedia تبقى لمسار analysis evidence الآلي وفق policy المشروع والعزو/الrevision المحفوظين.
+- P4-03 يسمح يدويًا بالرجوع إلى مراجعات منشورة وجهات رسمية لاستخراج **الوقائع فقط**، مع كتابة التحليل العربي من الصفر.
+- لا نخزن source text أو ترجمة أو اقتباسًا طويلًا أو paraphrase قريبة من مراجعة خارجية داخل سجل P4-03.
+- كل claim نسجل معها URL + publisher/type + access date + supported claim IDs.
+- `corroborated` تحتاج مصدرين مستقلين على الأقل من independence groups مختلفة.
 - لا metadata → verified review تلقائيًا.
 - لا fake/synthetic reviewers.
 - لا ادعاء مشاهدة بشرية إذا لم تحدث.
 - Workers AI طبقة استخراج غير موثوقة ولا تملك publish authority.
-- `uncertain` أو conflict أو نقص coverage يفشل مغلقًا بدل إنتاج «مناسب».
+- `uncertain` تمنع **الحكم** لكنها لا تمنع نشر صفحة تحريرية مفيدة للوقائع المثبتة.
+- silence لا يتحول إلى `none` في أي مسار.
 - قرار الأسرة منفصل عن حقيقة وجود الواقعة نفسها.
 
-النص العام الصحيح للثقة هو **«وقائع موثقة لنسخة محددة»**. داخل المراجعة يجب أن يظهر بوضوح إن كانت:
+النص العام الصحيح يفرق بين:
 
-- مشاهدة بشرية مؤكدة؛ أو
-- مراجعة مبنية على أدلة موثقة؛ أو
-- البيانات غير كافية.
+- **مراجعة مكتملة لنسخة محددة** عندما تنجح بوابات P2/P3S الكاملة؛ أو
+- **تحليل تحريري موثق جزئيًا** يعرض الوقائع المثبتة ويصرح بالمحاور `uncertain`؛ أو
+- **بيانات غير كافية** عندما لا توجد حتى وقائع قابلة للنشر.
 
-## P3S-05 / P3S-06 — evidence-based review path
+## P3S-05 / P3S-06 — evidence-based full review path
 
-المسار evidence-based مستقل عن سير المراجعين البشر القديم:
+المسار evidence-based الكامل مستقل عن سير المراجعين البشر القديم:
 
 - evidence مرخص ومربوط بنسخة محددة.
 - extraction schema-bound.
@@ -52,11 +61,97 @@
 - publication snapshots append-only.
 - كل claim منشور مرتبط بمصدر داخل snapshot نفسها.
 - لا `human_watch_confirmed = 1` في المسار evidence-based.
-- `/review?publicationId=...` للمراجعة evidence-based.
+- `/review?publicationId=...` للمراجعة evidence-based الكاملة.
 - `/review?bundleId=...` للمسار البشري القديم.
 - العرض العام يفشل مغلقًا عند stale/missing/current-head mismatch.
 
-المسار البشري P2/P2Q محفوظ كاملًا كمسار جودة يدوي أو تصعيد، وليس شرطًا لتغطية آلاف الأعمال.
+**P4-03 لا يخفف P3S-06 ولا يعدلها.** التحليل التحريري الجزئي له locator ومسار عرض منفصلان، ولا يستطيع جعل `engineEligible = true`.
+
+المسار البشري P2/P2Q محفوظ كاملًا كمسار جودة يدوي أو تصعيد.
+
+## P4-03 — editorial partial publication path
+
+المسار الجديد يفصل **Publication Gate** عن **Suitability Decision Gate**:
+
+### Editorial Publication Gate
+
+تسمح بصفحة عامة عندما:
+
+- يوجد عنوان حقيقي في الكتالوج.
+- توجد claim واحدة على الأقل بصياغة عربية أصلية.
+- كل claim مرتبطة بمصدر/مصادر معروفة داخل نفس publication record.
+- المصدر يسجل URL، نوعه، تاريخ الوصول، independence group، والclaims التي يدعمها.
+- وصف `corroborated` لا يمر إلا بمصدرين مستقلين على الأقل.
+- كل محور من المحاور العشرة إما له claim مثبتة أو معلّم صراحة `uncertain`.
+- لا يوجد حقل لتخزين source text/excerpt/quote/translation/paraphrase في source contract.
+
+### Suitability Decision Gate
+
+في P4-03 الجزئي:
+
+```text
+decisionEligible = false
+decisionStatus = insufficient_data
+```
+
+هذه القيم مفروضة في contract والvalidator. الصفحة لا تعرض «مناسب» أو «غير مناسب» لمجرد أن بعض الوقائع اتثبتت.
+
+المسارات العامة أصبحت:
+
+```text
+/review?bundleId=...       → human-reviewed full path
+/review?publicationId=...  → evidence-based full path
+/review?editorialId=...    → editorial partial facts path
+```
+
+وجود أكثر من locator في نفس الطلب يفشل مغلقًا.
+
+## Cars (2006) — أول pilot للمسار التحريري
+
+العنوان: `Cars` / `wd:Q182153` / 2006.
+
+### مصادر الـpilot
+
+تمت مراجعة خمسة مصادر مستقلة يدويًا في 13 أغسطس 2026:
+
+- Common Sense Media — `published_review`.
+- Plugged In — `published_review`.
+- BBFC — `official_classification`.
+- Kids-In-Mind — `published_review`.
+- Dove.org — `published_review`.
+
+السجل لا يخزن نصوص هذه الصفحات؛ يخزن فقط روابطها وmetadata الاستشهاد والclaims المدعومة.
+
+### الوقائع المتقاطعة المنشورة في pilot
+
+أربع claims كلها `corroborated` بمصدرين مستقلين أو أكثر:
+
+- `violence`: سباقات/قيادة خطرة تتضمن اصطدامات وفقدان سيطرة وأضرارًا للسيارات.
+- `fear`: مواقف خطر قصيرة، ومنها توتر طريق وعبور سكة حديد مع اقتراب قطار.
+- `language`: ألفاظ وتعليقات خفيفة وبعض الإهانات/التعجبات المتناثرة.
+- `sexualContent`: إشارات غزل ونكات أو تلميحات خفيفة مبنية على عالم السيارات.
+
+المحاور التي بقيت `uncertain`:
+
+- `bullying`
+- `substances`
+- `discrimination`
+- `selfHarm`
+- `grief`
+- `flashingLights`
+
+**Cars لا تحصل على suitability verdict في هذا الـpilot.** النتيجة تظل `insufficient_data`، ولا ندّعي exact cut/platform/fingerprint أو مشاهدة بشرية.
+
+### التنفيذ الحالي للـpilot
+
+- `lib/editorial-review.ts`: contract + deterministic validation.
+- `lib/editorial-review-registry.ts`: Cars فقط، كـversioned pilot صغير قبل اختيار persistence للتوسع.
+- `tests/editorial-review.test.ts`: تحقق الاستقلال، source metadata، عدم تخزين source expression، وإجبار القرار على insufficient.
+- `/review?editorialId=cars-2006-editorial-pilot-v1`: العرض العام الجديد بعد النشر.
+- `/title/Q182153` والبحث يربطان إلى التحليل التحريري، مع تمييزه عن المراجعة المكتملة.
+- فلتر العمر لا يستخدم التحليل الجزئي.
+
+**لا عنوان ثانٍ قبل نجاح branch → PR → Quality Gate → merge → deploy → live verification لهذا الـpilot.**
 
 ## P3S-07 — taxonomy موضوعية
 
@@ -109,50 +204,41 @@
 - `/title/[qid]` تعرض metadata + source/license/policy disclosure + canonical/JSON-LD.
 - `/sitemap.xml` يولّد روابط العناوين القانونية فقط.
 - `/robots.txt` يعلن sitemap ويمنع `/internal`.
-- وجود العنوان في الكتالوج **لا يعني وجود مراجعة**.
+- وجود العنوان في الكتالوج **لا يعني وجود حكم ملاءمة**.
 
 ## البحث الحقيقي — مكتمل 100%
 
-البحث أصبح يعتمد على D1 الحقيقي فقط:
+البحث يعتمد على D1 الحقيقي فقط للعناوين:
 
 - `/api/search-suggestions?q=...` يستخدم نفس `searchPublicTitles` server-side.
 - أقل من حرفين → لا اقتراحات.
 - أقصى 5 اقتراحات.
 - `no-store`، ولا fake fallback عند تعذر D1.
 - Hero يستخدم debounce + AbortController.
-- أزيلت الاقتراحات الثابتة القديمة مثل «البحث عن نيمو» و«إنسايد آوت 2» و«وينزداي».
-- placeholder لا يعد بعنوان غير موجود.
+- أزيلت الاقتراحات الثابتة القديمة.
 
-حالات البحث العامة أصبحت صريحة:
+حالات العرض أصبحت تفرق بين:
 
 - **موجود — مراجعة موثقة**.
 - **موجود — قيد المراجعة**.
-- **موجود — لم يُراجع بعد**.
+- **موجود — تحليل تحريري جزئي** عندما يوجد editorial pilot لكن الحكم غير مكتمل.
+- **موجود — الحكم غير مكتمل**.
 - **غير موجود**.
 
-لا يوجد زر «اطلب مراجعته» وهمي حتى يتم توصيل intake حقيقي.
+التحليل التحريري الجزئي لا يتحول إلى `verified` ولا يدخل فلتر العمر.
 
-### Live product smoke
+### Live product smoke قبل checkpoint الحالي
 
-أضيف Quality Gate مستقل يعمل بعد Cloudflare deploy الناجح على `main` ويختبر المنتج المنشور نفسه.
+آخر production checkpoint الموثوق قبل فرع P4-03 التحريري:
 
-آخر إثبات حي قبل P4-03 pilot:
+- main commit: `c77c0d2b6b1c0f1be2dfc277761c852f69a835cb`.
+- main Checkpoint: success.
+- Cloudflare production deploy: success.
+- Live product smoke: success.
 
-- Cloudflare production deploy Run `31691881366`: success.
-- main Checkpoint Run `31691881382`: success.
-- Live product smoke Run `31691960997`: success.
-- العينة production: `Titanic` / `wd:Q44578`.
-- `/api/search-suggestions?q=Titanic` أعاد العنوان الحقيقي من D1.
-- `/search?q=Titanic` أظهر حالة مراجعة صريحة.
-- الصفحة الرئيسية احتوت «وقائع موثقة» ولم تحتوِ الاقتراحات الثابتة القديمة.
+فرع `agent/p4-03-editorial-review-pilot` لديه Quality Gate مستقل ويجب أن ينجح قبل فتح/دمج checkpoint. لا يُعتبر Cars منشورًا إنتاجيًا قبل merge/deploy/live verification.
 
-بعد دمج P4-03 pilot على commit `0ad222cca4d65c0a794292e624c72a2bad07b55c` نجح أيضًا:
-
-- main Checkpoint Run `31694286104`.
-- Cloudflare production deploy Run `31694286099`.
-- Live product smoke Run `31694361999`.
-
-## Cloudflare production — الحالة الحالية
+## Cloudflare production — الحالة الحالية قبل checkpoint الجديد
 
 - Worker: `https://qabl-almushahada.buildtools.workers.dev`.
 - D1: `qabl-almushahada-production`.
@@ -160,8 +246,7 @@
 - migrations: **22/22**.
 - product tables محليًا: **33**.
 - bindings: `DB`, `IMAGES`, `AI`, `ASSETS`.
-- latest production feature/checkpoint commit قبل P4-03 docs: `f46fc4d61f46eccd71a3f4d924a0e806848e80f4`.
-- latest P4-03 pilot docs commit on main: `0ad222cca4d65c0a794292e624c72a2bad07b55c`.
+- current production main قبل P4-03 editorial merge: `c77c0d2b6b1c0f1be2dfc277761c852f69a835cb`.
 - remote schema verification: success.
 - remote objective taxonomy guards: success.
 - standard public smoke: success.
@@ -170,61 +255,27 @@
 ## ما يزال تصميميًا أو غير موصول
 
 - بعض بطاقات الصفحة الرئيسية أمثلة تصميمية ومعلّمة بوضوح وليست reviews production.
-- زر البلاغ العام داخل المراجعة غير موصول بعد، رغم وجود منطق P2-05 الداخلي للبلاغات الجوهرية.
+- زر البلاغ العام داخل المراجعة غير موصول بعد.
 - «اطلب مراجعته» غير موصول ولن يظهر كزر وهمي.
 - لا posters غير مرخصة.
-- لا مراجعات production حقيقية كافية بعد؛ هذه هي الأولوية التالية لكن لا تُنجز بإضعاف source/coverage gates.
+- editorial persistence ما زالت registry versioned صغيرة للـpilot؛ لم نقرر D1 schema للتوسع بعد.
+- Cars لا تملك suitability verdict مكتملًا.
 
-## P4-03 — Pilot أول مراجعة حقيقية
+## ملاحظة عن Source qualification السابقة
 
-بدأت أول محاولة end-to-end على عنوان عائلي موجود فعلًا في الكتالوج: `Cars` / `wd:Q182153` (2006). النتيجة الصحيحة كانت **التوقف fail-closed قبل النشر**، لذلك لم يُحتسب العنوان ضمن cohort ولم تتغير حالته إلى reviewed.
+فحص `docs/P4_03_SOURCE_QUALIFICATION.md` يظل صحيحًا **للمسار الآلي/الكامل**: لا يوجد source stack مجاني ثبت أنه يغلق المحاور العشرة + exact-version identity لـCars. التغيير الحالي لا يدعي حل ذلك؛ بل يفصل صفحة الوقائع الجزئية عن الحكم الكامل.
 
-أهم ما ثبت:
+بالتالي لم نخفض taxonomy، ولم نحول silence إلى `none`، ولم نخترع `content_fingerprint`.
 
-- سياسة Wikipedia الحالية ما زالت صالحة كـ`analysis_evidence` تحت CC BY-SA 4.0 مع العزو/ShareAlike، وتمت إعادة مراجعة المصادر الرسمية في 13 أغسطس 2026.
-- Wikipedia مفيدة لإثبات وقائع `present` ذات locator واضح، لكنها ليست checklist شاملة للمحاور العشرة؛ غياب الذكر لا يثبت `none`.
-- Workers AI لا يجوز لها تحويل الصمت إلى `none`، لذلك أي محور غير مثبت يظل `uncertain` ويؤدي إلى `insufficient_data`.
-- كتالوج P3S-08 لم ينشئ `title_versions` عمدًا. لا توجد حاليًا هوية نسخة دقيقة لـCars تسمح لنا باختراع runtime/cut/platform/fingerprint من metadata عامة.
-- لم يحدث أي D1 write لمراجعة أو version مصطنعة، ولا evidence publication أو current head أو ادعاء human watch.
+## الخطوة التالية
 
-التفاصيل: `docs/P4_03_FIRST_REVIEW_PILOT.md`.
+1. أكمل checkpoint مستقل لـCars editorial pilot.
+2. لا تضف عنوانًا ثانيًا قبل نجاح CI + merge + Cloudflare deploy + live verification للصفحة والبحث.
+3. بعد نجاح الـpilot، قرر persistence للتوسع: registry صغيرة مؤقتة مقابل جداول D1 مخصصة للـeditorial publications.
+4. بعدها فقط ابدأ أول cohort من 10–20 عنوانًا بنفس قواعد الاستقلال والشفافية.
+5. قرار الملاءمة لكل عنوان يظل `insufficient_data` ما لم تنجح بوابات الحكم الكاملة.
 
-### Source qualification بعد الـpilot
-
-تم فحص البدائل العملية التي قد تغطي الفجوة بدل الالتفاف على البوابة. النتيجة حتى 13 أغسطس 2026:
-
-- Wikipedia: evidence جزئية فقط؛ لا silence → `none`.
-- Wikimedia Commons: يمكن أن يعطي exact licensed media file لبعض الأعمال القديمة على أساس كل ملف منفرد، لكنه لا يحل cohort الحديث ولا يوجد video-analysis coverage path كامل حاليًا.
-- BBFC: بياناته مفيدة جدًا للنسخة والمحتوى، لكن Website Terms تحفظ حقوق إعادة استخدام المعلومات، وخدمات film-information تحتاج Data Service Agreement لاستخدام ratings/associated data؛ لذلك لا automated commercial ingestion بلا اتفاق/إذن.
-- Australian Classification: consumer advice رسمي لكنه يركز العناصر الأكثر تأثيرًا/تكرارًا ولا يغطي taxonomy العشرة كـchecklist غياب.
-- New Zealand Classification Office: quick takes قوية وصفيًا، لكن لم يُثبت ترخيص عام لإعادة استخدام قاعدة ratings تجاريًا ولا coverage صريحة للمحاور العشرة.
-- Figshare MPAA reasons dataset: CC BY 4.0، لكن `False` = لم يُذكر كسبب للتصنيف وليس «غير موجود».
-- IMDb licensed Parents Guide data: خيار تجاري مستقبلي جزئي بخمس فئات، وليس حلًا مجانيًا أو كاملًا للتصنيف الحالي.
-
-التفاصيل: `docs/P4_03_SOURCE_QUALIFICATION.md`.
-
-**القرار:** لا يوجد حاليًا source stack مجاني ومؤهل ثبت أنه يغلق المحاور العشرة لعمل حديث مثل Cars. أقرب المسارات الصحيحة هي: provider مرخص شامل، أو مشاهدة بشرية حقيقية P2/P2Q، أو بناء مسار مستقل لاحق لتحليل ملف فيلم حر كامل مع coverage مثبتة. لا نختلق `content_fingerprint` ولا نخفض taxonomy.
-
-**P4-03 ما زالت مفتوحة ومعلّمة blocked على المصدر/هوية النسخة.** لا نحتسب `Cars` ضمن cohort.
-
-## الخطوة التالية — أول 10–20 مراجعة حقيقية
-
-عند حل source/version blocker، ابدأ من عناوين عائلية معروفة داخل الكتالوج الـ200، وليس من آلاف عناوين فارغة.
-
-لكل عنوان:
-
-1. تأكد من title/version identity ولا تخترع runtime أو cut.
-2. اجلب analysis evidence فقط من source مسموح بها ومثبتة provenance.
-3. استخرج الوقائع مع source locators؛ silence لا يصبح `none`.
-4. coverage/conflict gate يجب أن ينجح.
-5. راجع الوقائع يدويًا قبل publish لأول مجموعة إطلاق.
-6. انشر فقط snapshot مستوفية P3S-06.
-7. اختبر القرار مع أكثر من Family Profile للتأكد أن تغيّر الحدود يغيّر القرار عندما ينبغي.
-8. سجّل أي title لا تكفيه الأدلة كـ`insufficient_data` بدل ملء الفراغ.
-
-**العدد الصغير الموثوق أفضل من آلاف العناوين الفارغة.**
-
-بعد هذه المجموعة: وصل البلاغ العام والتصحيح، ثم اختبر مع 5 أسر قبل أي تحسين واجهة كبير.
+**العدد الصغير الموثوق أفضل من آلاف الصفحات المنسوخة أو الأحكام الوهمية.**
 
 ## روابط المصدر
 
@@ -232,7 +283,7 @@
 - الإنتاج: `https://qabl-almushahada.buildtools.workers.dev`
 - Roadmap: `docs/ROADMAP.md`
 - سياسة المصادر: `docs/CONTENT_SOURCE_POLICY.md`
-- P4-03 pilot: `docs/P4_03_FIRST_REVIEW_PILOT.md`
+- P4-03 first fail-closed pilot: `docs/P4_03_FIRST_REVIEW_PILOT.md`
 - P4-03 source qualification: `docs/P4_03_SOURCE_QUALIFICATION.md`
 - Trust model: `docs/ENGINE_TRUST_MODEL.md`
 - Cloudflare: `docs/CLOUDFLARE_DEPLOYMENT.md`
