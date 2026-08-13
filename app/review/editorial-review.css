@@ -1,0 +1,120 @@
+.editorial-internal-code {
+  display: block;
+  margin-top: 9px;
+  color: #83938d;
+  font-size: 8px;
+}
+
+.editorial-internal-code code,
+.editorial-source-cards code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.editorial-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.editorial-evidence-grid > div {
+  min-width: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid rgba(24, 77, 64, 0.09);
+  border-radius: 15px;
+  background: #f5f7f1;
+}
+
+.editorial-evidence-grid small {
+  color: #82918c;
+  font-size: 8px;
+}
+
+.editorial-evidence-grid strong {
+  color: #34584d;
+  font-size: 15px;
+}
+
+.editorial-evidence-grid span {
+  color: #71847d;
+  font-size: 8px;
+  line-height: 1.7;
+}
+
+.editorial-fact > div {
+  min-width: 0;
+}
+
+.editorial-fact p {
+  margin-top: 6px;
+}
+
+.editorial-strength {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.editorial-strength--corroborated {
+  background: #e5eee0;
+  color: #456b5f;
+}
+
+.editorial-strength--single_source {
+  background: #f8eee4;
+  color: #9c5c47;
+}
+
+.editorial-source-links {
+  display: block;
+  margin-top: 7px;
+  color: #84938e;
+  font-size: 7px;
+  line-height: 1.7;
+}
+
+.editorial-source-links a,
+.editorial-source-actions a {
+  color: var(--forest);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.editorial-source-cards article {
+  scroll-margin-top: 20px;
+}
+
+.editorial-rights-note {
+  padding-top: 7px;
+  border-top: 1px solid rgba(24, 77, 64, 0.08);
+}
+
+.editorial-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .editorial-evidence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .editorial-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editorial-source-actions {
+    flex-direction: column;
+    gap: 7px;
+  }
+}
