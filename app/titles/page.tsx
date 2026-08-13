@@ -9,7 +9,7 @@ import styles from "../title/catalog.module.css";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "دليل الأفلام والمسلسلات | قبل المشاهدة",
-  description: "دليل عناوين من Wikidata مع بحث وفلاتر Server-side وحالة المراجعة الموثقة الحالية.",
+  description: "دليل للعناوين مع بحث حسب الاسم والنوع والسنة، وحالة المراجعة الموثقة الحالية عندما تكون متاحة.",
   alternates: { canonical: `${PUBLIC_SITE_ORIGIN}/titles` },
 };
 
@@ -30,14 +30,10 @@ export default async function TitlesPage({ searchParams }: Props) {
     <main className={styles.page}><div className={styles.shell}>
       <header className={styles.header}><Link className={styles.brand} href="/">قبل المشاهدة</Link><Link className={styles.back} href="/search">البحث الذكي</Link></header>
       <section className={styles.hero}>
-        <span className={styles.kicker}>دليل عناوين من مصدر مرخّص</span>
+        <span className={styles.kicker}>دليل العناوين</span>
         <h1>دليل الأفلام والمسلسلات</h1>
-        <p>النتائج والفلاتر تُنفذ في D1 بحدود ثابتة. وجود العمل في الدليل لا يعني وجود حكم ملاءمة.</p>
+        <p>ابحث بالاسم، وحدد النوع أو السنة عند الحاجة. وجود العمل في الدليل لا يعني أن له حكم ملاءمة مكتملًا.</p>
       </section>
-      <aside className={styles.notice}>
-        <h2>فلتر «له تحليل تحريري» مؤجل عمدًا</h2>
-        <p>التحليل التحريري الجزئي الحالي لا يملك علاقة current-head داخل D1 تربطه بالعنوان. لن نربط الدليل بقائمة ثابتة من الأعمال الحالية.</p>
-      </aside>
       <form className={styles.directoryFilters} action="/titles" method="get" aria-label="بحث وفلاتر دليل العناوين">
         <label className={styles.directorySearch}><span>ابحث</span><input type="search" name="q" defaultValue={query} maxLength={80} placeholder="العربي أو الإنجليزي" /></label>
         <label><span>النوع</span><select name="kind" defaultValue={kind}><option value="all">كل الأنواع</option><option value="movie">فيلم</option><option value="series">مسلسل</option></select></label>
@@ -45,13 +41,13 @@ export default async function TitlesPage({ searchParams }: Props) {
         <label><span>المراجعة الموثقة</span><select name="reviewStatus" defaultValue={reviewStatus}><option value="all">كل الحالات</option><option value="verified">توجد مراجعة موثقة حالية</option><option value="not_verified">لا توجد مراجعة موثقة حالية</option></select></label>
         <div className={styles.directoryActions}><button type="submit">تطبيق</button><Link href="/titles">مسح الفلاتر</Link></div>
       </form>
-      {!data ? <section className={`${styles.notice} ${styles.empty}`}><h2>الدليل غير متاح مؤقتًا</h2><p>تعذّر تحميل D1، ولم نستبدل النتائج ببيانات تجريبية.</p></section> : data.items.length === 0 ? <section className={`${styles.notice} ${styles.empty}`}><h2>لا توجد نتائج</h2><p>غيّر البحث أو الفلاتر.</p></section> : <>
+      {!data ? <section className={`${styles.notice} ${styles.empty}`}><h2>الدليل غير متاح مؤقتًا</h2><p>تعذّر تحميل العناوين الآن، ولم نستبدلها ببيانات تجريبية.</p></section> : data.items.length === 0 ? <section className={`${styles.notice} ${styles.empty}`}><h2>لا توجد نتائج</h2><p>غيّر البحث أو الفلاتر.</p></section> : <>
         <div className={styles.directorySummary}><strong>{data.total} عنوانًا</strong><span>صفحة {data.page} من {data.totalPages}</span></div>
-        <section className={styles.grid} aria-label="عناوين الكتالوج">{data.items.map((title) => {
+        <section className={styles.grid} aria-label="عناوين الدليل">{data.items.map((title) => {
           const href = buildPublicCatalogTitleHref(title.titleId); if (!href) return null;
           const names = getPublicTitleDisplayNames({ canonicalName: title.canonicalName, originalName: title.originalName });
           return <article className={styles.card} key={title.titleId}>
-            <div className={styles.cardStateLine}><span className={`${styles.badge} ${title.hasVerifiedReview ? styles.state_verified : styles.state_catalog}`}>{title.hasVerifiedReview ? "مراجعة موثقة حالية" : "لا توجد مراجعة موثقة حالية"}</span><span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span></div>
+            <div className={styles.cardStateLine}><span className={`${styles.badge} ${title.hasVerifiedReview ? styles.state_verified : styles.state_catalog}`}>{title.hasVerifiedReview ? "مراجعة موثقة حالية" : "كتالوج فقط"}</span><span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span></div>
             <h2>{names.arabicName}</h2><p className={styles.originalTitle} dir="ltr">{names.englishName}</p>
             <div className={styles.meta}><span>السنة: {title.releaseYear}</span><span>{title.qid}</span></div>
             <Link className={styles.cardLink} href={href}>فتح صفحة العمل ←</Link>
