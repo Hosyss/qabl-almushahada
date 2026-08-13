@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  filterPublicTitleSearchResults,
+  parsePublicSearchFilters,
+} from "../lib/public-search-filters.ts";
+import {
   MAX_PUBLIC_TITLE_SEARCH_RESULTS,
   normalizePublicTitleSearchText,
   parsePublicTitleSearchRequest,
   rankPublicTitleSearchCandidates,
+  type PublicTitleSearchResult,
 } from "../lib/public-title-search.ts";
 import {
   MAX_PUBLIC_TITLE_SEARCH_CANDIDATES,
@@ -46,6 +51,7 @@ test("exact canonical match outranks a verified prefix match", () => {
       hasVerifiedReview: true,
       hasReviewInProgress: false,
       verifiedBundleId: "bundle-verified-prefix",
+      verifiedMaxSeverity: 2,
     },
     {
       id: "exact",
@@ -56,6 +62,7 @@ test("exact canonical match outranks a verified prefix match", () => {
       hasVerifiedReview: false,
       hasReviewInProgress: false,
       verifiedBundleId: null,
+      verifiedMaxSeverity: null,
     },
   ]);
   assert.equal(results[0]?.id, "exact");
@@ -74,11 +81,13 @@ test("original-name exact match works for English searches and keeps the exact b
       hasVerifiedReview: true,
       hasReviewInProgress: false,
       verifiedBundleId: "bundle-nemo-ar",
+      verifiedMaxSeverity: 1,
     },
   ]);
   assert.equal(results[0]?.id, "nemo");
   assert.equal(results[0]?.matchKind, "original_exact");
   assert.equal(results[0]?.verifiedBundleId, "bundle-nemo-ar");
+  assert.equal(results[0]?.verifiedMaxSeverity, 1);
 });
 
 test("token matching can span canonical and original names without inventing fuzzy similarity", () => {
@@ -93,6 +102,7 @@ test("token matching can span canonical and original names without inventing fuz
       hasVerifiedReview: true,
       hasReviewInProgress: false,
       verifiedBundleId: "bundle-nemo-ar",
+      verifiedMaxSeverity: 1,
     },
     {
       id: "other",
@@ -103,6 +113,7 @@ test("token matching can span canonical and original names without inventing fuz
       hasVerifiedReview: true,
       hasReviewInProgress: false,
       verifiedBundleId: "bundle-dory-ar",
+      verifiedMaxSeverity: 2,
     },
   ]);
   assert.deepEqual(results.map((item) => item.id), ["nemo"]);
@@ -120,12 +131,90 @@ test("public ranking is deterministically capped", () => {
     hasVerifiedReview: false,
     hasReviewInProgress: false,
     verifiedBundleId: null,
+    verifiedMaxSeverity: null,
   }));
   const results = rankPublicTitleSearchCandidates(parsed, candidates);
   assert.equal(results.length, MAX_PUBLIC_TITLE_SEARCH_RESULTS);
 });
 
-test("candidate SQL stays parameterized and returns a deterministic current public bundle locator", () => {
+test("public filters accept only known kind, age-band and verification values", () => {
+  assert.deepEqual(
+    parsePublicSearchFilters({ kind: "series", age: "11", status: "verified" }),
+    { kind: "series", age: 11, status: "verified" },
+  );
+  assert.deepEqual(
+    parsePublicSearchFilters({ kind: "unknown", age: "12", status: "pending" }),
+    { kind: "all", age: null, status: "all" },
+  );
+  assert.deepEqual(
+    parsePublicSearchFilters({ kind: ["movie"], age: ["8"], status: ["verified"] }),
+    { kind: "all", age: null, status: "all" },
+  );
+});
+
+test("age filtering uses only verified severity evidence and preserves search ranking", () => {
+  const results: PublicTitleSearchResult[] = [
+    {
+      id: "gentle-movie",
+      canonicalName: "فيلم هادئ",
+      originalName: null,
+      kind: "movie",
+      releaseYear: 2026,
+      hasVerifiedReview: true,
+      hasReviewInProgress: false,
+      verifiedBundleId: "bundle-gentle",
+      verifiedMaxSeverity: 1,
+      matchKind: "canonical_prefix",
+    },
+    {
+      id: "strong-series",
+      canonicalName: "مسلسل أقوى",
+      originalName: null,
+      kind: "series",
+      releaseYear: 2026,
+      hasVerifiedReview: true,
+      hasReviewInProgress: false,
+      verifiedBundleId: "bundle-strong",
+      verifiedMaxSeverity: 3,
+      matchKind: "canonical_contains",
+    },
+    {
+      id: "catalog-movie",
+      canonicalName: "فيلم بلا مراجعة",
+      originalName: null,
+      kind: "movie",
+      releaseYear: 2025,
+      hasVerifiedReview: false,
+      hasReviewInProgress: false,
+      verifiedBundleId: null,
+      verifiedMaxSeverity: null,
+      matchKind: "token_match",
+    },
+  ];
+
+  const ageEight = filterPublicTitleSearchResults(results, {
+    kind: "all",
+    age: 8,
+    status: "all",
+  });
+  assert.deepEqual(ageEight.map((item) => item.id), ["gentle-movie"]);
+
+  const ageFourteen = filterPublicTitleSearchResults(results, {
+    kind: "all",
+    age: 14,
+    status: "verified",
+  });
+  assert.deepEqual(ageFourteen.map((item) => item.id), ["gentle-movie", "strong-series"]);
+
+  const catalogMovies = filterPublicTitleSearchResults(results, {
+    kind: "movie",
+    age: null,
+    status: "catalog_only",
+  });
+  assert.deepEqual(catalogMovies.map((item) => item.id), ["catalog-movie"]);
+});
+
+test("candidate SQL stays parameterized and derives age evidence from the exact current approval", () => {
   const parsed = parsePublicTitleSearchRequest({ query: "نيمو finding" });
   const candidateQuery = buildPublicTitleCandidateQuery(parsed);
 
@@ -139,6 +228,10 @@ test("candidate SQL stays parameterized and returns a deterministic current publ
   assert.match(candidateQuery.sql, /ea\.status = 'approved'/);
   assert.match(candidateQuery.sql, /rr\.status IN \('open', 'investigating'\)/);
   assert.match(candidateQuery.sql, /AS verifiedBundleId/);
+  assert.match(candidateQuery.sql, /editorial_approval_submissions eas/);
+  assert.match(candidateQuery.sql, /vea\.id = vb\.current_approval_id/);
+  assert.match(candidateQuery.sql, /SELECT MAX\(o\.severity\)/);
+  assert.match(candidateQuery.sql, /AS verifiedMaxSeverity/);
   assert.match(candidateQuery.sql, /ORDER BY b\.published_at DESC, ea\.approved_at DESC, b\.id ASC/);
   assert.match(candidateQuery.sql, /b\.status IN \('draft', 'under_review', 'conflicted'\)/);
   assert.equal(candidateQuery.bindings.length, 8);

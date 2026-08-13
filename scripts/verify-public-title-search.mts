@@ -103,6 +103,7 @@ function executeSearch(query: string) {
     hasVerifiedReview: number;
     hasReviewInProgress: number;
     verifiedBundleId: string | null;
+    verifiedMaxSeverity: number | null;
   }>;
   const candidates: PublicTitleSearchCandidate[] = rows.map((row) => ({
     id: row.id,
@@ -113,6 +114,10 @@ function executeSearch(query: string) {
     hasVerifiedReview: row.hasVerifiedReview === 1,
     hasReviewInProgress: row.hasReviewInProgress === 1,
     verifiedBundleId: row.verifiedBundleId,
+    verifiedMaxSeverity:
+      row.verifiedMaxSeverity === null
+        ? null
+        : (row.verifiedMaxSeverity as PublicTitleSearchCandidate["verifiedMaxSeverity"]),
   }));
   return rankPublicTitleSearchCandidates(parsed, candidates);
 }
@@ -127,6 +132,11 @@ assert.equal(
   "search-public-bundle",
   "Verified search result did not carry the exact public bundle locator.",
 );
+assert.equal(
+  arabicResults[0]?.verifiedMaxSeverity,
+  0,
+  "A verified approval with no observations should expose a zero maximum severity, not an invented age rating.",
+);
 
 const originalResults = executeSearch("FINDING NEMO");
 assert.equal(originalResults[0]?.id, "search-original", "Original-name search missed the title.");
@@ -138,6 +148,7 @@ assert.equal(
   "Active under-review workflow was not exposed as in-progress.",
 );
 assert.equal(originalResults[0]?.verifiedBundleId, null);
+assert.equal(originalResults[0]?.verifiedMaxSeverity, null);
 
 const unrelatedResults = executeSearch("نيمو finding");
 assert.deepEqual(unrelatedResults.map((row) => row.id), ["search-original"]);
@@ -149,4 +160,4 @@ const foreignKeyErrors = db.prepare("PRAGMA foreign_key_check").all();
 assert.deepEqual(foreignKeyErrors, [], "Public title-search verifier broke foreign keys.");
 
 db.close();
-console.log("Verified P3 public title-search SQL, bundle locator, and review-progress state against the migrated SQLite schema.");
+console.log("Verified P3 public title-search SQL, bundle locator, review-progress state, and age-filter severity evidence against the migrated SQLite schema.");

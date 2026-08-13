@@ -122,6 +122,27 @@ export function buildPublicTitleCandidateQuery(
         *,
         CASE WHEN verifiedBundleId IS NOT NULL THEN 1 ELSE 0 END AS hasVerifiedReview
       FROM searchable_titles
+    ),
+    filterable_titles AS (
+      SELECT
+        ct.*,
+        CASE
+          WHEN ct.verifiedBundleId IS NULL THEN NULL
+          ELSE COALESCE((
+            SELECT MAX(o.severity)
+            FROM review_bundles vb
+            INNER JOIN editorial_approvals vea
+              ON vea.id = vb.current_approval_id
+             AND vea.bundle_id = vb.id
+             AND vea.status = 'approved'
+            INNER JOIN editorial_approval_submissions eas
+              ON eas.approval_id = vea.id
+            INNER JOIN observations o
+              ON o.submission_id = eas.submission_id
+            WHERE vb.id = ct.verifiedBundleId
+          ), 0)
+        END AS verifiedMaxSeverity
+      FROM classified_titles ct
     )
     SELECT
       id,
@@ -131,8 +152,9 @@ export function buildPublicTitleCandidateQuery(
       releaseYear,
       hasVerifiedReview,
       hasReviewInProgress,
-      verifiedBundleId
-    FROM classified_titles
+      verifiedBundleId,
+      verifiedMaxSeverity
+    FROM filterable_titles
     WHERE ${tokenPredicates.join(" AND ")}
     ORDER BY
       CASE
