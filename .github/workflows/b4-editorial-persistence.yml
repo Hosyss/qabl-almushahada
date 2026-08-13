@@ -16,5 +16,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --experimental-strip-types --test tests/editorial-bootstrap-parity.test.ts
+      - run: node --experimental-strip-types --test tests/editorial-bootstrap-d1.test.ts
       - run: node --experimental-strip-types --test tests/editorial-persistence-immutability.test.ts tests/editorial-persistence-head-lock.test.ts
       - run: npm run test:migrations
