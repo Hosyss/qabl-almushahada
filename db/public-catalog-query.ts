@@ -62,12 +62,14 @@ LIMIT ?`;
 
 export type PublicCatalogDirectoryKind = 'all' | 'movie' | 'series';
 export type PublicCatalogDirectoryReviewStatus = 'all' | 'verified' | 'not_verified';
+export type PublicCatalogDirectoryEditorialStatus = 'all' | 'editorial' | 'no_editorial';
 
 export interface PublicCatalogDirectoryQueryInput {
   query: string;
   kind: PublicCatalogDirectoryKind;
   year: number | null;
   reviewStatus: PublicCatalogDirectoryReviewStatus;
+  editorialStatus: PublicCatalogDirectoryEditorialStatus;
   limit: number;
   offset: number;
 }
@@ -110,7 +112,19 @@ const DIRECTORY_CTE_SQL = `WITH directory AS (
           WHERE rr.bundle_id = b.id
             AND rr.status IN ('open', 'investigating')
         )
-    ) THEN 1 ELSE 0 END AS hasVerifiedReview
+    ) THEN 1 ELSE 0 END AS hasVerifiedReview,
+    CASE WHEN EXISTS (
+      SELECT 1
+      FROM editorial_publication_heads eph
+      INNER JOIN editorial_publication_revisions epr ON epr.id = eph.current_revision_id
+      WHERE eph.title_id = t.id
+        AND epr.title_id = eph.title_id
+        AND epr.public_id = eph.public_id
+        AND epr.revision = eph.revision
+        AND epr.publication_state = 'published'
+        AND epr.decision_status = 'insufficient_data'
+        AND epr.decision_eligible = 0
+    ) THEN 1 ELSE 0 END AS hasEditorialReview
   FROM titles t
   INNER JOIN title_catalog_sources cs ON cs.id = (
     SELECT cs2.id
@@ -133,49 +147,30 @@ const DIRECTORY_CTE_SQL = `WITH directory AS (
     AND (? IS NULL OR t.release_year = ?)
 )`;
 
-const DIRECTORY_REVIEW_FILTER_SQL = `WHERE (? = 'all'
-  OR (? = 'verified' AND hasVerifiedReview = 1)
-  OR (? = 'not_verified' AND hasVerifiedReview = 0))`;
+const DIRECTORY_FILTER_SQL = `WHERE
+  (? = 'all' OR (? = 'verified' AND hasVerifiedReview = 1) OR (? = 'not_verified' AND hasVerifiedReview = 0))
+  AND (? = 'all' OR (? = 'editorial' AND hasEditorialReview = 1) OR (? = 'no_editorial' AND hasEditorialReview = 0))`;
 
-export function buildPublicCatalogDirectoryQueries(
-  input: PublicCatalogDirectoryQueryInput,
-): PublicCatalogDirectoryQueryPlan {
-  if (input.kind !== 'all' && input.kind !== 'movie' && input.kind !== 'series') {
-    throw new TypeError('Invalid directory kind');
-  }
-  if (input.reviewStatus !== 'all' && input.reviewStatus !== 'verified' && input.reviewStatus !== 'not_verified') {
-    throw new TypeError('Invalid directory review status');
-  }
-  if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 48) {
-    throw new RangeError('Directory limit must be between 1 and 48');
-  }
-  if (!Number.isInteger(input.offset) || input.offset < 0 || input.offset > 20_000) {
-    throw new RangeError('Directory offset is out of range');
-  }
-  if (input.year !== null && (!Number.isInteger(input.year) || input.year < 1880 || input.year > 2200)) {
-    throw new RangeError('Invalid directory year');
-  }
+export function buildPublicCatalogDirectoryQueries(input: PublicCatalogDirectoryQueryInput): PublicCatalogDirectoryQueryPlan {
+  if (input.kind !== 'all' && input.kind !== 'movie' && input.kind !== 'series') throw new TypeError('Invalid directory kind');
+  if (input.reviewStatus !== 'all' && input.reviewStatus !== 'verified' && input.reviewStatus !== 'not_verified') throw new TypeError('Invalid directory review status');
+  if (input.editorialStatus !== 'all' && input.editorialStatus !== 'editorial' && input.editorialStatus !== 'no_editorial') throw new TypeError('Invalid directory editorial status');
+  if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 48) throw new RangeError('Directory limit must be between 1 and 48');
+  if (!Number.isInteger(input.offset) || input.offset < 0 || input.offset > 20_000) throw new RangeError('Directory offset is out of range');
+  if (input.year !== null && (!Number.isInteger(input.year) || input.year < 1880 || input.year > 2200)) throw new RangeError('Invalid directory year');
   if (input.query.length > 80) throw new RangeError('Directory query is too long');
 
   const pattern = `%${escapeLike(input.query.toLocaleLowerCase('en-US'))}%`;
   const sharedBindings: Array<string | number | null> = [
-    input.query.toLocaleLowerCase('en-US'),
-    pattern,
-    pattern,
-    pattern,
-    input.kind,
-    input.kind,
-    input.year,
-    input.year,
-    input.reviewStatus,
-    input.reviewStatus,
-    input.reviewStatus,
+    input.query.toLocaleLowerCase('en-US'), pattern, pattern, pattern,
+    input.kind, input.kind, input.year, input.year,
+    input.reviewStatus, input.reviewStatus, input.reviewStatus,
+    input.editorialStatus, input.editorialStatus, input.editorialStatus,
   ];
-
   return {
-    countSql: `${DIRECTORY_CTE_SQL}\nSELECT COUNT(*) AS count FROM directory\n${DIRECTORY_REVIEW_FILTER_SQL}`,
+    countSql: `${DIRECTORY_CTE_SQL}\nSELECT COUNT(*) AS count FROM directory\n${DIRECTORY_FILTER_SQL}`,
     countBindings: [...sharedBindings],
-    listSql: `${DIRECTORY_CTE_SQL}\nSELECT * FROM directory\n${DIRECTORY_REVIEW_FILTER_SQL}\nORDER BY releaseYear DESC, canonicalName COLLATE NOCASE ASC, titleId ASC\nLIMIT ? OFFSET ?`,
+    listSql: `${DIRECTORY_CTE_SQL}\nSELECT * FROM directory\n${DIRECTORY_FILTER_SQL}\nORDER BY releaseYear DESC, canonicalName COLLATE NOCASE ASC, titleId ASC\nLIMIT ? OFFSET ?`,
     listBindings: [...sharedBindings, input.limit, input.offset],
   };
 }

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 
+import { loadPublicEditorialSearchStates } from "./public-editorial-search-state.ts";
 import { buildPublicTitleCandidateQuery } from "./public-title-search-query.ts";
 import {
   parsePublicTitleSearchRequest,
@@ -25,12 +26,34 @@ interface CandidateRow {
 
 export async function searchPublicTitles(input: { query: string }): Promise<PublicTitleSearchResult[]> {
   const { parsed, candidates } = await loadSearchCandidates(input);
-  return rankPublicTitleSearchCandidates(parsed, candidates);
+  return enrichEditorialState(rankPublicTitleSearchCandidates(parsed, candidates));
 }
 
 export async function searchPublicTitleDiscovery(input: { query: string }): Promise<PublicTitleSearchDiscovery> {
   const { parsed, candidates } = await loadSearchCandidates(input);
-  return rankPublicTitleSearchDiscovery(parsed, candidates);
+  const discovery = rankPublicTitleSearchDiscovery(parsed, candidates);
+  const combined = [...discovery.matches, ...discovery.didYouMean];
+  const enriched = await enrichEditorialState(combined);
+  const byId = new Map(enriched.map((result) => [result.id, result]));
+  return {
+    matches: discovery.matches.map((result) => byId.get(result.id) ?? result),
+    didYouMean: discovery.didYouMean.map((result) => byId.get(result.id) ?? result),
+  };
+}
+
+async function enrichEditorialState(results: PublicTitleSearchResult[]): Promise<PublicTitleSearchResult[]> {
+  if (results.length === 0) return results;
+  const states = await loadPublicEditorialSearchStates(results.map((result) => result.id));
+  return results.map((result) => {
+    const editorial = states.get(result.id);
+    if (!editorial) return { ...result, editorialPublicationId: null, editorialTitleAr: null, editorialTitleEn: null };
+    return {
+      ...result,
+      editorialPublicationId: editorial.publicationId,
+      editorialTitleAr: editorial.titleAr,
+      editorialTitleEn: editorial.titleEn,
+    };
+  });
 }
 
 async function loadSearchCandidates(input: { query: string }) {

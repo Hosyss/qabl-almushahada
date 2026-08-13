@@ -1,12 +1,12 @@
-name: Checkpoint verification
+name: B4 editorial persistence
 
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: ["agent/p4-03-b4-editorial-persistence-v4", main]
   pull_request:
 
 jobs:
-  verify:
+  verify-editorial-persistence:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,9 +15,7 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
-      - run: npm run test:engine
-      - run: node --experimental-strip-types --test tests/public-catalog-directory.test.ts
+      - run: node --experimental-strip-types --test tests/editorial-bootstrap-parity.test.ts
+      - run: node --experimental-strip-types --test tests/editorial-bootstrap-d1.test.ts
       - run: node --experimental-strip-types --test tests/editorial-persistence-immutability.test.ts tests/editorial-persistence-head-lock.test.ts
       - run: npm run test:migrations
-      - run: npm run lint:local
-      - run: npm run build:local

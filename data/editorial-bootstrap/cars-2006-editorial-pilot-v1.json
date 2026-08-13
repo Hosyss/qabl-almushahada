@@ -1,0 +1,53 @@
+{
+  "review": {
+    "id": "cars-2006-editorial-pilot-v1",
+    "titleId": "wd:Q182153",
+    "titleLabel": "Cars",
+    "releaseYear": 2006,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-13T14:45:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى Cars (2006)، وليس مراجعة لنسخة أو منصة بعينها. بعد مراجعة شروط المصادر أبقينا فقط مراجع يمكن استخدامها على هذا المسار وفق أساس معلن، وخفّضنا قوة أي واقعة لا يساندها مصدر مستقل ثانٍ بدل الإبقاء على اتفاق غير مكتمل.",
+    "analysisAr": "المؤكد بقوة أعلى هو وجود اصطدامات وحوادث سباق وقيادة خطرة، لأن هذا يظهر في مرجعين مستقلين مستخدمين حاليًا. توجد أيضًا إشارات إلى لحظات توتر وألفاظ خفيفة وغزل أو تلميحات بسيطة، لكن كل محور من هذه المحاور يعتمد الآن على مرجع واحد فقط، لذلك نعرضه بوضوح كدليل أضعف لا كاتفاق بين مصادر. ستة محاور أخرى تظل غير محسومة، وصمت أي مصدر لا يتحول إلى «غير موجود».",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {
+        "id": "cars-source-kids-in-mind",
+        "publisher": "Kids-In-Mind",
+        "sourceType": "published_review",
+        "sourceUrl": "https://kids-in-mind.com/c/cars.htm",
+        "accessedOn": "2026-08-13",
+        "independenceGroupId": "kids-in-mind",
+        "usageBasis": "link_only_factual_reference",
+        "rightsLabel": "ربط للمصدر ومرجع وقائع فقط — لا ندّعي ترخيص إعادة نشر",
+        "rightsUrl": "https://kids-in-mind.com/terms.htm",
+        "usageNoteAr": "نستخدم الصفحة كمرجع لوقائع عامة مع رابط واضح للمصدر، ونكتب الوصف العربي من الصفر. لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها، لأن شروط الموقع تمنع إعادة النشر التجاري دون إذن.",
+        "supportedClaimIds": ["cars-claim-violence", "cars-claim-fear", "cars-claim-language", "cars-claim-sexual-content"]
+      },
+      {
+        "id": "cars-source-wikipedia",
+        "publisher": "Wikipedia (English)",
+        "sourceType": "open_encyclopedia",
+        "sourceUrl": "https://en.wikipedia.org/w/index.php?title=Cars_(film)&oldid=1368455889",
+        "accessedOn": "2026-08-13",
+        "independenceGroupId": "wikipedia-en",
+        "usageBasis": "open_license",
+        "rightsLabel": "CC BY-SA 4.0",
+        "rightsUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "usageNoteAr": "نحفظ رابط مراجعة ثابتة للمقال ونستخدم الوقائع فقط مع الإسناد. لا ننسخ جمل المقال؛ الصياغة العربية هنا أصلية، ومعلومات المصدر المفتوح معروضة للشفافية.",
+        "sourceVersion": "oldid=1368455889",
+        "supportedClaimIds": ["cars-claim-violence"]
+      }
+    ],
+    "claims": [
+      {"id":"cars-claim-violence","category":"violence","summaryAr":"تتضمن القصة سباقات واصطدامات وحوادث قيادة متكررة، بينها تحطم سيارات وخروجها عن المسار ومواقف خطر على الطريق.","verification":"corroborated","sourceIds":["cars-source-kids-in-mind","cars-source-wikipedia"]},
+      {"id":"cars-claim-fear","category":"fear","summaryAr":"توجد لحظات توتر قصيرة مرتبطة بالمطاردة والقيادة السريعة والاقتراب من أخطار الطريق؛ هذا الوصف مدعوم حاليًا بمرجع واحد فقط.","verification":"single_source","sourceIds":["cars-source-kids-in-mind"]},
+      {"id":"cars-claim-language","category":"language","summaryAr":"توجد ألفاظ خفيفة وإهانات وصيحات تعجب متفرقة؛ لا ننقل قائمة الألفاظ أو العدّ الوارد في المرجع.","verification":"single_source","sourceIds":["cars-source-kids-in-mind"]},
+      {"id":"cars-claim-sexual-content","category":"sexualContent","summaryAr":"توجد إشارات غزل ونكات أو تلميحات خفيفة مبنية على عالم السيارات، من دون استنتاج أوسع من الوقائع التي يذكرها المرجع.","verification":"single_source","sourceIds":["cars-source-kids-in-mind"]}
+    ],
+    "uncertainCategories": ["bullying", "substances", "discrimination", "selfHarm", "grief", "flashingLights"]
+  },
+  "presentation": {"titleAr":"سيارات","titleEn":"Cars","revision":4,"updatedAt":"2026-08-13T21:35:00+03:00"},
+  "fingerprint": "sha256:e8d3679f818e5c9d288d191537ec1944ceffe7144c7171442e8f31a72aebee11"
+}

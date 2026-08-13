@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 
 import { buildPublicCatalogDirectoryQueries } from "../db/public-catalog-query.ts";
 
+type DirectoryInput = Parameters<typeof buildPublicCatalogDirectoryQueries>[0];
+
 function makeDb() {
   const db = new DatabaseSync(":memory:");
   db.exec(`
@@ -57,6 +59,21 @@ function makeDb() {
       bundle_id TEXT NOT NULL,
       status TEXT NOT NULL
     );
+    CREATE TABLE editorial_publication_revisions (
+      id TEXT PRIMARY KEY,
+      public_id TEXT NOT NULL,
+      title_id TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      publication_state TEXT NOT NULL,
+      decision_status TEXT NOT NULL,
+      decision_eligible INTEGER NOT NULL
+    );
+    CREATE TABLE editorial_publication_heads (
+      title_id TEXT PRIMARY KEY,
+      public_id TEXT NOT NULL,
+      current_revision_id TEXT NOT NULL,
+      revision INTEGER NOT NULL
+    );
   `);
   db.prepare(`INSERT INTO content_source_policy_snapshots
     (id, source_key, use_scope, decision, license_label, automated_ingestion_allowed, commercial_use_allowed, policy_version)
@@ -75,8 +92,8 @@ function addTitle(db: DatabaseSync, index: number, options: { kind?: string; yea
   return id;
 }
 
-function runPlan(db: DatabaseSync, input: Parameters<typeof buildPublicCatalogDirectoryQueries>[0]) {
-  const plan = buildPublicCatalogDirectoryQueries(input);
+function runPlan(db: DatabaseSync, input: Omit<DirectoryInput, "editorialStatus"> & { editorialStatus?: DirectoryInput["editorialStatus"] }) {
+  const plan = buildPublicCatalogDirectoryQueries({ ...input, editorialStatus: input.editorialStatus ?? "all" });
   const count = Number((db.prepare(plan.countSql).get(...plan.countBindings) as { count: number }).count);
   const rows = db.prepare(plan.listSql).all(...plan.listBindings) as Array<Record<string, unknown>>;
   return { plan, count, rows };
@@ -95,10 +112,10 @@ test("directory pagination never loads the whole 200-title catalog into one brow
 });
 
 test("count and list share the exact same server-side filter bindings", () => {
-  const plan = buildPublicCatalogDirectoryQueries({ query: "Harry", kind: "movie", year: 2001, reviewStatus: "verified", limit: 24, offset: 48 });
+  const plan = buildPublicCatalogDirectoryQueries({ query: "Harry", kind: "movie", year: 2001, reviewStatus: "verified", editorialStatus: "all", limit: 24, offset: 48 });
   assert.deepEqual(plan.countBindings, plan.listBindings.slice(0, -2));
   assert.deepEqual(plan.listBindings.slice(-2), [24, 48]);
-  for (const token of ["canonical_name", "original_name", "search_aliases_json", "t.kind", "t.release_year", "hasVerifiedReview"]) {
+  for (const token of ["canonical_name", "original_name", "search_aliases_json", "t.kind", "t.release_year", "hasVerifiedReview", "hasEditorialReview"]) {
     assert.ok(plan.countSql.includes(token), `count query lost filter token: ${token}`);
     assert.ok(plan.listSql.includes(token), `list query lost filter token: ${token}`);
   }
@@ -106,7 +123,7 @@ test("count and list share the exact same server-side filter bindings", () => {
 
 test("query, type, year, review status, limit and offset remain parameterized", () => {
   const raw = "Harry' Potter%";
-  const plan = buildPublicCatalogDirectoryQueries({ query: raw, kind: "series", year: 2012, reviewStatus: "not_verified", limit: 12, offset: 24 });
+  const plan = buildPublicCatalogDirectoryQueries({ query: raw, kind: "series", year: 2012, reviewStatus: "not_verified", editorialStatus: "all", limit: 12, offset: 24 });
   assert.ok(plan.countBindings.includes(raw.toLocaleLowerCase("en-US")));
   assert.ok(plan.listBindings.includes("series"));
   assert.ok(plan.listBindings.includes(2012));
@@ -115,8 +132,8 @@ test("query, type, year, review status, limit and offset remain parameterized", 
   assert.ok(!plan.listSql.includes(raw));
   assert.ok(!plan.countSql.includes(raw));
   assert.doesNotMatch(plan.listSql, /wd:Q\d+/u);
-  assert.doesNotMatch(plan.listSql, /editorialId|editorial-review-publications/u);
-  assert.throws(() => buildPublicCatalogDirectoryQueries({ query: "", kind: "movie", year: null, reviewStatus: "all", limit: 49, offset: 0 }), /limit/i);
+  assert.doesNotMatch(plan.listSql, /cars-2006|et-1982|minions-2015|harry-potter-philosophers/u);
+  assert.throws(() => buildPublicCatalogDirectoryQueries({ query: "", kind: "movie", year: null, reviewStatus: "all", editorialStatus: "all", limit: 49, offset: 0 }), /limit/i);
 });
 
 test("search, kind and year filtering execute in SQLite before pagination", () => {
