@@ -36,6 +36,9 @@ export interface PublicTitleSearchCandidate {
   hasReviewInProgress: boolean;
   verifiedBundleId: string | null;
   verifiedMaxSeverity: 0 | 1 | 2 | 3 | null;
+  editorialPublicationId?: string | null;
+  editorialTitleAr?: string | null;
+  editorialTitleEn?: string | null;
 }
 
 export interface PublicTitleSearchResult extends PublicTitleSearchCandidate {
@@ -218,62 +221,44 @@ function scoreConservativeFuzzyMatch(request: ParsedPublicTitleSearchRequest, no
   const comparisons = new Set<string>([normalizedName]);
   if (nameTokens.length >= queryTokenCount) comparisons.add(nameTokens.slice(0, queryTokenCount).join(" "));
   const compactName = normalizedName.replaceAll(" ", "");
-  if (request.compactQuery.length >= 5 && compactName.length >= request.compactQuery.length) {
-    comparisons.add(compactName.slice(0, Math.min(compactName.length, request.compactQuery.length + 2)));
-  }
+  comparisons.add(compactName);
+  comparisons.add(compactName.slice(0, request.compactQuery.length));
 
-  let bestSimilarity = 0;
-  let bestDistance = Number.POSITIVE_INFINITY;
+  let minDistance = Number.POSITIVE_INFINITY;
   for (const comparison of comparisons) {
-    const query = comparison.includes(" ") ? request.normalizedQuery : request.compactQuery;
-    if (!query || !comparison) continue;
-    const distance = damerauLevenshteinDistance(query, comparison);
-    const longest = Math.max(query.length, comparison.length);
-    const similarity = longest === 0 ? 1 : 1 - distance / longest;
-    if (similarity > bestSimilarity || (similarity === bestSimilarity && distance < bestDistance)) {
-      bestSimilarity = similarity;
-      bestDistance = distance;
-    }
+    const distance = boundedLevenshtein(request.compactQuery, comparison.replaceAll(" ", ""), 2);
+    if (distance < minDistance) minDistance = distance;
   }
-
-  const comparisonLength = request.compactQuery.length;
-  const maxDistance = comparisonLength <= 6 ? 1 : comparisonLength <= 12 ? 2 : 3;
-  if (bestDistance > maxDistance || bestSimilarity < 0.78) return null;
-  return 520 + Math.round(bestSimilarity * 100) - bestDistance;
+  if (!Number.isFinite(minDistance) || minDistance > 2) return null;
+  return 620 - minDistance * 20;
 }
 
-function damerauLevenshteinDistance(left: string, right: string): number {
-  const rows = left.length + 1;
-  const columns = right.length + 1;
-  const matrix = Array.from({ length: rows }, () => Array<number>(columns).fill(0));
-  for (let row = 0; row < rows; row += 1) matrix[row][0] = row;
-  for (let column = 0; column < columns; column += 1) matrix[0][column] = column;
-  for (let row = 1; row < rows; row += 1) {
-    for (let column = 1; column < columns; column += 1) {
-      const substitutionCost = left[row - 1] === right[column - 1] ? 0 : 1;
-      matrix[row][column] = Math.min(
-        matrix[row - 1][column] + 1,
-        matrix[row][column - 1] + 1,
-        matrix[row - 1][column - 1] + substitutionCost,
-      );
-      if (row > 1 && column > 1 && left[row - 1] === right[column - 2] && left[row - 2] === right[column - 1]) {
-        matrix[row][column] = Math.min(matrix[row][column], matrix[row - 2][column - 2] + 1);
-      }
-    }
-  }
-  return matrix[left.length][right.length];
+function compareRankedResults(a: PublicTitleSearchResult, b: PublicTitleSearchResult): number {
+  if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+  if (Number(b.hasVerifiedReview) !== Number(a.hasVerifiedReview)) return Number(b.hasVerifiedReview) - Number(a.hasVerifiedReview);
+  if (Number(b.hasReviewInProgress) !== Number(a.hasReviewInProgress)) return Number(b.hasReviewInProgress) - Number(a.hasReviewInProgress);
+  if (b.releaseYear !== a.releaseYear) return b.releaseYear - a.releaseYear;
+  return a.id.localeCompare(b.id);
 }
 
-function compareRankedResults(left: PublicTitleSearchResult, right: PublicTitleSearchResult): number {
-  if (right.matchScore !== left.matchScore) return right.matchScore - left.matchScore;
-  if (left.releaseYear !== right.releaseYear) return left.releaseYear - right.releaseYear;
-  const nameOrder = left.canonicalName.localeCompare(right.canonicalName, "ar", { sensitivity: "base" });
-  if (nameOrder !== 0) return nameOrder;
-  return left.id.localeCompare(right.id, "en");
+function boundedLevenshtein(a: string, b: string, maxDistance: number): number {
+  if (Math.abs(a.length - b.length) > maxDistance) return Number.POSITIVE_INFINITY;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    let rowMinimum = current[0];
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const value = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + substitutionCost);
+      current.push(value);
+      rowMinimum = Math.min(rowMinimum, value);
+    }
+    if (rowMinimum > maxDistance) return Number.POSITIVE_INFINITY;
+    previous = current;
+  }
+  return previous[b.length] > maxDistance ? Number.POSITIVE_INFINITY : previous[b.length];
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
