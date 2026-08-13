@@ -177,19 +177,36 @@ function seedHumanReview() {
   db.prepare(
     "INSERT INTO reviewers (id, display_label, independence_group_id, status) VALUES (?, ?, ?, 'active')",
   ).run("taxonomy-reviewer", "Taxonomy reviewer", "taxonomy-group");
+  db.prepare(
+    `INSERT INTO internal_users (id, auth_email, role, status)
+     VALUES (?, ?, 'review_coordinator', 'active')`,
+  ).run("taxonomy-coordinator", "taxonomy-coordinator@example.com");
   db.prepare("INSERT INTO review_bundles (id, version_id, status) VALUES (?, ?, 'under_review')").run(
     "taxonomy-bundle",
     "taxonomy-version",
   );
   db.prepare(
+    `INSERT INTO review_assignments
+       (id, bundle_id, version_id, reviewer_id, assigned_by_user_id, state, revision)
+     VALUES (?, ?, ?, ?, ?, 'in_progress', 0)`,
+  ).run(
+    "taxonomy-assignment",
+    "taxonomy-bundle",
+    "taxonomy-version",
+    "taxonomy-reviewer",
+    "taxonomy-coordinator",
+  );
+  db.prepare(
     `INSERT INTO review_submissions
-       (id, bundle_id, version_id, reviewer_id, revision, started_at, completed_at, watched_seconds, declared_complete)
-     VALUES (?, ?, ?, ?, 1, ?, ?, 5900, 1)`,
+       (id, bundle_id, version_id, reviewer_id, assignment_id, revision,
+        started_at, completed_at, watched_seconds, declared_complete)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?, 5900, 1)`,
   ).run(
     "taxonomy-submission",
     "taxonomy-bundle",
     "taxonomy-version",
     "taxonomy-reviewer",
+    "taxonomy-assignment",
     "2026-08-13T08:00:00.000Z",
     "2026-08-13T09:40:00.000Z",
   );
