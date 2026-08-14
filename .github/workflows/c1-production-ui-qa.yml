@@ -1,0 +1,128 @@
+name: C1 production UI QA
+
+on:
+  push:
+    branches:
+      - agent/p4-03-c1-production-ui-qa
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare browser driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          npm install --no-save --ignore-scripts puppeteer-core@24.16.0 >/dev/null
+      - name: Check desktop and mobile rendering
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ui-qa.mjs" <<'NODE'
+          import puppeteer from 'puppeteer-core';
+          import { mkdir } from 'node:fs/promises';
+
+          const base = process.env.WORKER_URL;
+          const pages = [
+            ['home', '/'],
+            ['titles', '/titles?editorialStatus=editorial'],
+            ['barbie', '/review?editorialId=barbie-2023-editorial-c1-v1'],
+            ['jurassic', '/review?editorialId=jurassic-park-1993-editorial-c1-v1'],
+            ['totoro', '/review?editorialId=my-neighbor-totoro-1988-editorial-c1-v1'],
+          ];
+          const viewports = [
+            ['desktop', { width: 1440, height: 1000, deviceScaleFactor: 1 }],
+            ['mobile', { width: 390, height: 844, deviceScaleFactor: 1 }],
+          ];
+          await mkdir('ui-qa-artifacts', { recursive: true });
+          const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/google-chrome',
+            headless: true,
+            args: ['--no-sandbox', '--disable-dev-shm-usage'],
+          });
+          try {
+            for (const [viewportName, viewport] of viewports) {
+              for (const [name, pathname] of pages) {
+                const page = await browser.newPage();
+                await page.setViewport(viewport);
+                await page.goto(base + pathname, { waitUntil: 'networkidle2', timeout: 45000 });
+                await page.evaluate(() => document.fonts?.ready);
+                const metrics = await page.evaluate(() => {
+                  const body = getComputedStyle(document.body);
+                  const html = getComputedStyle(document.documentElement);
+                  const bodyFont = Number.parseFloat(body.fontSize);
+                  const lineHeight = Number.parseFloat(body.lineHeight);
+                  return {
+                    direction: html.direction || body.direction,
+                    scrollWidth: document.documentElement.scrollWidth,
+                    clientWidth: document.documentElement.clientWidth,
+                    bodyFont,
+                    lineHeight,
+                    fontFamily: body.fontFamily,
+                    textLength: document.body.innerText.trim().length,
+                  };
+                });
+                if (metrics.direction !== 'rtl') throw new Error(`${viewportName}/${name}: direction=${metrics.direction}`);
+                if (metrics.scrollWidth > metrics.clientWidth + 1) throw new Error(`${viewportName}/${name}: horizontal overflow ${metrics.scrollWidth}>${metrics.clientWidth}`);
+                if (!Number.isFinite(metrics.bodyFont) || metrics.bodyFont < 15) throw new Error(`${viewportName}/${name}: body font too small ${metrics.bodyFont}`);
+                if (Number.isFinite(metrics.lineHeight) && metrics.lineHeight < metrics.bodyFont * 1.25) throw new Error(`${viewportName}/${name}: line-height too tight ${metrics.lineHeight}/${metrics.bodyFont}`);
+                if (!metrics.fontFamily || metrics.fontFamily === 'serif') throw new Error(`${viewportName}/${name}: bad font family ${metrics.fontFamily}`);
+                if (metrics.textLength < 200) throw new Error(`${viewportName}/${name}: unexpectedly thin render (${metrics.textLength} chars)`);
+
+                if (name !== 'home' && name !== 'titles') {
+                  const opener = await page.$('button.editorial-summary-open');
+                  if (!opener) throw new Error(`${viewportName}/${name}: dialog opener missing`);
+                  await opener.click();
+                  await page.waitForFunction(() => document.querySelector('dialog.editorial-summary-dialog')?.open === true, { timeout: 5000 });
+                  const dialog = await page.evaluate(() => {
+                    const el = document.querySelector('dialog.editorial-summary-dialog');
+                    if (!el) return null;
+                    const rect = el.getBoundingClientRect();
+                    const style = getComputedStyle(el);
+                    return {
+                      open: el.open,
+                      title: document.querySelector('#editorial-summary-dialog-title')?.textContent?.trim(),
+                      width: rect.width,
+                      height: rect.height,
+                      viewportWidth: innerWidth,
+                      viewportHeight: innerHeight,
+                      overflowX: el.scrollWidth > el.clientWidth + 1,
+                      fontSize: Number.parseFloat(style.fontSize),
+                    };
+                  });
+                  if (!dialog?.open || !dialog.title) throw new Error(`${viewportName}/${name}: dialog not usable`);
+                  if (dialog.overflowX) throw new Error(`${viewportName}/${name}: dialog horizontal overflow`);
+                  if (dialog.width > dialog.viewportWidth + 1) throw new Error(`${viewportName}/${name}: dialog wider than viewport`);
+                  if (!Number.isFinite(dialog.fontSize) || dialog.fontSize < 14) throw new Error(`${viewportName}/${name}: dialog font too small`);
+                  await page.screenshot({ path: `ui-qa-artifacts/${viewportName}-${name}-dialog.png`, fullPage: false });
+                  await page.click('button.editorial-summary-close');
+                  await page.waitForFunction(() => document.querySelector('dialog.editorial-summary-dialog')?.open === false, { timeout: 5000 });
+                }
+
+                await page.screenshot({ path: `ui-qa-artifacts/${viewportName}-${name}.png`, fullPage: true });
+                console.log(`${viewportName}/${name}: OK font=${metrics.bodyFont}px family=${metrics.fontFamily} width=${metrics.clientWidth}px`);
+                await page.close();
+              }
+            }
+          } finally {
+            await browser.close();
+          }
+          NODE
+          node "$RUNNER_TEMP/ui-qa.mjs"
+      - name: Upload QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: c1-production-ui-qa
+          path: ui-qa-artifacts
+          if-no-files-found: error
