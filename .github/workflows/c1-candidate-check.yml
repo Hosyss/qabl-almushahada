@@ -15,52 +15,52 @@ jobs:
     env:
       WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
     steps:
-      - name: List live D1 title directory
+      - name: Map live D1 QIDs to Wikidata labels
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import html
+          import json
           import re
           import subprocess
-          from html.parser import HTMLParser
+          import urllib.parse
+          import urllib.request
 
           base = "https://qabl-almushahada.buildtools.workers.dev"
-
-          class Parser(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.href = None
-                  self.depth = 0
-                  self.text = []
-                  self.rows = []
-              def handle_starttag(self, tag, attrs):
-                  attrs = dict(attrs)
-                  if tag == "a" and re.fullmatch(r"/title/Q\d+", attrs.get("href", "")):
-                      self.href = attrs["href"]
-                      self.depth = 1
-                      self.text = []
-                  elif self.href:
-                      self.depth += 1
-              def handle_endtag(self, tag):
-                  if self.href:
-                      self.depth -= 1
-                      if self.depth == 0:
-                          text = " ".join(" ".join(self.text).split())
-                          self.rows.append((self.href, html.unescape(text)))
-                          self.href = None
-                          self.text = []
-              def handle_data(self, data):
-                  if self.href:
-                      self.text.append(data)
-
+          qids = []
           seen = set()
           for page in range(1, 10):
               body = subprocess.check_output(["curl","--fail","--silent","--show-error","--location",f"{base}/titles?page={page}"], text=True)
-              parser = Parser(); parser.feed(body)
-              for href, text in parser.rows:
-                  if href in seen: continue
-                  seen.add(href)
-                  print(f"{href.split('/')[-1]}\t{text}")
-          print(f"TOTAL_UNIQUE={len(seen)}")
+              for qid in re.findall(r'/title/(Q\d+)', body):
+                  if qid in seen: continue
+                  seen.add(qid); qids.append(qid)
+          assert len(qids) == 200, len(qids)
+
+          headers = {"User-Agent": "QablAlmushahada/1.0 (editorial candidate audit; contact via GitHub Hosyss/qabl-almushahada)"}
+          for start in range(0, len(qids), 50):
+              batch = qids[start:start+50]
+              params = urllib.parse.urlencode({
+                  "action":"wbgetentities",
+                  "ids":"|".join(batch),
+                  "props":"labels|claims",
+                  "languages":"en|ar",
+                  "format":"json",
+              })
+              req = urllib.request.Request("https://www.wikidata.org/w/api.php?" + params, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  data = json.load(r)
+              for qid in batch:
+                  ent = data["entities"][qid]
+                  en = ent.get("labels",{}).get("en",{}).get("value","")
+                  ar = ent.get("labels",{}).get("ar",{}).get("value","")
+                  years = []
+                  for claim in ent.get("claims",{}).get("P577",[]):
+                      try:
+                          t = claim["mainsnak"]["datavalue"]["value"]["time"]
+                          m = re.match(r'[+-](\d{4})-', t)
+                          if m: years.append(int(m.group(1)))
+                      except Exception:
+                          pass
+                  year = min(years) if years else ""
+                  print(f"{qid}\t{year}\t{en}\t{ar}")
           PY
