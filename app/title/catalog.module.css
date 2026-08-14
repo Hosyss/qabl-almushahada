@@ -17,7 +17,7 @@
 .hero h1, .detailCard h1 { margin: 16px 0 6px; font-size: clamp(2rem, 5vw, 4.2rem); line-height: 1.22; }
 .originalTitle { margin: 0 0 10px !important; color: #334d43 !important; font-size: clamp(18px, 2.3vw, 24px); line-height: 1.65 !important; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
 .hero p, .detailCard p, .notice p, .card p { line-height: 1.9; color: #43564d; font-size: 18px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 16px; margin-top: 26px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 26px; }
 .card { min-width: 0; border-radius: 22px; padding: 16px; display: grid; grid-template-columns: 116px minmax(0,1fr); gap: 16px; align-items: start; }
 .cardArtwork { width: 116px; aspect-ratio: 3 / 4; }
 .cardCopy { min-width: 0; }
