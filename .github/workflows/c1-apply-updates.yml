@@ -1,0 +1,70 @@
+name: C1 apply bounded updates
+
+on:
+  push:
+    branches:
+      - agent/p4-03-c1-three-editorials
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'P4-03C1: apply bounded seven-title updates'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/p4-03-c1-three-editorials
+      - name: Apply C1 count, homepage and quality updates
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=None):
+              p = Path(path)
+              text = p.read_text()
+              actual = text.count(old)
+              wanted = count if count is not None else 1
+              if actual != wanted:
+                  raise SystemExit(f"{path}: expected {wanted} occurrence(s), found {actual}: {old[:80]}")
+              p.write_text(text.replace(old, new))
+
+          replace('scripts/cloudflare-migrate.mjs', '!Array.isArray(fixtures) || fixtures.length !== 4', '!Array.isArray(fixtures) || fixtures.length !== 7')
+          replace('scripts/cloudflare-migrate.mjs', 'Expected exactly 4 frozen editorial fixtures', 'Expected exactly 7 frozen editorial fixtures')
+          replace('scripts/cloudflare-migrate.mjs', 'if (rows.length !== 4) throw new Error(`Expected exactly 4 current editorial heads in production, found ${rows.length}.`);', 'if (rows.length !== 7) throw new Error(`Expected exactly 7 current editorial heads in production, found ${rows.length}.`);')
+          replace('scripts/cloudflare-migrate.mjs', 'if (fixtures.length !== 4) throw new Error(`Expected exactly 4 editorial bootstrap fixtures, found ${fixtures.length}.`);', 'if (fixtures.length !== 7) throw new Error(`Expected exactly 7 editorial bootstrap fixtures, found ${fixtures.length}.`);')
+          replace('scripts/cloudflare-migrate.mjs', 'p4-03-b4-editorial-bootstrap.sql', 'p4-03-c1-editorial-bootstrap.sql')
+          replace('scripts/cloudflare-migrate.mjs', 'Applying idempotent P4-03B4 editorial bootstrap.', 'Applying idempotent P4-03C1 editorial bootstrap.')
+          replace('scripts/cloudflare-migrate.mjs', 'Verified 4 production editorial current heads exactly match the frozen P4-03B4 bootstrap fixtures.', 'Verified 7 production editorial current heads exactly match the frozen P4-03C1 bootstrap fixtures.')
+          replace('scripts/cloudflare-migrate.mjs', 'P4-03B4 editorial current heads verified.', 'P4-03C1 editorial current heads verified.')
+
+          replace('tests/editorial-bootstrap-parity.test.ts', 'the four parity-proven bootstrap fixtures remain internally exact and decision-ineligible', 'the seven C1 bootstrap fixtures remain internally exact and decision-ineligible')
+          replace('tests/editorial-bootstrap-parity.test.ts', 'assert.equal(FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES.length, 4);', 'assert.equal(FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES.length, 7);')
+
+          replace('tests/editorial-bootstrap-d1.test.ts', 'bootstrap loads exactly the four frozen publications and is idempotent', 'bootstrap loads exactly the seven C1 publications and is idempotent')
+          replace('tests/editorial-bootstrap-d1.test.ts', 'assert.equal(fixtures.length, 4);', 'assert.equal(fixtures.length, 7);')
+          replace('tests/editorial-bootstrap-d1.test.ts', 'assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_heads").get().count, 4);', 'assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_heads").get().count, 7);')
+          replace('tests/editorial-bootstrap-d1.test.ts', 'assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_revisions").get().count, 4);', 'assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_revisions").get().count, 7);')
+
+          replace('tests/public-quality-checkpoint.test.ts', 'assert.match(home, /listEditorialPublications/u);', 'assert.match(home, /listEditorialPublications\\(4\\)/u);\n  assert.match(home, /عرض كل التحليلات/u);')
+          replace('tests/public-quality-checkpoint.test.ts', 'assert.equal(publications.length, 4);', 'assert.equal(publications.length, 7);')
+          replace('tests/public-quality-checkpoint.test.ts', 'assert.equal(kidSources.length, 4);', 'assert.equal(kidSources.length, 7);')
+          replace('tests/public-quality-checkpoint.test.ts', 'assert.match(item.rightsLabel, /لا ندّعي ترخيص إعادة نشر/u);', 'assert.match(item.rightsLabel, /لا .*ترخيص.*إعادة نشر/u);')
+          replace('tests/public-quality-checkpoint.test.ts', 'assert.match(item.usageNoteAr, /لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها/u);', 'assert.match(item.usageNoteAr, /لا ننقل|من غير نقل/u);')
+
+          replace('app/page.tsx', 'const publications = await listEditorialPublications();', 'const publications = await listEditorialPublications(4);')
+          replace('app/page.tsx', 'هذه هي الصفحات المنشورة حاليًا من current-head في D1، ولا نعرض هنا أعمالًا أو أحكامًا تجريبية.', 'هذه أحدث أربع صفحات منشورة حاليًا من current-head في D1، ولا نعرض هنا أعمالًا أو أحكامًا تجريبية.')
+          replace('app/page.tsx', '        </div>\n      </section>\n      <section className="quality-home__types"', '        </div>\n        <Link className="quality-home__policy-link" href="/titles?editorialStatus=editorial">عرض كل التحليلات</Link>\n      </section>\n      <section className="quality-home__types"')
+          replace('app/page.tsx', 'لا توجد حاليًا مراجعة كاملة مؤهلة للحكم ضمن الصفحات الأربع أعلاه.', 'لا توجد حاليًا مراجعة كاملة مؤهلة للحكم ضمن الصفحات المعروضة أعلاه.')
+
+          Path('.github/workflows/c1-fingerprint.yml').unlink(missing_ok=True)
+          Path('.github/workflows/c1-apply-updates.yml').unlink(missing_ok=True)
+          PY
+          git config user.name 'Hossam eldeen'
+          git config user.email '52554618+Hosyss@users.noreply.github.com'
+          git add scripts/cloudflare-migrate.mjs tests/editorial-bootstrap-parity.test.ts tests/editorial-bootstrap-d1.test.ts tests/public-quality-checkpoint.test.ts app/page.tsx .github/workflows
+          git commit -m 'P4-03C1: apply seven-title persistence and homepage bounds'
+          git push origin HEAD:agent/p4-03-c1-three-editorials
