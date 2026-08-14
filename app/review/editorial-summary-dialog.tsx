@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type KeyboardEvent } from "react";
 
 export type EditorialSummaryDialogProps = {
   titleAr: string;
@@ -12,6 +12,15 @@ export type EditorialSummaryDialogProps = {
   sources: Array<{ publisher: string; sourceUrl: string; rightsLabel: string }>;
   fingerprint: string;
 };
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 export default function EditorialSummaryDialog(props: EditorialSummaryDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -26,6 +35,38 @@ export default function EditorialSummaryDialog(props: EditorialSummaryDialogProp
     dialogRef.current?.close();
   }
 
+  function keepFocusInsideDialog(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+      (element) => element.tabIndex >= 0 && element.getAttribute("aria-hidden") !== "true",
+    );
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+
+    if (event.shiftKey) {
+      if (active === first || !dialog.contains(active)) {
+        event.preventDefault();
+        last.focus();
+      }
+      return;
+    }
+
+    if (active === last || !dialog.contains(active)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
     <>
       <button ref={openerRef} type="button" className="editorial-summary-open" onClick={openDialog} aria-haspopup="dialog">
@@ -36,6 +77,7 @@ export default function EditorialSummaryDialog(props: EditorialSummaryDialogProp
         className="editorial-summary-dialog"
         aria-labelledby="editorial-summary-dialog-title"
         aria-describedby="editorial-summary-dialog-description"
+        onKeyDown={keepFocusInsideDialog}
         onClose={() => openerRef.current?.focus()}
       >
         <div className="editorial-summary-watermark" aria-hidden="true">© قبل المشاهدة</div>
