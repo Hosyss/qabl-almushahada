@@ -5,7 +5,7 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { buildEditorialBootstrapSql, loadEditorialBootstrapFixtures } from "../scripts/editorial-bootstrap-sql.mjs";
 
-test("bootstrap loads exactly the four frozen publications and is idempotent", async () => {
+test("bootstrap loads exactly the seven C1 publications and is idempotent", async () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   for (const name of (await readdir(path.join(process.cwd(), "drizzle"))).filter((v) => /^\d+.*\.sql$/.test(v)).sort()) {
@@ -13,7 +13,7 @@ test("bootstrap loads exactly the four frozen publications and is idempotent", a
     for (const statement of sql.split("--> statement-breakpoint").map((v) => v.trim()).filter(Boolean)) db.exec(statement);
   }
   const fixtures = await loadEditorialBootstrapFixtures();
-  assert.equal(fixtures.length, 4);
+  assert.equal(fixtures.length, 7);
   for (const { review } of fixtures) {
     db.prepare("INSERT INTO titles (id, canonical_name, kind, release_year) VALUES (?, ?, ?, ?)")
       .run(review.titleId, review.titleLabel, review.kind, review.releaseYear);
@@ -22,8 +22,8 @@ test("bootstrap loads exactly the four frozen publications and is idempotent", a
   db.exec(bootstrapSql);
   db.exec(bootstrapSql);
 
-  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_heads").get().count, 4);
-  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_revisions").get().count, 4);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_heads").get().count, 7);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_revisions").get().count, 7);
   for (const fixture of fixtures) {
     const { review, presentation, fingerprint } = fixture;
     const row = db.prepare(`SELECT h.public_id AS publicId,h.title_id AS titleId,h.revision AS headRevision,

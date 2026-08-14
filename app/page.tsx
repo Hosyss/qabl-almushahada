@@ -7,7 +7,7 @@ import { buildPublicCatalogTitleHref, PUBLIC_SITE_ORIGIN } from "@/lib/public-ca
 import TitleSearchCombobox from "./search/title-search-combobox";
 
 export default async function Home() {
-  const publications = await listEditorialPublications();
+  const publications = await listEditorialPublications(4);
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
@@ -34,7 +34,7 @@ export default async function Home() {
       <section className="quality-home__published" aria-labelledby="published-title">
         <div className="quality-home__section-head">
           <div><span>المحتوى الحقيقي المنشور</span><h2 id="published-title">تحليلات منشورة حديثًا</h2></div>
-          <p>هذه هي الصفحات المنشورة حاليًا من current-head في D1، ولا نعرض هنا أعمالًا أو أحكامًا تجريبية.</p>
+          <p>هذه أحدث أربع صفحات منشورة حاليًا من current-head في D1، ولا نعرض هنا أعمالًا أو أحكامًا تجريبية.</p>
         </div>
         <div className="quality-home__grid">
           {publications.map(({ review, presentation }) => {
@@ -49,12 +49,13 @@ export default async function Home() {
             );
           })}
         </div>
+        <Link className="quality-home__policy-link" href="/titles?editorialStatus=editorial">عرض كل التحليلات</Link>
       </section>
       <section className="quality-home__types" aria-labelledby="types-title">
         <div className="quality-home__section-head"><div><span>نوعا المحتوى ليسا شيئًا واحدًا</span><h2 id="types-title">إيه الفرق بين التحليل التحريري والمراجعة الموثقة؟</h2></div></div>
         <div className="quality-home__type-grid">
           <article><strong>تحليل تحريري جزئي للعمل</strong><p>يجمع وقائع من مراجع خارجية معلنة ويقارن الإسناد بينها. لا يدّعي أن فريقنا شاهد نسخة بمنصة ولغة ومدة محددة، ولا يصدر حكم ملاءمة طالما بقيت محاور غير محسومة.</p></article>
-          <article><strong>مراجعة موثقة لنسخة محددة</strong><p>ترتبط بمنصة ولغة ومدة وبصمة محتوى، ومراجعين مستقلين واعتماد وتدقيق. هذا هو المسار الوحيد الذي يمكنه الوصول إلى حكم أسري بعد اجتياز كل البوابات. لا توجد حاليًا مراجعة كاملة مؤهلة للحكم ضمن الصفحات الأربع أعلاه.</p></article>
+          <article><strong>مراجعة موثقة لنسخة محددة</strong><p>ترتبط بمنصة ولغة ومدة وبصمة محتوى، ومراجعين مستقلين واعتماد وتدقيق. هذا هو المسار الوحيد الذي يمكنه الوصول إلى حكم أسري بعد اجتياز كل البوابات. لا توجد حاليًا مراجعة كاملة مؤهلة للحكم ضمن الصفحات المعروضة أعلاه.</p></article>
         </div>
         <Link className="quality-home__policy-link" href="/review-policy">اقرأ سياسة المراجعة كاملة</Link>
       </section>
