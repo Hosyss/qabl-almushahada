@@ -1,0 +1,289 @@
+name: C2B visual QA temporary
+
+on:
+  push:
+    branches:
+      - agent/p4-03c2a-asymmetric-decision
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c2b-visual-qa-temporary
+  cancel-in-progress: true
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build:local
+
+      - name: Prepare isolated local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name": "qabl-c2b-local-qa",
+            "main": "worker/index.ts",
+            "compatibility_date": "2026-08-14",
+            "compatibility_flags": ["nodejs_compat"],
+            "d1_databases": [
+              {
+                "binding": "DB",
+                "database_name": "site-creator-d1",
+                "database_id": "00000000-0000-4000-8000-000000000000"
+              }
+            ]
+          }
+          JSON
+
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/tmp/d1-migrate.log 2>&1 || {
+              cat /tmp/d1-migrate.log
+              exit 1
+            }
+          done
+
+          cat > /tmp/c2b-qa-seed.sql <<'SQL'
+          INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES
+            ('wd:Q182153','سيارات','Cars','movie',2006,'[]'),
+            ('wd:Q11621','إي تي','E.T. the Extra-Terrestrial','movie',1982,'[]'),
+            ('wd:Q102438','هاري بوتر وحجر الفيلسوف','Harry Potter and the Philosopher''s Stone','movie',2001,'["Harry Potter and the Sorcerer''s Stone","HarryPotter"]'),
+            ('wd:Q13619743','المينيون','Minions','movie',2015,'[]'),
+            ('wd:Q55436290','باربي','Barbie','movie',2023,'[]'),
+            ('wd:Q167726','الحديقة الجوارسية','Jurassic Park','movie',1993,'[]'),
+            ('wd:Q39571','جاري توتورو','My Neighbor Totoro','movie',1988,'[]');
+
+          INSERT INTO title_catalog_sources
+            (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode)
+          VALUES
+            ('qa-catalog-Q182153','wd:Q182153','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q182153','https://www.wikidata.org/wiki/Q182153','2026-08-14T00:00:00Z','1821531821531821531821531821531821531821531821531821531821531821','manual'),
+            ('qa-catalog-Q11621','wd:Q11621','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q11621','https://www.wikidata.org/wiki/Q11621','2026-08-14T00:00:00Z','1162111621116211162111621116211162111621116211162111621116211162','manual'),
+            ('qa-catalog-Q102438','wd:Q102438','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q102438','https://www.wikidata.org/wiki/Q102438','2026-08-14T00:00:00Z','1024381024381024381024381024381024381024381024381024381024381024','manual'),
+            ('qa-catalog-Q13619743','wd:Q13619743','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q13619743','https://www.wikidata.org/wiki/Q13619743','2026-08-14T00:00:00Z','1361974313619743136197431361974313619743136197431361974313619743','manual'),
+            ('qa-catalog-Q55436290','wd:Q55436290','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q55436290','https://www.wikidata.org/wiki/Q55436290','2026-08-14T00:00:00Z','5543629055436290554362905543629055436290554362905543629055436290','manual'),
+            ('qa-catalog-Q167726','wd:Q167726','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q167726','https://www.wikidata.org/wiki/Q167726','2026-08-14T00:00:00Z','1677261677261677261677261677261677261677261677261677261677261677','manual'),
+            ('qa-catalog-Q39571','wd:Q39571','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q39571','https://www.wikidata.org/wiki/Q39571','2026-08-14T00:00:00Z','3957139571395713957139571395713957139571395713957139571395713957','manual');
+          SQL
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/c2b-qa-seed.sql
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql
+
+      - name: Start isolated preview
+        shell: bash
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
+        run: |
+          set -euo pipefail
+          (npm run dev:local -- --port 4173 > /tmp/c2b-server.log 2>&1 & echo $! > /tmp/c2b-server.pid)
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/c2b-server.log
+          exit 1
+
+      - name: Run Chrome Desktop and Mobile QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo 'Chrome/Chromium is unavailable on runner.' >&2
+            exit 1
+          fi
+          mkdir -p qa-artifacts/screenshots
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9222 --user-data-dir=/tmp/c2b-chrome about:blank >/tmp/chrome.log 2>&1 &
+          echo $! > /tmp/chrome.pid
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:9222/json/version >/dev/null; then break; fi
+            sleep 1
+          done
+
+          cat > /tmp/c2b-cdp-qa.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+
+          const BASE = 'http://127.0.0.1:4173';
+          const browser = await fetch('http://127.0.0.1:9222/json/version').then(r => r.json());
+          const ws = new WebSocket(browser.webSocketDebuggerUrl);
+          let nextId = 1;
+          const pending = new Map();
+          await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
+          ws.onmessage = event => {
+            const msg = JSON.parse(String(event.data));
+            if (msg.id && pending.has(msg.id)) {
+              const { resolve, reject } = pending.get(msg.id);
+              pending.delete(msg.id);
+              if (msg.error) reject(new Error(JSON.stringify(msg.error))); else resolve(msg.result ?? {});
+            }
+          };
+          function call(method, params = {}, sessionId) {
+            return new Promise((resolve, reject) => {
+              const id = nextId++;
+              pending.set(id, { resolve, reject });
+              ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+            });
+          }
+          const target = await call('Target.createTarget', { url: 'about:blank' });
+          const attached = await call('Target.attachToTarget', { targetId: target.targetId, flatten: true });
+          const sid = attached.sessionId;
+          const c = (method, params = {}) => call(method, params, sid);
+          await c('Page.enable'); await c('Runtime.enable'); await c('Network.enable');
+
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function evaluate(expression) {
+            const out = await c('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+            if (out.exceptionDetails) throw new Error(JSON.stringify(out.exceptionDetails));
+            return out.result?.value;
+          }
+          async function navigate(path, viewport) {
+            await c('Emulation.setDeviceMetricsOverride', {
+              width: viewport.width, height: viewport.height, deviceScaleFactor: 1,
+              mobile: viewport.mobile, screenWidth: viewport.width, screenHeight: viewport.height,
+            });
+            await c('Page.navigate', { url: BASE + path });
+            for (let i = 0; i < 80; i++) {
+              const ready = await evaluate('document.readyState');
+              if (ready === 'complete') break;
+              await sleep(100);
+            }
+            await sleep(700);
+          }
+          async function inspect(path, viewport, name, screenshot = false) {
+            await navigate(path, viewport);
+            const data = await evaluate(`(() => {
+              const imgs = [...document.images];
+              const broken = imgs.filter(i => !i.complete || i.naturalWidth === 0).map(i => i.currentSrc || i.src);
+              const horizontalOverflow = document.documentElement.scrollWidth > window.innerWidth + 1;
+              const offenders = [...document.querySelectorAll('body *')].filter(el => {
+                const r = el.getBoundingClientRect();
+                return r.right > window.innerWidth + 1 || r.left < -1;
+              }).slice(0, 20).map(el => ({ tag: el.tagName, cls: String(el.className).slice(0,120), left: Math.round(el.getBoundingClientRect().left), right: Math.round(el.getBoundingClientRect().right) }));
+              const artwork = imgs.filter(i => (i.currentSrc || i.src).includes('/artwork/')).map(i => {
+                const r = i.getBoundingClientRect(); const s = getComputedStyle(i);
+                return { src: new URL(i.currentSrc || i.src).pathname, alt: i.alt, width: Math.round(r.width), height: Math.round(r.height), naturalWidth: i.naturalWidth, naturalHeight: i.naturalHeight, loading: i.loading, objectFit: s.objectFit, objectPosition: s.objectPosition };
+              });
+              return {
+                path: location.pathname + location.search,
+                title: document.title,
+                dir: document.documentElement.dir,
+                lang: document.documentElement.lang,
+                viewport: { width: innerWidth, height: innerHeight },
+                scrollWidth: document.documentElement.scrollWidth,
+                horizontalOverflow, offenders, broken, artwork,
+                disclosureCount: document.body.innerText.split('غلاف توضيحي أصلي — ليس الملصق الرسمي').length - 1,
+                focusableCount: document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])').length,
+              };
+            })()`);
+            if (data.broken.length) throw new Error(`${name}: broken images ${JSON.stringify(data.broken)}`);
+            if (data.horizontalOverflow) throw new Error(`${name}: horizontal overflow ${JSON.stringify(data.offenders)}`);
+            for (const art of data.artwork) {
+              if (art.naturalWidth !== 720 || art.naturalHeight !== 960) throw new Error(`${name}: unexpected artwork intrinsic size ${JSON.stringify(art)}`);
+              if (art.objectFit !== 'cover') throw new Error(`${name}: artwork object-fit must stay cover ${JSON.stringify(art)}`);
+              if (!art.alt.trim()) throw new Error(`${name}: artwork missing alt text`);
+            }
+            if (screenshot) {
+              const metrics = await c('Page.getLayoutMetrics');
+              const w = Math.ceil(metrics.cssContentSize.width); const h = Math.ceil(metrics.cssContentSize.height);
+              const shot = await c('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: w, height: h, scale: 1 } });
+              await fs.writeFile(`qa-artifacts/screenshots/${name}.png`, Buffer.from(shot.data, 'base64'));
+            }
+            return data;
+          }
+
+          const desktop = { width: 1440, height: 1000, mobile: false };
+          const mobile = { width: 390, height: 844, mobile: true };
+          const surfaces = [
+            ['/', 'home'],
+            ['/titles?editorialStatus=editorial', 'titles'],
+            ['/search?q=Jurassic%20Park', 'search-jurassic'],
+            ['/title/Q167726', 'title-jurassic'],
+            ['/review?editorialId=jurassic-park-1993-editorial-c1-v1', 'review-jurassic'],
+          ];
+          const report = { chrome: browser.Browser, checks: [], suggestions: {} };
+          for (const [path, name] of surfaces) {
+            report.checks.push(await inspect(path, desktop, `desktop-${name}`, true));
+            report.checks.push(await inspect(path, mobile, `mobile-${name}`, true));
+          }
+
+          const seven = [
+            ['Q182153','cars-2006-editorial-pilot-v1'],
+            ['Q11621','et-1982-editorial-batch-v1'],
+            ['Q102438','harry-potter-philosophers-stone-2001-editorial-batch-v1'],
+            ['Q13619743','minions-2015-editorial-batch-v1'],
+            ['Q55436290','barbie-2023-editorial-c1-v1'],
+            ['Q167726','jurassic-park-1993-editorial-c1-v1'],
+            ['Q39571','my-neighbor-totoro-1988-editorial-c1-v1'],
+          ];
+          for (const [qid, editorialId] of seven) {
+            const t = await inspect(`/title/${qid}`, mobile, `mobile-title-${qid}`, false);
+            if (t.artwork.length !== 1) throw new Error(`title ${qid} must render exactly one artwork, got ${t.artwork.length}`);
+            const r = await inspect(`/review?editorialId=${encodeURIComponent(editorialId)}`, mobile, `mobile-review-${qid}`, false);
+            if (r.artwork.length !== 1) throw new Error(`review ${qid} must render exactly one artwork, got ${r.artwork.length}`);
+            if (r.disclosureCount < 1) throw new Error(`review ${qid} missing artwork disclosure`);
+          }
+
+          await navigate('/', mobile);
+          const comboExists = await evaluate(`Boolean(document.querySelector('[role="combobox"]'))`);
+          if (!comboExists) throw new Error('combobox missing');
+          await evaluate(`document.querySelector('[role="combobox"]').focus()`);
+          await c('Input.insertText', { text: 'HarryPotter' });
+          await sleep(1000);
+          const beforeKey = await evaluate(`(() => { const i=document.querySelector('[role="combobox"]'); const list=document.querySelector('[role="listbox"]'); const imgs=list?[...list.querySelectorAll('img')]:[]; return { expanded:i?.getAttribute('aria-expanded'), list:!!list, count:list?.querySelectorAll('[role="option"]').length||0, broken:imgs.filter(x=>!x.complete||x.naturalWidth===0).length, artwork:imgs.map(x=>new URL(x.currentSrc||x.src).pathname) }; })()`);
+          if (beforeKey.expanded !== 'true' || !beforeKey.list || beforeKey.count < 1 || beforeKey.broken) throw new Error(`suggestions failed: ${JSON.stringify(beforeKey)}`);
+          await c('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
+          await c('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
+          await sleep(100);
+          const afterDown = await evaluate(`document.querySelector('[role="combobox"]')?.getAttribute('aria-activedescendant') || ''`);
+          if (!afterDown) throw new Error('ArrowDown did not establish aria-activedescendant');
+          await c('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+          await c('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+          await sleep(100);
+          const afterEsc = await evaluate(`document.querySelector('[role="combobox"]')?.getAttribute('aria-expanded')`);
+          if (afterEsc !== 'false') throw new Error('Escape did not close combobox');
+          report.suggestions = { beforeKey, afterDown, afterEsc };
+
+          const resources = await evaluate(`performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => new URL(r.name).pathname)`);
+          report.finalImageResources = resources;
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report, null, 2));
+          console.log(JSON.stringify({ checkedSurfaces: report.checks.length, suggestions: report.suggestions, finalImageResources: resources }, null, 2));
+          ws.close();
+          NODE
+          node /tmp/c2b-cdp-qa.mjs
+
+      - name: Record QA summary
+        if: always()
+        shell: bash
+        run: |
+          echo '### C2B temporary visual QA' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Branch-only local D1 preview; no Production D1 and no deploy.' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f qa-artifacts/report.json ]; then
+            node -e 'const r=require("./qa-artifacts/report.json"); console.log(`- Rendered surface checks: ${r.checks.length}`); console.log(`- Broken images: ${r.checks.reduce((n,c)=>n+c.broken.length,0)}`); console.log(`- Horizontal overflow surfaces: ${r.checks.filter(c=>c.horizontalOverflow).length}`); console.log(`- Suggestion options: ${r.suggestions.beforeKey?.count ?? 0}`);' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '- report.json was not produced; inspect job logs.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload screenshots and QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2b-visual-qa-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
