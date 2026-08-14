@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Resolve fixed Wikipedia revisions
+      - name: Verify factual anchors in fixed Wikipedia revisions
         shell: bash
         run: |
           set -euo pipefail
@@ -22,23 +22,20 @@ jobs:
           import urllib.parse
           import urllib.request
 
-          titles = ["Barbie (film)", "Jurassic Park", "My Neighbor Totoro"]
+          checks = {
+              1369234653: ["fighting among themselves", "patriarchy", "submissive roles"],
+              1369262629: ["severed arm", "pursue the children", "killed by another Velociraptor"],
+              1368891540: ["long-term illness", "Mei's disappearance", "thinking that Mei has died"],
+          }
           headers = {"User-Agent": "QablAlmushahada/1.0 (editorial evidence audit; contact via GitHub Hosyss/qabl-almushahada)"}
-          for title in titles:
-              params = urllib.parse.urlencode({
-                  "action":"query",
-                  "prop":"revisions",
-                  "rvprop":"ids|timestamp",
-                  "rvlimit":"1",
-                  "titles":title,
-                  "format":"json",
-              })
+          for oldid, needles in checks.items():
+              params = urllib.parse.urlencode({"action":"parse","oldid":str(oldid),"prop":"wikitext","format":"json"})
               req = urllib.request.Request("https://en.wikipedia.org/w/api.php?" + params, headers=headers)
               with urllib.request.urlopen(req, timeout=30) as r:
-                  data = json.load(r)
-              page = next(iter(data["query"]["pages"].values()))
-              rev = page["revisions"][0]
-              canonical = page["title"]
-              slug = canonical.replace(" ", "_")
-              print(f"{canonical}\toldid={rev['revid']}\t{rev['timestamp']}\thttps://en.wikipedia.org/w/index.php?title={urllib.parse.quote(slug)}&oldid={rev['revid']}")
+                  text = json.load(r)["parse"]["wikitext"]["*"]
+              lowered = text.lower()
+              missing = [needle for needle in needles if needle.lower() not in lowered]
+              if missing:
+                  raise SystemExit(f"oldid={oldid} missing expected factual anchors: {missing}")
+              print(f"oldid={oldid}: factual anchors verified")
           PY
