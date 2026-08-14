@@ -106,7 +106,7 @@ jobs:
           fi
           export CHROME
           mkdir -p qa-artifacts/screenshots
-          cat > /tmp/c2b-playwright-qa.mjs <<'NODE'
+          cat > .qa-c2b-playwright.mjs <<'NODE'
           import fs from 'node:fs/promises';
           import { chromium } from 'playwright-core';
 
@@ -231,7 +231,7 @@ jobs:
           console.log(JSON.stringify({ checks: report.checks.length, suggestions: report.suggestions }, null, 2));
           await browser.close();
           NODE
-          node /tmp/c2b-playwright-qa.mjs
+          node .qa-c2b-playwright.mjs
 
       - name: Record QA summary
         if: always()
