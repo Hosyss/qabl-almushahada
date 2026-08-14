@@ -108,13 +108,19 @@ jobs:
           mkdir -p qa-artifacts/screenshots
           cat > /tmp/c2b-playwright-qa.mjs <<'NODE'
           import fs from 'node:fs/promises';
-          import path from 'node:path';
           import { chromium } from 'playwright-core';
-          import { loadEditorialBootstrapFixtures } from process.cwd() + '/scripts/editorial-bootstrap-sql.mjs';
 
           const baseURL = 'http://127.0.0.1:4173';
           const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
-          const fixtures = await loadEditorialBootstrapFixtures();
+          const seven = [
+            ['Q182153','cars-2006-editorial-pilot-v1'],
+            ['Q11621','et-1982-editorial-batch-v1'],
+            ['Q102438','harry-potter-philosophers-stone-2001-editorial-batch-v1'],
+            ['Q13619743','minions-2015-editorial-batch-v1'],
+            ['Q55436290','barbie-2023-editorial-c1-v1'],
+            ['Q167726','jurassic-park-1993-editorial-c1-v1'],
+            ['Q39571','my-neighbor-totoro-1988-editorial-c1-v1'],
+          ];
           const report = { browser: await browser.version(), checks: [], suggestions: null };
 
           async function inspect(route, viewport, name, screenshot = false) {
@@ -190,11 +196,10 @@ jobs:
             await inspect(route, mobile, `mobile-${name}`, true);
           }
 
-          for (const fixture of fixtures) {
-            const qid = fixture.review.titleId.replace(/^wd:/u, '');
+          for (const [qid, editorialId] of seven) {
             const title = await inspect(`/title/${qid}`, mobile, `mobile-title-${qid}`);
             if (title.artwork.length !== 1) throw new Error(`title ${qid}: expected one artwork, got ${title.artwork.length}`);
-            const review = await inspect(`/review?editorialId=${encodeURIComponent(fixture.review.id)}`, mobile, `mobile-review-${qid}`);
+            const review = await inspect(`/review?editorialId=${encodeURIComponent(editorialId)}`, mobile, `mobile-review-${qid}`);
             if (review.artwork.length !== 1) throw new Error(`review ${qid}: expected one artwork, got ${review.artwork.length}`);
             if (review.disclosureCount < 1) throw new Error(`review ${qid}: missing original-artwork disclosure`);
           }
