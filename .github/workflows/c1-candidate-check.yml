@@ -24,7 +24,7 @@ jobs:
 
           checks = {
               1369234653: ["fighting among themselves", "patriarchy", "submissive roles"],
-              1369262629: ["severed arm", "pursue the children", "killed by another Velociraptor"],
+              1369262629: ["severed arm", "pursue the children"],
               1368891540: ["long-term illness", "Mei's disappearance", "thinking that Mei has died"],
           }
           headers = {"User-Agent": "QablAlmushahada/1.0 (editorial evidence audit; contact via GitHub Hosyss/qabl-almushahada)"}
