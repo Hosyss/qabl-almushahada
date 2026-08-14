@@ -26,8 +26,8 @@ test("bootstrap loads exactly the seven C1 publications and is idempotent", asyn
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_revisions").get().count, 7);
   for (const fixture of fixtures) {
     const { review, presentation, fingerprint } = fixture;
-    const row = db.prepare(`SELECT h.public_id AS publicId,h.title_id AS titleId,h.revision AS headRevision,
-      r.revision AS snapshotRevision,r.content_fingerprint AS fingerprint,r.publication_state AS state,
+    const row = db.prepare(`SELECT h.public_id AS publicId,h.title_id AS titleId,h.revision AS headRevision,h.last_transition_id AS transitionId,
+      r.revision AS snapshotRevision,r.revision_kind AS revisionKind,r.content_fingerprint AS fingerprint,r.publication_state AS state,
       r.decision_status AS decisionStatus,r.decision_eligible AS decisionEligible
       FROM editorial_publication_heads h JOIN editorial_publication_revisions r ON r.id=h.current_revision_id
       WHERE h.title_id=?`).get(review.titleId) as Record<string, unknown>;
@@ -38,6 +38,13 @@ test("bootstrap loads exactly the seven C1 publications and is idempotent", asyn
     assert.equal(row.state, "published");
     assert.equal(row.decisionStatus, "insufficient_data");
     assert.equal(row.decisionEligible, 0);
+    if (presentation.revision === 1) {
+      assert.equal(row.revisionKind, "initial", review.id);
+      assert.equal(row.transitionId, `c1-initial:${review.id}:r1`, review.id);
+    } else {
+      assert.equal(row.revisionKind, "legacy_bootstrap", review.id);
+      assert.equal(row.transitionId, `b4-bootstrap:${review.id}:r${presentation.revision}`, review.id);
+    }
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_sources WHERE publication_revision_id=?").get(`${review.id}:r${presentation.revision}`).count, review.sources.length);
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_claims WHERE publication_revision_id=?").get(`${review.id}:r${presentation.revision}`).count, review.claims.length);
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM editorial_publication_uncertain_categories WHERE publication_revision_id=?").get(`${review.id}:r${presentation.revision}`).count, review.uncertainCategories.length);
