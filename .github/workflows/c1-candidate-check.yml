@@ -15,12 +15,52 @@ jobs:
     env:
       WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
     steps:
-      - name: Inspect family-title candidates in live D1 search
+      - name: List live D1 title directory
         shell: bash
         run: |
           set -euo pipefail
-          for q in 'Frozen' 'Finding Nemo' 'Toy Story' 'The Lion King' 'Inside Out' 'Moana'; do
-            echo "=== $q ==="
-            curl --fail --silent --show-error --location --get --data-urlencode "q=$q" "$WORKER_URL/api/search-suggestions"
-            echo
-          done
+          python3 - <<'PY'
+          import html
+          import re
+          import subprocess
+          from html.parser import HTMLParser
+
+          base = "https://qabl-almushahada.buildtools.workers.dev"
+
+          class Parser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.href = None
+                  self.depth = 0
+                  self.text = []
+                  self.rows = []
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == "a" and re.fullmatch(r"/title/Q\d+", attrs.get("href", "")):
+                      self.href = attrs["href"]
+                      self.depth = 1
+                      self.text = []
+                  elif self.href:
+                      self.depth += 1
+              def handle_endtag(self, tag):
+                  if self.href:
+                      self.depth -= 1
+                      if self.depth == 0:
+                          text = " ".join(" ".join(self.text).split())
+                          self.rows.append((self.href, html.unescape(text)))
+                          self.href = None
+                          self.text = []
+              def handle_data(self, data):
+                  if self.href:
+                      self.text.append(data)
+
+          seen = set()
+          for page in range(1, 10):
+              body = subprocess.check_output(["curl","--fail","--silent","--show-error","--location",f"{base}/titles?page={page}"], text=True)
+              parser = Parser(); parser.feed(body)
+              for href, text in parser.rows:
+                  if href in seen: continue
+                  seen.add(href)
+                  print(f"{href.split('/')[-1]}\t{text}")
+          print(f"TOTAL_UNIQUE={len(seen)}")
+          PY
