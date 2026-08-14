@@ -18,10 +18,14 @@ export function buildEditorialBootstrapSql(fixtures) {
 
 function appendFixture(sql, { review, presentation, fingerprint }) {
   const snapshotId = `${review.id}:r${presentation.revision}`;
+  const isInitialPublication = presentation.revision === 1;
+  const revisionKind = isInitialPublication ? "initial" : "legacy_bootstrap";
+  const transitionId = `${isInitialPublication ? "c1-initial" : "b4-bootstrap"}:${review.id}:r${presentation.revision}`;
+
   sql.push(`INSERT INTO editorial_publication_revisions
     (id,public_id,title_id,revision,supersedes_revision_id,revision_kind,publication_state,title_label,title_ar,title_en,
      release_year,kind,policy_version,published_at,updated_at,scope_ar,analysis_ar,decision_status,decision_eligible,content_fingerprint)
-    SELECT ${q(snapshotId)},${q(review.id)},${q(review.titleId)},${presentation.revision},NULL,'legacy_bootstrap','published',
+    SELECT ${q(snapshotId)},${q(review.id)},${q(review.titleId)},${presentation.revision},NULL,${q(revisionKind)},'published',
       ${q(review.titleLabel)},${q(presentation.titleAr)},${q(presentation.titleEn)},${review.releaseYear},${q(review.kind)},${q(review.policyVersion)},
       ${q(review.publishedAt)},${q(presentation.updatedAt)},${q(review.scopeAr)},${q(review.analysisAr)},'insufficient_data',0,${q(fingerprint)}
     WHERE EXISTS (SELECT 1 FROM titles WHERE id=${q(review.titleId)})
@@ -62,7 +66,7 @@ function appendFixture(sql, { review, presentation, fingerprint }) {
   }
 
   sql.push(`INSERT INTO editorial_publication_heads (title_id,public_id,current_revision_id,revision,last_transition_id,updated_at)
-    SELECT ${q(review.titleId)},${q(review.id)},${q(snapshotId)},${presentation.revision},${q(`b4-bootstrap:${review.id}:r${presentation.revision}`)},${q(presentation.updatedAt)}
+    SELECT ${q(review.titleId)},${q(review.id)},${q(snapshotId)},${presentation.revision},${q(transitionId)},${q(presentation.updatedAt)}
     WHERE EXISTS (SELECT 1 FROM editorial_publication_revisions WHERE id=${q(snapshotId)})
       AND NOT EXISTS (SELECT 1 FROM editorial_publication_heads WHERE title_id=${q(review.titleId)});`);
 }
