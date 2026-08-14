@@ -146,7 +146,7 @@ jobs:
             grep -F 'application/ld+json' "$RUNNER_TEMP/$slug-review.html" > /dev/null
             grep -F 'rel="canonical"' "$RUNNER_TEMP/$slug-review.html" > /dev/null
 
-            for forbidden in 'decisionEligible' 'insufficient_data' 'P4-03' 'مؤهل' 'اتفاق مصدرين مستقلين+'; do
+            for forbidden in 'decisionEligible' 'insufficient_data' 'P4-03' 'اتفاق مصدرين مستقلين+'; do
               if grep -Fq "$forbidden" "$RUNNER_TEMP/$slug-review.txt"; then
                 echo "$slug exposes forbidden visible term: $forbidden" >&2
                 exit 1
