@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/ui-qa.mjs" <<'NODE'
+          cat > ui-qa.mjs <<'NODE'
           import puppeteer from 'puppeteer-core';
           import { mkdir } from 'node:fs/promises';
 
@@ -119,10 +119,11 @@ jobs:
             await browser.close();
           }
           NODE
-          node "$RUNNER_TEMP/ui-qa.mjs"
+          node ./ui-qa.mjs
       - name: Upload QA screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: c1-production-ui-qa
           path: ui-qa-artifacts
-          if-no-files-found: error
+          if-no-files-found: warn
