@@ -1,0 +1,234 @@
+name: C1 three-title production QA temporary
+
+on:
+  push:
+    branches: [agent/p4-03c2a-asymmetric-decision]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c1-three-production-qa-temporary
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a6b7408c2f51d651f2445a0316b2fee3a5ac2421
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+      - name: Run production Chrome QA
+        shell: bash
+        env:
+          BASE_URL: https://qabl-almushahada.buildtools.workers.dev
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p qa-artifacts/screenshots qa-artifacts/sources
+          cat > .qa-c1-production.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright-core';
+
+          const baseURL = process.env.BASE_URL;
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const desktop = { width: 1440, height: 1000 };
+          const mobile = { width: 390, height: 844 };
+          const titles = [
+            {
+              slug:'barbie', qid:'Q55436290', editorialId:'barbie-2023-editorial-c1-v1', ar:'باربي', en:'Barbie', year:'2023', artwork:'barbie-2023.webp',
+              wikipedia:'https://en.wikipedia.org/w/index.php?title=Barbie_%28film%29&oldid=1369234653',
+              kim:'https://kids-in-mind.com/b/barbie-parents-guide-movie-review-rating.htm',
+              queries:['باربي','Barbie','Barbie 2023','Barbi']
+            },
+            {
+              slug:'jurassic', qid:'Q167726', editorialId:'jurassic-park-1993-editorial-c1-v1', ar:'الحديقة الجوارسية', en:'Jurassic Park', year:'1993', artwork:'jurassic-park-1993.webp',
+              wikipedia:'https://en.wikipedia.org/w/index.php?title=Jurassic_Park&oldid=1369262629',
+              kim:'https://kids-in-mind.com/j/jurassicpark.htm',
+              queries:['الحديقة الجوارسية','Jurassic Park','JurassicPark','Jurasic Park']
+            },
+            {
+              slug:'totoro', qid:'Q39571', editorialId:'my-neighbor-totoro-1988-editorial-c1-v1', ar:'جاري توتورو', en:'My Neighbor Totoro', year:'1988', artwork:'my-neighbor-totoro-1988.webp',
+              wikipedia:'https://en.wikipedia.org/w/index.php?title=My_Neighbor_Totoro&oldid=1368891540',
+              kim:'https://kids-in-mind.com/m/my-neighbor-totoro-parents-guide-movie-review-rating.htm',
+              queries:['جاري توتورو','My Neighbor Totoro','Totoro','My Neighbour Totoro']
+            },
+          ];
+          const report = { browser: await browser.version(), baseURL, pages: [], search: [], catalog: null, sitemap: null, sources: [] };
+
+          function assert(cond, message) { if (!cond) throw new Error(message); }
+          function localArtwork(url) { return decodeURIComponent(url || '').includes('/artwork/'); }
+
+          async function inspect(t, viewport, mode) {
+            const context = await browser.newContext({ viewport, locale:'ar-EG' });
+            const page = await context.newPage();
+            await page.addInitScript(() => {
+              window.__qaCLS = 0;
+              new PerformanceObserver(list => {
+                for (const e of list.getEntries()) if (!e.hadRecentInput) window.__qaCLS += e.value;
+              }).observe({ type:'layout-shift', buffered:true });
+            });
+            const failed = [];
+            page.on('requestfailed', req => failed.push({url:req.url(), error:req.failure()?.errorText || 'failed'}));
+            const route = `/review?editorialId=${encodeURIComponent(t.editorialId)}`;
+            const response = await page.goto(baseURL + route, { waitUntil:'networkidle' });
+            assert(response?.ok(), `${mode}-${t.slug}: HTTP ${response?.status()}`);
+            await page.waitForTimeout(400);
+
+            const pre = await page.evaluate(() => ({ cls: window.__qaCLS || 0 }));
+            const data = await page.evaluate(() => {
+              const imgs = [...document.images];
+              const arts = imgs.filter(img => decodeURIComponent(img.currentSrc || img.src).includes('/artwork/')).map(img => ({
+                src: img.currentSrc || img.src, alt: img.alt, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+                objectFit: getComputedStyle(img).objectFit,
+              }));
+              const ld = [...document.querySelectorAll('script[type="application/ld+json"]')].map(s => { try { return JSON.parse(s.textContent || '{}'); } catch { return null; } }).filter(Boolean);
+              return {
+                title: document.title,
+                body: document.body.innerText,
+                dir: document.documentElement.dir,
+                lang: document.documentElement.lang,
+                scrollWidth: document.documentElement.scrollWidth,
+                innerWidth,
+                brokenImages: imgs.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.currentSrc || img.src),
+                artwork: arts,
+                canonical: document.querySelector('link[rel="canonical"]')?.href || null,
+                robots: document.querySelector('meta[name="robots"]')?.content || null,
+                description: document.querySelector('meta[name="description"]')?.content || null,
+                ld,
+                disclosure: document.body.innerText.includes('غلاف توضيحي أصلي — ليس الملصق الرسمي'),
+              };
+            });
+            assert(data.dir === 'rtl', `${mode}-${t.slug}: dir=${data.dir}`);
+            assert(data.scrollWidth <= data.innerWidth + 1, `${mode}-${t.slug}: horizontal overflow ${data.scrollWidth}/${data.innerWidth}`);
+            assert(data.brokenImages.length === 0, `${mode}-${t.slug}: broken images ${JSON.stringify(data.brokenImages)}`);
+            assert(!failed.some(x => localArtwork(x.url)), `${mode}-${t.slug}: failed artwork request`);
+            assert(pre.cls <= 0.01, `${mode}-${t.slug}: CLS ${pre.cls}`);
+            assert(data.body.includes(t.ar), `${mode}-${t.slug}: missing Arabic title`);
+            assert(data.body.includes(t.en), `${mode}-${t.slug}: missing English title`);
+            assert(data.body.includes(t.year), `${mode}-${t.slug}: missing year`);
+            assert(data.body.includes('الخلاصة التحريرية'), `${mode}-${t.slug}: missing summary`);
+            assert(data.body.includes('الوقائع المدعومة'), `${mode}-${t.slug}: missing claims`);
+            assert(data.body.includes('المراجع والعزو'), `${mode}-${t.slug}: missing sources`);
+            assert(data.body.includes('Wikipedia (English)'), `${mode}-${t.slug}: missing Wikipedia attribution`);
+            assert(data.body.includes('Kids-In-Mind'), `${mode}-${t.slug}: missing Kids-In-Mind attribution`);
+            assert(data.body.includes('CC BY-SA 4.0'), `${mode}-${t.slug}: missing CC BY-SA label`);
+            assert(data.body.includes('ربط للمصدر ومرجع وقائع فقط'), `${mode}-${t.slug}: missing link-only label`);
+            assert(data.disclosure, `${mode}-${t.slug}: missing artwork disclosure`);
+            assert(data.artwork.length === 1, `${mode}-${t.slug}: artwork count ${data.artwork.length}`);
+            assert(decodeURIComponent(data.artwork[0].src).includes(t.artwork), `${mode}-${t.slug}: wrong artwork ${data.artwork[0].src}`);
+            assert(data.artwork[0].naturalWidth > 0 && data.artwork[0].naturalHeight > 0, `${mode}-${t.slug}: artwork not loaded`);
+            assert(data.artwork[0].objectFit === 'cover', `${mode}-${t.slug}: object-fit ${data.artwork[0].objectFit}`);
+            assert(data.artwork[0].alt.trim().length > 0, `${mode}-${t.slug}: empty artwork alt`);
+            assert(data.canonical?.includes(`/review?editorialId=${t.editorialId}`), `${mode}-${t.slug}: canonical ${data.canonical}`);
+            const article = data.ld.find(x => x?.['@type'] === 'Article');
+            assert(article, `${mode}-${t.slug}: missing Article JSON-LD`);
+            assert(String(article.headline).includes(t.ar) && String(article.headline).includes(t.en) && String(article.headline).includes(t.year), `${mode}-${t.slug}: bad Article headline`);
+            assert(Array.isArray(article.citation) && article.citation.includes(t.wikipedia) && article.citation.includes(t.kim), `${mode}-${t.slug}: bad citations`);
+            assert(data.title.includes(t.ar) && data.title.includes(t.en) && data.title.includes(t.year), `${mode}-${t.slug}: bad metadata title ${data.title}`);
+
+            const opener = page.getByRole('button', { name:/اقرأ التحليل كاملًا/ });
+            await opener.click();
+            const dialog = page.locator('dialog.editorial-summary-dialog');
+            assert(await dialog.evaluate(el => el.open), `${mode}-${t.slug}: dialog did not open`);
+            assert(await dialog.getAttribute('aria-labelledby') === 'editorial-summary-dialog-title', `${mode}-${t.slug}: dialog aria-labelledby`);
+            assert(await dialog.getAttribute('aria-describedby') === 'editorial-summary-dialog-description', `${mode}-${t.slug}: dialog aria-describedby`);
+            const focusChecks = [];
+            for (let i=0;i<8;i++) {
+              await page.keyboard.press('Tab');
+              focusChecks.push(await dialog.evaluate(el => el.contains(document.activeElement)));
+            }
+            assert(focusChecks.every(Boolean), `${mode}-${t.slug}: focus escaped modal ${JSON.stringify(focusChecks)}`);
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(100);
+            assert(!(await dialog.evaluate(el => el.open)), `${mode}-${t.slug}: Escape did not close dialog`);
+            assert(await opener.evaluate(el => document.activeElement === el), `${mode}-${t.slug}: focus not restored after Escape`);
+            await opener.click();
+            await page.getByRole('button', { name:'إغلاق التحليل' }).click();
+            await page.waitForTimeout(100);
+            assert(await opener.evaluate(el => document.activeElement === el), `${mode}-${t.slug}: focus not restored after close button`);
+
+            if (t.slug === 'jurassic') {
+              assert(data.body.includes('المعلومات غير كافية'), 'jurassic: missing insufficient-data wording');
+              assert(data.body.includes('الشدة غير موثقة') || data.body.includes('لا يحتوي شدة رقمية موثقة'), 'jurassic: missing severity blocker');
+              assert(!/شدة\s*[=:]\s*[0-9]/u.test(data.body), 'jurassic: invented numeric severity visible');
+            }
+            if (t.slug === 'totoro') {
+              assert(data.body.includes('دبلجة') && data.body.includes('لا نعمم'), 'totoro: missing dub/version caution');
+            }
+            if (t.slug === 'barbie') {
+              assert(data.body.includes('الإسناد:'), 'barbie: claims missing direct attribution');
+            }
+
+            await page.screenshot({ path:`qa-artifacts/screenshots/${mode}-${t.slug}.png`, fullPage:true });
+            await opener.click();
+            await page.screenshot({ path:`qa-artifacts/screenshots/${mode}-${t.slug}-dialog.png`, fullPage:true });
+            await page.keyboard.press('Escape');
+            report.pages.push({ slug:t.slug, mode, viewport, cls:pre.cls, failedRequests:failed, ...data, body:undefined, ld:undefined, focusChecks });
+            await context.close();
+          }
+
+          for (const t of titles) {
+            await inspect(t, desktop, 'desktop');
+            await inspect(t, mobile, 'mobile');
+          }
+
+          const request = await browser.newContext();
+          const filter = await request.request.get(baseURL + '/titles?editorialStatus=editorial');
+          assert(filter.ok(), `catalog filter HTTP ${filter.status()}`);
+          const filterHtml = await filter.text();
+          const qids = [...new Set([...filterHtml.matchAll(/href="\/title\/(Q\d+)"/g)].map(m => m[1]))].sort();
+          const expectedQids = ['Q102438','Q11621','Q13619743','Q167726','Q182153','Q39571','Q55436290'].sort();
+          assert(JSON.stringify(qids) === JSON.stringify(expectedQids), `editorial filter mismatch ${JSON.stringify(qids)}`);
+          report.catalog = { qids, count:qids.length };
+
+          const sitemapRes = await request.request.get(baseURL + '/sitemap.xml');
+          assert(sitemapRes.ok(), `sitemap HTTP ${sitemapRes.status()}`);
+          const sitemap = await sitemapRes.text();
+          for (const t of titles) {
+            assert(sitemap.includes(`/title/${t.qid}`), `sitemap missing ${t.qid}`);
+            assert(sitemap.includes(`editorialId=${t.editorialId}`), `sitemap missing ${t.editorialId}`);
+          }
+          report.sitemap = { hasThree:true, length:sitemap.length };
+
+          for (const t of titles) {
+            for (const q of t.queries) {
+              const s = await request.request.get(baseURL + '/api/search-suggestions?query=' + encodeURIComponent(q));
+              const alt = await request.request.get(baseURL + '/api/search-suggestions?q=' + encodeURIComponent(q));
+              const chosen = s.ok() ? s : alt;
+              const text = await chosen.text();
+              report.search.push({slug:t.slug, query:q, status:chosen.status(), body:text.slice(0,5000), containsQid:text.includes(t.qid)});
+            }
+          }
+
+          const sourcePairs = titles.flatMap(t => [[t.slug+'-wikipedia',t.wikipedia],[t.slug+'-kim',t.kim]]);
+          for (const [name,url] of sourcePairs) {
+            const res = await fetch(url, { headers:{'user-agent':'qabl-almushahada-quality-review/1.0'} });
+            const html = await res.text();
+            await fs.writeFile(`qa-artifacts/sources/${name}.html`, html);
+            const text = html.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/\s+/g,' ').trim();
+            await fs.writeFile(`qa-artifacts/sources/${name}.txt`, text);
+            report.sources.push({name,url,status:res.status,ok:res.ok,bytes:html.length});
+            assert(res.ok, `${name}: source HTTP ${res.status}`);
+          }
+
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report,null,2));
+          console.log(JSON.stringify({browser:report.browser,pages:report.pages.map(p=>({slug:p.slug,mode:p.mode,cls:p.cls,overflow:p.scrollWidth>p.innerWidth+1,broken:p.brokenImages.length,canonical:p.canonical})),catalog:report.catalog,search:report.search,sources:report.sources},null,2));
+          await request.close();
+          await browser.close();
+          NODE
+          node .qa-c1-production.mjs
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c1-three-production-qa-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
