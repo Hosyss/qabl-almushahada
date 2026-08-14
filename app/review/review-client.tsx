@@ -10,6 +10,7 @@ import {
   formatFactTime,
   getFactSummaryForSpoilerMode,
 } from "@/lib/public-review-presentation";
+import TitleArtwork from "../title-artwork";
 
 const CATEGORY_ICONS: Record<ContentCategory, string> = {
   fear: "◌",
@@ -45,10 +46,7 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
       </header>
 
       <section className="review-title-card" aria-labelledby="review-title">
-        <div className="review-poster" aria-hidden="true">
-          <span>✓</span>
-          <small>موثقة</small>
-        </div>
+        <TitleArtwork titleId={review.title.id} className="review-poster review-poster--artwork" sizes="108px" priority fallback />
 
         <div className="review-title-copy">
           <div className="review-title-badges">

@@ -15,6 +15,7 @@ import { JURASSIC_C2A_EDITORIAL_ID } from "@/lib/editorial-work-level-decision";
 
 import EditorialSummaryDialog from "./editorial-summary-dialog";
 import EditorialWorkLevelCaution from "./editorial-work-level-caution";
+import TitleArtwork from "../title-artwork";
 
 const SOURCE_TYPE_LABELS = {
   published_review: "مرجع خارجي مرتبط — وقائع عامة بالرابط فقط",
@@ -70,7 +71,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
       </header>
 
       <section className="review-title-card" aria-labelledby="review-title">
-        <div className="review-poster" aria-hidden="true"><span>◎</span><small>تحليل</small></div>
+        <TitleArtwork titleId={review.titleId} className="review-poster review-poster--artwork" sizes="108px" priority showDisclosure />
         <div className="review-title-copy">
           <div className="review-title-badges">
             <span className="review-demo-badge">تحليل تحريري جزئي</span>

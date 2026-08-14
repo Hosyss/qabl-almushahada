@@ -11,7 +11,17 @@
 - `P4-03B4 — Editorial Persistence`: **مكتملة ومتحققة إنتاجيًا** عند final product checkpoint `8acb3b3ad3b59919b194ab606bba857e16fd8ca5`.
 - `P4-03C1`: مكتملة على `main` عند `fc1b7a3d183dc6f7d419c14abb39b21d131763d6` وأضافت ثلاثة تحليلات جزئية فقط.
 - `P4-03C2A — Asymmetric Decision Semantics`: **قيد المراجعة على فرع غير إنتاجي**؛ لم يُدمج إلى `main` ولم يحدث D1 write أو deploy.
-- لا يوجد فيلم ثامن، ولا Image Pipeline، ولا Exact Version Migration داخل C2A.
+- `P4-03C2B — Original Editorial Artwork`: **قيد المراجعة على نفس الفرع غير الإنتاجي**؛ سبعة أغلفة توضيحية أصلية محلية للسبعة المنشورين، مع fallback محايد لبقية الكتالوج وبدون مصدر صور خارجي.
+- لا يوجد فيلم ثامن، ولا Exact Version Migration.
+
+## P4-03C2B — صور السبعة
+
+- ملفات WebP محلية `720×960` تحت `public/artwork/`، ولا يوجد hotlink أو TMDB/IMDb/Commons runtime.
+- الربط allowlist صريحة حسب `titleId`؛ العنوان غير المعروف لا يرث صورة عمل آخر.
+- تظهر في الرئيسية والدليل والبحث والاقتراحات وصفحة العمل وصفحات التحليل/المراجعة.
+- صفحة العمل والتحليل توضّح أن الصورة «غلاف توضيحي أصلي — ليس الملصق الرسمي».
+- الصور للعرض فقط ولا تدخل إلى evidence أو decision engine أو D1.
+- تفاصيل المصدر والتوجيه البصري في `docs/P4_03_C2B_EDITORIAL_ARTWORK.md`.
 
 
 ## P4-03C2A — حالة فرع المراجعة

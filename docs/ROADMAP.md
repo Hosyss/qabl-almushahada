@@ -15,8 +15,9 @@
 7. P4-03B4 Editorial Persistence — **مكتملة ومتحققة إنتاجيًا** عند `8acb3b3ad3b59919b194ab606bba857e16fd8ca5`.
 8. P4-03C1 — **مكتملة على main** عند `fc1b7a3d183dc6f7d419c14abb39b21d131763d6`؛ أصبح الإجمالي 7 تحليلات جزئية.
 9. P4-03C2A Asymmetric Decision Semantics — **قيد المراجعة على فرع غير إنتاجي**؛ Jurassic Park فقط، بلا دمج أو نشر Production أو migration لهوية النسخة.
-10. Public report intake — checkpoint مستقل ومؤجل.
-11. التوسع بعد السبعة — مؤجل حتى مراجعة C2A.
+10. P4-03C2B Original Editorial Artwork — **قيد المراجعة**؛ سبعة أغلفة أصلية محلية مع disclosure وfallback، بلا مصدر صور خارجي.
+11. Public report intake — checkpoint مستقل ومؤجل.
+12. التوسع بعد السبعة — مؤجل حتى مراجعة C2A/C2B.
 
 ## P4-03B4 — Editorial Persistence
 
@@ -73,6 +74,17 @@
 - [x] Exact Version البديل موثق كـADR فقط، بلا schema migration.
 - [ ] Lint وProduction Build مطلوبان قبل merge readiness؛ حالة البيئة المحلية الحالية تحدد هل يمكن تشغيلهما.
 
+## P4-03C2B — Original Editorial Artwork (فرع مراجعة)
+
+- [x] توليد سبعة أغلفة أصلية بنسبة `3:4` للسبعة المنشورين فقط.
+- [x] WebP محلي مضغوط بلا hotlink أو image API خارجي.
+- [x] allowlist حسب `titleId` واختبار يمنع توريث صورة فيلم لعنوان مجهول.
+- [x] صور في الرئيسية والدليل والبحث والاقتراحات وصفحة العمل والتحليل/المراجعة.
+- [x] fallback محايد لبقية عناوين D1.
+- [x] disclosure: «غلاف توضيحي أصلي — ليس الملصق الرسمي».
+- [x] لا D1/schema/migration ولا تأثير على evidence/decision.
+- [ ] Lint + Production Build + UI QA على Desktop/Mobile قبل merge readiness.
+
 ## Checkpoint لاحق: Public report intake
 
 الـbackend الداخلي موجود لكن public intake غير مفتوح. الربط العام يحتاج عقدًا مستقلًا للتحقق من المدخلات وربطها بالسجل الصحيح وضبط معدل الإرسال ومنع الإساءة وربط البلاغ الجوهري بدورة التصحيح. لا نضيف زرًا أو endpoint عامًا جزئيًا قبل ذلك.
@@ -88,4 +100,4 @@
 
 ## الخطوة التالية
 
-**C2A على فرع مراجعة غير إنتاجي. أكمِل CI وراجع النتائج قبل أي merge/deploy أو توسع إلى فيلم ثامن.**
+**C2A/C2B على فرع مراجعة غير إنتاجي. أكمِل CI وUI QA وراجع النتائج قبل أي merge/deploy أو توسع إلى فيلم ثامن.**

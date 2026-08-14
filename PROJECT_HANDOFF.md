@@ -20,9 +20,19 @@ Last updated: 2026-08-14 (Africa/Cairo)
 
 ## Current checkpoint
 
-`P4-03C2A — Asymmetric Decision Semantics`
+`P4-03C2A — Asymmetric Decision Semantics` + `P4-03C2B — Original Editorial Artwork`
 
 Draft-review branch only. No merge to `main`, D1 write, or Production deploy.
+
+### Editorial artwork
+
+- Seven original, project-specific illustrative covers exist for the seven published editorial titles.
+- Assets are local WebP files at `720×960` under `public/artwork/`; no remote image API or hotlink is used.
+- `lib/title-artwork.ts` is the only title-to-artwork allowlist. Unknown titles receive a neutral fallback and never inherit another title's artwork.
+- The artwork appears on home cards, directory cards, search results, suggestions, title pages, and review/editorial pages.
+- User-facing disclosure: `غلاف توضيحي أصلي — ليس الملصق الرسمي`.
+- Artwork is presentational only. It never enters D1, evidence coverage, or decision logic.
+- Generation/source notes and the seven prompt concepts are recorded in `docs/P4_03_C2B_EDITORIAL_ARTWORK.md`.
 
 ### Decision semantics
 
