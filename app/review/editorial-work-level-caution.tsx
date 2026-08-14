@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import {
   ARAB_FAMILY_POLICY_LABEL_AR,
@@ -20,8 +20,26 @@ import type { EditorialReviewPublication } from "@/lib/editorial-review";
 import {
   LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
   parseLocalFamilySettings,
-  type LocalFamilySettings,
 } from "@/lib/local-family-settings";
+
+const SETTINGS_LOADING_SNAPSHOT = "__qabl_family_settings_loading__";
+
+function subscribeToLocalFamilySettings(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === LOCAL_FAMILY_SETTINGS_STORAGE_KEY) onStoreChange();
+  };
+
+  window.addEventListener("storage", handleStorage);
+  return () => window.removeEventListener("storage", handleStorage);
+}
+
+function getLocalFamilySettingsSnapshot() {
+  return window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
+}
+
+function getServerFamilySettingsSnapshot() {
+  return SETTINGS_LOADING_SNAPSHOT;
+}
 
 export default function EditorialWorkLevelCaution({
   review,
@@ -30,13 +48,16 @@ export default function EditorialWorkLevelCaution({
   review: EditorialReviewPublication;
   publicationQualityPassed: boolean;
 }) {
-  const [localSettings, setLocalSettings] = useState<LocalFamilySettings | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-
-  useEffect(() => {
-    setLocalSettings(parseLocalFamilySettings(window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY)));
-    setSettingsLoaded(true);
-  }, []);
+  const localSettingsSnapshot = useSyncExternalStore(
+    subscribeToLocalFamilySettings,
+    getLocalFamilySettingsSnapshot,
+    getServerFamilySettingsSnapshot,
+  );
+  const settingsLoaded = localSettingsSnapshot !== SETTINGS_LOADING_SNAPSHOT;
+  const localSettings = useMemo(
+    () => settingsLoaded ? parseLocalFamilySettings(localSettingsSnapshot) : null,
+    [localSettingsSnapshot, settingsLoaded],
+  );
 
   const evidence = useMemo(
     () => summarizeEditorialWorkLevelEvidence(review, {}, publicationQualityPassed).summary,
