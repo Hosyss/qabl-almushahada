@@ -136,6 +136,6 @@ test("production verification requires exact frozen current-head parity and insu
 
   assert.throws(
     () => verifyEditorialProductionRows([...rows, { ...rows[0], publicId: "unexpected-publication" }], fixtures),
-    /exactly 4 current editorial heads/u,
+    /exactly 7 current editorial heads/u,
   );
 });

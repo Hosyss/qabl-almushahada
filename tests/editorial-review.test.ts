@@ -19,26 +19,35 @@ const CARS_ID = "cars-2006-editorial-pilot-v1";
 const ET_ID = "et-1982-editorial-batch-v1";
 const HARRY_ID = "harry-potter-philosophers-stone-2001-editorial-batch-v1";
 const MINIONS_ID = "minions-2015-editorial-batch-v1";
-const ALL_IDS = [CARS_ID, ET_ID, HARRY_ID, MINIONS_ID] as const;
+const BARBIE_ID = "barbie-2023-editorial-c1-v1";
+const JURASSIC_ID = "jurassic-park-1993-editorial-c1-v1";
+const TOTORO_ID = "my-neighbor-totoro-1988-editorial-c1-v1";
+const ALL_IDS = [CARS_ID, ET_ID, HARRY_ID, MINIONS_ID, BARBIE_ID, JURASSIC_ID, TOTORO_ID] as const;
 const EXPECTED_EVIDENCE = new Map([
   [CARS_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
   [ET_ID, { corroborated: 4, singleSource: 1, uncertain: 5 }],
   [HARRY_ID, { corroborated: 3, singleSource: 1, uncertain: 6 }],
   [MINIONS_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
+  [BARBIE_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
+  [JURASSIC_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
+  [TOTORO_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
 ]);
 
-test("frozen bootstrap contains exactly the four migrated editorial publications", () => {
+test("frozen bootstrap contains exactly the seven current editorial publications", () => {
   const reviews = listFrozenEditorialReviews();
-  assert.equal(reviews.length, 4);
+  assert.equal(reviews.length, 7);
   assert.deepEqual(new Set(reviews.map((review) => review.id)), new Set(ALL_IDS));
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q182153")?.id, CARS_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q11621")?.id, ET_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q102438")?.id, HARRY_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q13619743")?.id, MINIONS_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q55436290")?.id, BARBIE_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q167726")?.id, JURASSIC_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q39571")?.id, TOTORO_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q44578"), null);
 });
 
-test("every migrated editorial page publishes facts but never a suitability verdict", () => {
+test("every current editorial page publishes facts but never a suitability verdict", () => {
   for (const review of listFrozenEditorialReviews()) {
     const assessment = assessEditorialReviewPublication(review);
     assert.equal(assessment.publishable, true, review.id);
@@ -62,7 +71,7 @@ test("claim verification exactly matches independent source-group counts", () =>
   }
 });
 
-test("migrated source records keep rights metadata without storing source expression", () => {
+test("editorial source records keep rights metadata without storing source expression", () => {
   const forbiddenFields = ["text", "content", "sourceText", "excerpt", "quote", "translation", "paraphrase", "rating"];
   for (const review of listFrozenEditorialReviews()) {
     assert.equal(review.sources.length, 2, review.id);
@@ -86,8 +95,8 @@ test("migrated source records keep rights metadata without storing source expres
   }
 });
 
-test("restricted publishers cannot count as migrated editorial evidence", () => {
-  const blocked = new Set(["Common Sense Media", "Plugged In", "BBFC", "Dove.org"]);
+test("restricted publishers cannot count as editorial evidence", () => {
+  const blocked = new Set(["Common Sense Media", "Plugged In", "BBFC", "Dove", "Dove.org"]);
   for (const review of listFrozenEditorialReviews()) {
     for (const source of review.sources) assert.equal(blocked.has(source.publisher), false, `${review.id}:${source.publisher}`);
   }

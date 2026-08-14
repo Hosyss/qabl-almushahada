@@ -25,16 +25,30 @@ jobs:
       WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
 
     steps:
-      - name: Verify homepage real-content contract
+      - name: Verify homepage latest-four real-content contract
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location "$WORKER_URL/" > "$RUNNER_TEMP/home.html"
           grep -F 'تحليلات منشورة حديثًا' "$RUNNER_TEMP/home.html" > /dev/null
           grep -F 'تحليل تحريري جزئي — الحكم غير مكتمل' "$RUNNER_TEMP/home.html" > /dev/null
-          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+          grep -F 'عرض كل التحليلات' "$RUNNER_TEMP/home.html" > /dev/null
+          for id in barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1 et-1982-editorial-batch-v1; do
             grep -F "editorialId=$id" "$RUNNER_TEMP/home.html" > /dev/null
           done
+          for hidden in cars-2006-editorial-pilot-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+            if grep -Fq "editorialId=$hidden" "$RUNNER_TEMP/home.html"; then
+              echo "Homepage exceeded the latest-four editorial limit: $hidden" >&2
+              exit 1
+            fi
+          done
+          python3 - "$RUNNER_TEMP/home.html" <<'PY'
+          import re, sys
+          html = open(sys.argv[1], encoding='utf-8').read()
+          ids = set(re.findall(r'editorialId=([A-Za-z0-9._~-]+)', html))
+          if len(ids) != 4:
+              raise SystemExit(f'Homepage must expose exactly 4 editorial review ids, found {len(ids)}: {sorted(ids)}')
+          PY
           if grep -Eq 'href="/review"([ >])' "$RUNNER_TEMP/home.html"; then
             echo 'Homepage contains a locator-less /review CTA.' >&2
             exit 1
@@ -66,7 +80,7 @@ jobs:
           grep -F 'هل تقصد؟' "$RUNNER_TEMP/harry-search.html" > /dev/null
           grep -F '/title/Q102438' "$RUNNER_TEMP/harry-search.html" > /dev/null
 
-      - name: Verify four editorial paths and safe visible presentation
+      - name: Verify seven editorial paths in Arabic and English
         shell: bash
         run: |
           set -euo pipefail
@@ -98,16 +112,24 @@ jobs:
           PY
 
           cat > "$RUNNER_TEMP/editorials.tsv" <<'EOF'
-          cars	Cars	Q182153	cars-2006-editorial-pilot-v1
-          et	E.T.	Q11621	et-1982-editorial-batch-v1
-          harry	هاري بوتر وحجر الفيلسوف	Q102438	harry-potter-philosophers-stone-2001-editorial-batch-v1
-          minions	Minions	Q13619743	minions-2015-editorial-batch-v1
+          cars	سيارات	Cars	Q182153	cars-2006-editorial-pilot-v1
+          et	إي تي	E.T. the Extra-Terrestrial	Q11621	et-1982-editorial-batch-v1
+          harry	هاري بوتر وحجر الفيلسوف	Harry Potter and the Philosopher's Stone	Q102438	harry-potter-philosophers-stone-2001-editorial-batch-v1
+          minions	المينيون	Minions	Q13619743	minions-2015-editorial-batch-v1
+          barbie	باربي	Barbie	Q55436290	barbie-2023-editorial-c1-v1
+          jurassic	الحديقة الجوارسية	Jurassic Park	Q167726	jurassic-park-1993-editorial-c1-v1
+          totoro	جاري توتورو	My Neighbor Totoro	Q39571	my-neighbor-totoro-1988-editorial-c1-v1
           EOF
 
-          while IFS=$'\t' read -r slug query qid id; do
-            curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/$slug-search.html"
-            grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/$slug-search.html" > /dev/null
-            grep -F "$id" "$RUNNER_TEMP/$slug-search.html" > /dev/null
+          while IFS=$'\t' read -r slug ar en qid id; do
+            for language in ar en; do
+              query="$ar"
+              [ "$language" = en ] && query="$en"
+              curl --fail --silent --show-error --location --get --data-urlencode "q=$query" "$WORKER_URL/search" > "$RUNNER_TEMP/$slug-$language-search.html"
+              grep -F 'تحليل تحريري جزئي' "$RUNNER_TEMP/$slug-$language-search.html" > /dev/null
+              grep -F "$id" "$RUNNER_TEMP/$slug-$language-search.html" > /dev/null
+              grep -F "/title/$qid" "$RUNNER_TEMP/$slug-$language-search.html" > /dev/null
+            done
 
             curl --fail --silent --show-error --location "$WORKER_URL/title/$qid" > "$RUNNER_TEMP/$slug-title.html"
             grep -F "$id" "$RUNNER_TEMP/$slug-title.html" > /dev/null
@@ -132,7 +154,7 @@ jobs:
             done
           done < "$RUNNER_TEMP/editorials.tsv"
 
-      - name: Verify title directory server pagination and filters
+      - name: Verify title directory pagination and exactly seven editorial titles
         shell: bash
         run: |
           set -euo pipefail
@@ -144,6 +166,16 @@ jobs:
           grep -F '2001' "$RUNNER_TEMP/titles-filtered.html" > /dev/null
           grep -F 'Harry Potter' "$RUNNER_TEMP/titles-filtered.html" > /dev/null
 
+          curl --fail --silent --show-error --location --get --data-urlencode 'editorialStatus=editorial' "$WORKER_URL/titles" > "$RUNNER_TEMP/titles-editorial.html"
+          python3 - "$RUNNER_TEMP/titles-editorial.html" <<'PY'
+          import re, sys
+          html = open(sys.argv[1], encoding='utf-8').read()
+          actual = set(re.findall(r'href="/title/(Q\d+)"', html))
+          expected = {'Q182153','Q11621','Q102438','Q13619743','Q55436290','Q167726','Q39571'}
+          if actual != expected:
+              raise SystemExit(f'Editorial directory mismatch. expected={sorted(expected)} actual={sorted(actual)}')
+          PY
+
       - name: Verify invalid and mixed review locators fail closed
         shell: bash
         run: |
@@ -152,20 +184,20 @@ jobs:
           grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/invalid-review.html" > /dev/null
           grep -F 'noindex' "$RUNNER_TEMP/invalid-review.html" > /dev/null
           grep -F '/search' "$RUNNER_TEMP/invalid-review.html" > /dev/null
-          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1; do
             curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" --data-urlencode 'publicationId=invalid-publication' "$WORKER_URL/review" > "$RUNNER_TEMP/mixed.html"
             grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/mixed.html" > /dev/null
           done
 
-      - name: Verify indexable sitemap contract
+      - name: Verify indexable sitemap contract for seven rich publications
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
-          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1; do
             grep -F "editorialId=$id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
-          for qid in Q182153 Q11621 Q102438 Q13619743; do
+          for qid in Q182153 Q11621 Q102438 Q13619743 Q55436290 Q167726 Q39571; do
             grep -F "/title/$qid" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
 
@@ -173,8 +205,8 @@ jobs:
         shell: bash
         run: |
           echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Homepage exposes only the four real partial editorial analyses and no locator-less review CTA' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Homepage exposes exactly the latest four real partial editorial analyses plus the all-analyses link' >> "$GITHUB_STEP_SUMMARY"
           echo '- HarryPotter stays conservative and leads to the correct bilingual 2001 title through did-you-mean' >> "$GITHUB_STEP_SUMMARY"
-          echo '- All four titles pass search -> title -> editorial analysis with safe Arabic visible presentation' >> "$GITHUB_STEP_SUMMARY"
-          echo '- /titles server-side filters and pagination are live' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Invalid/mixed review locators fail closed and indexable sitemap contains only rich title/review routes' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All seven titles pass Arabic and English search -> title -> editorial analysis with safe visible presentation' >> "$GITHUB_STEP_SUMMARY"
+          echo '- /titles editorial filter exposes exactly seven current-head titles' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Invalid/mixed review locators fail closed and sitemap contains all seven rich title/review routes' >> "$GITHUB_STEP_SUMMARY"

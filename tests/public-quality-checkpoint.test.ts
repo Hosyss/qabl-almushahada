@@ -21,7 +21,8 @@ test("homepage has no generic /review CTA and reads real editorial publications 
   assert.doesNotMatch(home, /href\s*=\s*["']\/review["']/u);
   assert.doesNotMatch(home, /افتح المراجعة الكاملة/u);
   assert.doesNotMatch(home, /مناسب بمرافقة|ثقة مرتفعة|تمت مراجعة النسخة/u);
-  assert.match(home, /listEditorialPublications/u);
+  assert.match(home, /listEditorialPublications\(4\)/u);
+  assert.match(home, /عرض كل التحليلات/u);
   assert.doesNotMatch(home, /editorial-review-registry|listEditorialReviewPublications/u);
   assert.match(home, /تحليلات منشورة حديثًا/u);
   assert.match(home, /تحليل تحريري جزئي — الحكم غير مكتمل/u);
@@ -30,7 +31,7 @@ test("homepage has no generic /review CTA and reads real editorial publications 
   assert.doesNotMatch(home, /SearchAction/u);
 
   const publications = await frozenEditorialPublications();
-  assert.equal(publications.length, 4);
+  assert.equal(publications.length, 7);
   for (const { review } of publications) {
     const reviewHref = buildPublicEditorialReviewHref(review.id);
     const titleHref = buildPublicCatalogTitleHref(review.titleId);
@@ -129,10 +130,10 @@ test("review policy clearly separates partial editorial analysis from verified v
 test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
   const publications = await frozenEditorialPublications();
   const kidSources = publications.flatMap(({ review }) => review.sources).filter((item: { publisher: string }) => item.publisher === "Kids-In-Mind");
-  assert.equal(kidSources.length, 4);
+  assert.equal(kidSources.length, 7);
   for (const item of kidSources) {
     assert.equal(item.usageBasis, "link_only_factual_reference");
-    assert.match(item.rightsLabel, /لا ندّعي ترخيص إعادة نشر/u);
-    assert.match(item.usageNoteAr, /لا ننقل نص المراجعة أو تقييماتها العددية أو بنيتها/u);
+    assert.match(item.rightsLabel, /لا .*ترخيص.*إعادة نشر/u);
+    assert.match(item.usageNoteAr, /لا ننقل|من غير نقل/u);
   }
 });

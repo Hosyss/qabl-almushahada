@@ -1,0 +1,29 @@
+{
+  "review": {
+    "id": "barbie-2023-editorial-c1-v1",
+    "titleId": "wd:Q55436290",
+    "titleLabel": "باربي",
+    "releaseYear": 2023,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-14T06:09:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى فيلم باربي (2023)، وليس مراجعة لنسخة منصة أو دبلجة بعينها. نعتمد على وقائع قابلة للتتبع من مراجعة ثابتة في ويكيبيديا ومرجع Kids-In-Mind كرابط وقائع فقط، ونترك أي محور لا يثبته الدليل صراحة غير محسوم.",
+    "analysisAr": "أبرز ما يحتاجه ولي الأمر هنا ليس مجرد وجود الكوميديا، بل حضور صراع واضح حول أدوار الرجال والنساء وسيطرة شخصيات كين على باربي لاند قبل أن تستعيد الشخصيات الأخرى استقلالها. يوجد أيضًا قتال ومطاردة ومواقف جسدية، مع إشارات جنسية وألفاظ وشرب كحول موثقة حاليًا بمرجع واحد. لذلك الصفحة تقدم صورة عملية عن هذه المحاور من غير تحويل النقص في بقية المحاور إلى افتراض بالأمان.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {"id":"barbie-source-wikipedia","publisher":"Wikipedia (English)","sourceType":"open_encyclopedia","sourceUrl":"https://en.wikipedia.org/w/index.php?title=Barbie_%28film%29&oldid=1369234653","accessedOn":"2026-08-14","independenceGroupId":"wikipedia-en","usageBasis":"open_license","rightsLabel":"CC BY-SA 4.0","rightsUrl":"https://creativecommons.org/licenses/by-sa/4.0/","usageNoteAr":"نستخدم مراجعة ثابتة من المقال كمرجع وقائع مع العزو، ونكتب التحليل العربي من الصفر من غير نسخ جمل المقال أو ترجمتها ترجمة قريبة.","sourceVersion":"oldid=1369234653","supportedClaimIds":["barbie-claim-violence","barbie-claim-discrimination"]},
+      {"id":"barbie-source-kids-in-mind","publisher":"Kids-In-Mind","sourceType":"published_review","sourceUrl":"https://kids-in-mind.com/b/barbie-parents-guide-movie-review-rating.htm","accessedOn":"2026-08-14","independenceGroupId":"kids-in-mind","usageBasis":"link_only_factual_reference","rightsLabel":"ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى","rightsUrl":"https://kids-in-mind.com/terms.htm","usageNoteAr":"نستخدم الرابط لتتبع وقائع محددة فقط. لا ننقل نص المراجعة أو درجاتها أو تقسيماتها، ولا نترجمها أو نعيد بناءها؛ كل الصياغة العربية هنا أصلية.","supportedClaimIds":["barbie-claim-violence","barbie-claim-discrimination","barbie-claim-sexual","barbie-claim-language","barbie-claim-substances"]}
+    ],
+    "claims": [
+      {"id":"barbie-claim-violence","category":"violence","summaryAr":"يتضمن العمل مواجهات جسدية وقتالًا بين مجموعات من الشخصيات، وتوجد كذلك مواقف مطاردة وصدامات من دون أن تعتمد الصفحة على تقدير رقمي لشدة العنف.","verification":"corroborated","sourceIds":["barbie-source-wikipedia","barbie-source-kids-in-mind"]},
+      {"id":"barbie-claim-discrimination","category":"discrimination","summaryAr":"جزء أساسي من الصراع يقوم على فرض أدوار جندرية غير متساوية وسيطرة شخصيات كين على مواقع القرار، ثم مقاومة هذا الوضع واستعادة الشخصيات الأخرى لاستقلالها.","verification":"corroborated","sourceIds":["barbie-source-wikipedia","barbie-source-kids-in-mind"]},
+      {"id":"barbie-claim-sexual","category":"sexualContent","summaryAr":"توجد إشارات وحوارات ذات معنى جنسي أو عاطفي وبعض مواقف التقارب الجسدي، لكن هذا المحور مدعوم حاليًا بمرجع واحد فقط.","verification":"single_source","sourceIds":["barbie-source-kids-in-mind"]},
+      {"id":"barbie-claim-language","category":"language","summaryAr":"توجد ألفاظ وإهانات وتعبيرات قوية متفرقة، والدليل المنشور لدينا على هذا المحور يأتي حاليًا من مرجع واحد فقط.","verification":"single_source","sourceIds":["barbie-source-kids-in-mind"]},
+      {"id":"barbie-claim-substances","category":"substances","summaryAr":"تظهر مشروبات كحولية في بعض المشاهد مع إشارة إلى حالة سكر، وهذا مثبت لدينا حاليًا من مرجع واحد فقط.","verification":"single_source","sourceIds":["barbie-source-kids-in-mind"]}
+    ],
+    "uncertainCategories": ["fear","bullying","selfHarm","grief","flashingLights"]
+  },
+  "presentation": {"titleAr":"باربي","titleEn":"Barbie","revision":1,"updatedAt":"2026-08-14T06:09:00+03:00"},
+  "fingerprint": "sha256:295c9247362a5083d4290587e8c0c4b8412b0cb51f9e5e3e93ee384bf35770cc"
+}

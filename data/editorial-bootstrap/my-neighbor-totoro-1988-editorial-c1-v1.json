@@ -1,0 +1,28 @@
+{
+  "review": {
+    "id": "my-neighbor-totoro-1988-editorial-c1-v1",
+    "titleId": "wd:Q39571",
+    "titleLabel": "جاري توتورو",
+    "releaseYear": 1988,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-14T06:07:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى My Neighbor Totoro (1988)، وليس مراجعة لنسخة دبلجة محددة. ويكيبيديا مربوطة بمراجعة ثابتة، بينما Kids-In-Mind يصف دبلجة للعمل الأصلي ويُستخدم هنا كرابط وقائع فقط؛ لذلك لا نعمم منه تفاصيل قد تعتمد على النسخة إلا بحذر.",
+    "analysisAr": "رغم النبرة الهادئة، توجد لحظات قد تكون أهم للأسرة من شكل الفيلم اللطيف: مرض الأم المستمر، ضياع الطفلة مي واعتقاد المحيطين لفترة أنها ربما ماتت، وظهور كائنات روحية ومواقف مفاجئة. هذان الجانبان مدعومان بمصدرين مستقلين في محور الخوف. كما توجد عرية عائلية غير جنسية وألفاظ طفولية وموقف جسدي محدود موثقة حاليًا من مرجع واحد فقط، لذلك تبقى بقية المحاور غير محسومة.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {"id":"totoro-source-wikipedia","publisher":"Wikipedia (English)","sourceType":"open_encyclopedia","sourceUrl":"https://en.wikipedia.org/w/index.php?title=My_Neighbor_Totoro&oldid=1368891540","accessedOn":"2026-08-14","independenceGroupId":"wikipedia-en","usageBasis":"open_license","rightsLabel":"CC BY-SA 4.0","rightsUrl":"https://creativecommons.org/licenses/by-sa/4.0/","usageNoteAr":"نستخدم مراجعة ثابتة من المقال كمرجع وقائع مع العزو، ونكتب الملخص العربي من الصفر دون نسخ أو ترجمة قريبة.","sourceVersion":"oldid=1368891540","supportedClaimIds":["totoro-claim-fear"]},
+      {"id":"totoro-source-kids-in-mind","publisher":"Kids-In-Mind","sourceType":"published_review","sourceUrl":"https://kids-in-mind.com/m/my-neighbor-totoro-parents-guide-movie-review-rating.htm","accessedOn":"2026-08-14","independenceGroupId":"kids-in-mind","usageBasis":"link_only_factual_reference","rightsLabel":"ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى","rightsUrl":"https://kids-in-mind.com/terms.htm","usageNoteAr":"الصفحة تشير إلى دبلجة للعمل الأصلي، لذلك نستخدمها كرابط لوقائع عامة فقط من غير نقل النص أو الدرجات أو بنية المراجعة، ولا نعمم تفاصيل نسخة بعينها على كل النسخ.","supportedClaimIds":["totoro-claim-fear","totoro-claim-sexual","totoro-claim-language","totoro-claim-violence"]}
+    ],
+    "claims": [
+      {"id":"totoro-claim-fear","category":"fear","summaryAr":"يتضمن العمل قلقًا واضحًا حول مرض الأم، وضياع الطفلة مي والبحث عنها مع الخوف من أن تكون قد ماتت، إلى جانب لقاءات مع كائنات روحية ومواقف مفاجئة؛ هذا السياق مدعوم بمصدرين مستقلين.","verification":"corroborated","sourceIds":["totoro-source-wikipedia","totoro-source-kids-in-mind"]},
+      {"id":"totoro-claim-sexual","category":"sexualContent","summaryAr":"توجد عرية عائلية غير جنسية في سياق الاستحمام، لكن توثيقنا الحالي لهذا المحور يأتي من مرجع واحد يصف دبلجة للعمل، لذلك لا نرفعه إلى مستوى اتفاق مستقل.","verification":"single_source","sourceIds":["totoro-source-kids-in-mind"]},
+      {"id":"totoro-claim-language","category":"language","summaryAr":"توجد مناداة بأسماء وإهانات طفولية بسيطة، والدليل الحالي على هذا المحور يأتي من مرجع واحد فقط.","verification":"single_source","sourceIds":["totoro-source-kids-in-mind"]},
+      {"id":"totoro-claim-violence","category":"violence","summaryAr":"يوجد موقف جسدي محدود وموقف خطر مروري قريب من الإصابة، لكن هذا المحور مدعوم حاليًا بمرجع واحد فقط.","verification":"single_source","sourceIds":["totoro-source-kids-in-mind"]}
+    ],
+    "uncertainCategories": ["bullying","substances","discrimination","selfHarm","grief","flashingLights"]
+  },
+  "presentation": {"titleAr":"جاري توتورو","titleEn":"My Neighbor Totoro","revision":1,"updatedAt":"2026-08-14T06:07:00+03:00"},
+  "fingerprint": "sha256:24b0a1d3f9499fff5567532b52dc9763ddcb8d12849774699f473aaa2286a99b"
+}

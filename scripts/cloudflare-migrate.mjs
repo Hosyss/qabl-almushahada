@@ -110,10 +110,10 @@ export function parseAppliedMigrationNames(jsonText) {
 
 export function verifyEditorialProductionRows(rows, fixtures) {
   if (!Array.isArray(rows)) throw new TypeError("Editorial production rows must be an array.");
-  if (!Array.isArray(fixtures) || fixtures.length !== 4) {
-    throw new Error(`Expected exactly 4 frozen editorial fixtures, found ${Array.isArray(fixtures) ? fixtures.length : 0}.`);
+  if (!Array.isArray(fixtures) || fixtures.length !== 7) {
+    throw new Error(`Expected exactly 7 frozen editorial fixtures, found ${Array.isArray(fixtures) ? fixtures.length : 0}.`);
   }
-  if (rows.length !== 4) throw new Error(`Expected exactly 4 current editorial heads in production, found ${rows.length}.`);
+  if (rows.length !== 7) throw new Error(`Expected exactly 7 current editorial heads in production, found ${rows.length}.`);
 
   const expected = new Map(fixtures.map((fixture) => [fixture.review.id, {
     titleId: fixture.review.titleId,
@@ -260,19 +260,19 @@ export async function migrateCloudflareProductionD1(env = process.env) {
 
   await ensureEditorialBootstrap(configPath);
 
-  console.log(`Cloudflare D1 ready: ${appliedMigrationNames.length}/${localMigrationNames.length} migrations and P4-03B4 editorial current heads verified.`);
+  console.log(`Cloudflare D1 ready: ${appliedMigrationNames.length}/${localMigrationNames.length} migrations and P4-03C1 editorial current heads verified.`);
   return { applied: appliedThisRun, total: appliedMigrationNames.length };
 }
 
 async function ensureEditorialBootstrap(configPath) {
   const fixtures = await loadEditorialBootstrapFixtures();
-  if (fixtures.length !== 4) throw new Error(`Expected exactly 4 editorial bootstrap fixtures, found ${fixtures.length}.`);
+  if (fixtures.length !== 7) throw new Error(`Expected exactly 7 editorial bootstrap fixtures, found ${fixtures.length}.`);
 
   const stagingRoot = await mkdtemp(path.join(path.dirname(configPath), "editorial-bootstrap-"));
-  const stagedPath = path.join(stagingRoot, "p4-03-b4-editorial-bootstrap.sql");
+  const stagedPath = path.join(stagingRoot, "p4-03-c1-editorial-bootstrap.sql");
   try {
     await writeFile(stagedPath, buildEditorialBootstrapSql(fixtures), { encoding: "utf8", mode: 0o600 });
-    console.log("Applying idempotent P4-03B4 editorial bootstrap.");
+    console.log("Applying idempotent P4-03C1 editorial bootstrap.");
     await runWrangler([
       "d1",
       "execute",
@@ -308,7 +308,7 @@ async function ensureEditorialBootstrap(configPath) {
   const rows = [];
   collectResultRows(payload, rows);
   verifyEditorialProductionRows(rows, fixtures);
-  console.log("Verified 4 production editorial current heads exactly match the frozen P4-03B4 bootstrap fixtures.");
+  console.log("Verified 7 production editorial current heads exactly match the frozen P4-03C1 bootstrap fixtures.");
 }
 
 async function readAppliedMigrationNames(configPath) {

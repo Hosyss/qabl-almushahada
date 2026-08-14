@@ -5,8 +5,8 @@ import { buildEditorialPublicationFingerprint } from "../lib/editorial-publicati
 import { assessEditorialReviewPublication } from "../lib/editorial-review.ts";
 import { FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES } from "./editorial-bootstrap-fixtures.ts";
 
-test("the four parity-proven bootstrap fixtures remain internally exact and decision-ineligible", async () => {
-  assert.equal(FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES.length, 4);
+test("the seven C1 bootstrap fixtures remain internally exact and decision-ineligible", async () => {
+  assert.equal(FROZEN_EDITORIAL_BOOTSTRAP_FIXTURES.length, 7);
   const ids = new Set<string>();
   const titleIds = new Set<string>();
 
