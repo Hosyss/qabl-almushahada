@@ -13,8 +13,10 @@
 5. P4-03B2 مراجعة الجودة التحريرية والمصادر — مكتملة إنتاجيًا.
 6. P4-03B3 جودة البحث والواجهة والدليل وSEO — **مكتملة ومتحققة إنتاجيًا**.
 7. P4-03B4 Editorial Persistence — **مكتملة ومتحققة إنتاجيًا** عند `8acb3b3ad3b59919b194ab606bba857e16fd8ca5`.
-8. Public report intake — checkpoint مستقل ومؤجل.
-9. P4-03C استكمال 10–20 تحليلًا — **لم يبدأ**؛ نتوقف قبله بعد إغلاق B4.
+8. P4-03C1 — **مكتملة على main** عند `fc1b7a3d183dc6f7d419c14abb39b21d131763d6`؛ أصبح الإجمالي 7 تحليلات جزئية.
+9. P4-03C2A Asymmetric Decision Semantics — **قيد المراجعة على فرع غير إنتاجي**؛ Jurassic Park فقط، بلا دمج أو نشر Production أو migration لهوية النسخة.
+10. Public report intake — checkpoint مستقل ومؤجل.
+11. التوسع بعد السبعة — مؤجل حتى مراجعة C2A.
 
 ## P4-03B4 — Editorial Persistence
 
@@ -41,7 +43,7 @@
 - [x] live filter diagnostic run `31748924588` — success؛ `editorialStatus=editorial` يعرض بالضبط الأربع current editorial titles في هذا checkpoint.
 - [x] **B4 مكتملة ومتحققة إنتاجيًا**.
 
-عدد صفحات التحليل التحريري الجزئي ما زال **4 فقط**: Cars وE.T. وHarry Potter 1 وMinions. لا فيلم خامس داخل B4.
+تاريخيًا كان B4 يغطي **4 فقط**. بعد P4-03C1 أصبح الوضع الحالي **7** تحليلات جزئية؛ لا يوجد فيلم ثامن داخل C2A.
 
 ## P4-03B3 — مغلقة
 
@@ -55,6 +57,21 @@
 - [x] catalog-only = `noindex, follow`، والـsitemap يقتصر على الصفحات الغنية القابلة للفهرسة.
 - [x] invalid/mixed `/review` يفشل مغلقًا ويحمل noindex ورابط بحث.
 - [x] Engine + migrations + DB regressions + lint + production build + main + Cloudflare + Live Product Smoke.
+
+
+## P4-03C2A — Asymmetric Decision Semantics (فرع مراجعة)
+
+- [x] فصل إثبات التجاوز عن إثبات الملاءمة.
+- [x] `exceeds_family_limits` يسمح بدليل present مؤهل يتجاوز حد الأسرة حتى مع unknown غير مرتبط.
+- [x] `within_family_limits` يتطلب Full Evidence Gate ناجحة صراحةً + Full Coverage مؤهلة + Exact Version.
+- [x] منع المصدر link-only من حسم القرار.
+- [x] `work_level` لا يتحول إلى exact-version claim.
+- [x] Jurassic Park فقط يحصل على لوحة work-level جديدة؛ بقية الستة لا تتغير.
+- [x] عدم اختراع severity للخوف/العنف؛ النتيجة الفعلية الحالية `insufficient_data`.
+- [x] تمييز defaults-only عن defaults-with-overrides؛ إعدادات الأسرة المحلية الحالية لا تُقدَّم كتخصيص كامل.
+- [x] تسمية الإعدادات العامة منزوعة الادعاء الرسمي/العلمي.
+- [x] Exact Version البديل موثق كـADR فقط، بلا schema migration.
+- [ ] Lint وProduction Build مطلوبان قبل merge readiness؛ حالة البيئة المحلية الحالية تحدد هل يمكن تشغيلهما.
 
 ## Checkpoint لاحق: Public report intake
 
@@ -71,4 +88,4 @@
 
 ## الخطوة التالية
 
-**توقف بعد B4. لا يبدأ P4-03C ولا يضاف عنوان خامس إلا في checkpoint لاحق مستقل.**
+**C2A على فرع مراجعة غير إنتاجي. أكمِل CI وراجع النتائج قبل أي merge/deploy أو توسع إلى فيلم ثامن.**

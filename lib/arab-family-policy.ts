@@ -7,10 +7,10 @@ import {
 
 export const ARAB_FAMILY_POLICY_VERSION = "2026-08-13.1";
 
-export const ARAB_FAMILY_POLICY_LABEL_AR = "معايير الأسرة العربية — افتراضي قابل للتخصيص";
+export const ARAB_FAMILY_POLICY_LABEL_AR = "إعدادات افتراضية قابلة للتعديل";
 
 export const ARAB_FAMILY_POLICY_NOTICE_AR =
-  "هذه سياسة تحريرية عربية محافظة نسبيًا وليست تصنيفًا حكوميًا موحدًا للعالم العربي. الأسرة تستطيع تعديل حدودها، والقرار النهائي يظل مبنيًا على الوقائع المتاحة لا على تقييم أجنبي جاهز.";
+  "هذه إعدادات تحريرية افتراضية قابلة للتعديل، وليست تصنيفًا عمريًا رسميًا ولا معيارًا موحدًا للأسر العربية. يمكن للأسرة تعديل حدودها، والنتيجة تشرح إن كانت الأدلة ضمن حدودها أو تتجاوزها بدل ادعاء عمر مناسب عالمي.";
 
 function generalAgeLimit(age: number): Severity {
   if (age <= 5) return 0;
@@ -58,8 +58,8 @@ export function getArabFamilyCategoryLimits(age: number): Record<ContentCategory
     CONTENT_CATEGORIES.map((category) => [category, base]),
   ) as Record<ContentCategory, Severity>;
 
-  // The default Arabic-family preset is deliberately more conservative in areas
-  // that many Arab households commonly want separated from generic violence/fear.
+  // This editorial preset is intentionally conservative in selected categories.
+  // It is a configurable product default, not a scientific or official age-rating standard.
   limits.sexualContent = sexualContentLimit(age);
   limits.language = languageLimit(age);
   limits.substances = substancesLimit(age);
