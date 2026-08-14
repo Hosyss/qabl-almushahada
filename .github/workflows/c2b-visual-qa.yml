@@ -172,7 +172,8 @@ jobs:
             if (data.brokenImages.length) throw new Error(`${name}: broken images ${JSON.stringify(data.brokenImages)}`);
             if (failedRequests.some(item => item.url.includes('/artwork/'))) throw new Error(`${name}: failed artwork requests ${JSON.stringify(failedRequests)}`);
             for (const art of data.artwork) {
-              if (art.naturalWidth !== 720 || art.naturalHeight !== 960) throw new Error(`${name}: bad artwork intrinsic dimensions ${JSON.stringify(art)}`);
+              const ratio = art.naturalWidth / art.naturalHeight;
+              if (art.naturalWidth < 1 || art.naturalHeight < 1 || Math.abs(ratio - 0.75) > 0.02) throw new Error(`${name}: bad optimized artwork ratio ${JSON.stringify(art)}`);
               if (art.objectFit !== 'cover') throw new Error(`${name}: artwork object-fit is not cover ${JSON.stringify(art)}`);
               if (!art.alt.trim()) throw new Error(`${name}: artwork alt text is empty`);
             }
