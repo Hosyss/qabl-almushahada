@@ -80,8 +80,8 @@ No schema or migration change was made. The alternative documented-version ident
 ## Final verification completed
 
 - C2A focused regression: `12/12` passed after the final presentation hardening.
-- Full Engine suite after final C2A code: `271/271` passed.
-- Migrations after C2A: passed.
+- Full Engine suite after C2B: `273/273` passed, including two artwork allowlist/asset regressions.
+- Migrations after C2B: passed.
 - Core C2A TypeScript source-only check using global TypeScript 5.8.3: passed.
 - `git diff --check`: passed.
 - Full Evidence regression remains green.
@@ -89,14 +89,19 @@ No schema or migration change was made. The alternative documented-version ident
 - Jurassic UI is server-hard-scoped to Jurassic; the other six editorial titles do not mount the C2A client panel.
 - Public C2A metadata is rendered with Arabic labels instead of exposing raw internal tokens, and the Jurassic headline now fails closed if publication quality is ever not passed.
 
-### Environment-blocked gates
+### GitHub CI gates
 
-A single post-C2A attempt was made for each:
+GitHub Actions for artwork commit `c6c6369ef6e3ce1508b079fc05eea897f707eb63` completed successfully:
 
-- `npm run lint:local` → exit `127`, `eslint: not found`.
-- `npm run build:local` → exit `127`, `vinext: not found`.
+- `npm ci`: passed.
+- Engine: `273/273` passed.
+- Migrations and DB regressions: passed.
+- `npm run lint:local`: passed.
+- `npm run build:local`: passed.
+- Public Quality checkpoint: passed.
+- B4 Editorial Persistence checkpoint: passed.
 
-They did not reach project code. Dependencies were not downloaded again. C2A is therefore **not merge-ready** until both gates run successfully in an environment with the repository dependencies installed.
+The remaining merge-readiness blocker is visual Desktop/Mobile QA on a rendered build.
 
 A broader source-only TypeScript traversal through the existing editorial module also reaches the pre-existing baseline diagnostic in `lib/review-engine/hydrate.ts:159`; the same diagnostic is reproducible on untouched `base`, so it is not introduced by C2A.
 

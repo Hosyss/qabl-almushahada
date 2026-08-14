@@ -22,6 +22,8 @@
 - صفحة العمل والتحليل توضّح أن الصورة «غلاف توضيحي أصلي — ليس الملصق الرسمي».
 - الصور للعرض فقط ولا تدخل إلى evidence أو decision engine أو D1.
 - تفاصيل المصدر والتوجيه البصري في `docs/P4_03_C2B_EDITORIAL_ARTWORK.md`.
+- GitHub CI عند commit `c6c6369ef6e3ce1508b079fc05eea897f707eb63`: Engine `273/273` + migrations + lint + production build + Public Quality + B4 Persistence كلها ناجحة.
+- المتبقي قبل merge readiness: UI QA بصري فعلي على Desktop/Mobile.
 
 
 ## P4-03C2A — حالة فرع المراجعة

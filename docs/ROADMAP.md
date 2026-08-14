@@ -72,7 +72,7 @@
 - [x] تمييز defaults-only عن defaults-with-overrides؛ إعدادات الأسرة المحلية الحالية لا تُقدَّم كتخصيص كامل.
 - [x] تسمية الإعدادات العامة منزوعة الادعاء الرسمي/العلمي.
 - [x] Exact Version البديل موثق كـADR فقط، بلا schema migration.
-- [ ] Lint وProduction Build مطلوبان قبل merge readiness؛ حالة البيئة المحلية الحالية تحدد هل يمكن تشغيلهما.
+- [x] Lint وProduction Build نجحا في GitHub Actions على فرع المراجعة.
 
 ## P4-03C2B — Original Editorial Artwork (فرع مراجعة)
 
@@ -83,7 +83,8 @@
 - [x] fallback محايد لبقية عناوين D1.
 - [x] disclosure: «غلاف توضيحي أصلي — ليس الملصق الرسمي».
 - [x] لا D1/schema/migration ولا تأثير على evidence/decision.
-- [ ] Lint + Production Build + UI QA على Desktop/Mobile قبل merge readiness.
+- [x] Lint + Production Build نجحا في GitHub Actions.
+- [ ] UI QA على Desktop/Mobile قبل merge readiness.
 
 ## Checkpoint لاحق: Public report intake
 
