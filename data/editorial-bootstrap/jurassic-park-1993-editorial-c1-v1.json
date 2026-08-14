@@ -1,0 +1,29 @@
+{
+  "review": {
+    "id": "jurassic-park-1993-editorial-c1-v1",
+    "titleId": "wd:Q167726",
+    "titleLabel": "الحديقة الجوارسية",
+    "releaseYear": 1993,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-14T06:08:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى Jurassic Park (1993)، وليس توثيقًا لنسخة بث أو مونتاج محدد. نستخدم مراجعة ويكيبيديا الثابتة وKids-In-Mind كمرجع وقائع رابط فقط، ولا نحول تصنيفًا أو درجة خارجية إلى حكم ملاءمة خاص بنا.",
+    "analysisAr": "الخطر في الفيلم ليس مجرد وجود ديناصورات؛ المصادر المستقلة تتفق على مطاردات متواصلة وتهديد مباشر للأطفال ووقوع وفيات وإصابات ضمن أحداث الهروب من الحديقة. توجد أيضًا ألفاظ، وتناول أو ظهور للكحول والتدخين، وإشارات عاطفية أو جسدية خفيفة تدعمها حاليًا جهة واحدة فقط. هذه الوقائع تجعل الصفحة مفيدة للأسرة مع بقاء خمسة محاور أخرى غير محسومة وعدم إصدار حكم نهائي.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {"id":"jurassic-source-wikipedia","publisher":"Wikipedia (English)","sourceType":"open_encyclopedia","sourceUrl":"https://en.wikipedia.org/w/index.php?title=Jurassic_Park&oldid=1369262629","accessedOn":"2026-08-14","independenceGroupId":"wikipedia-en","usageBasis":"open_license","rightsLabel":"CC BY-SA 4.0","rightsUrl":"https://creativecommons.org/licenses/by-sa/4.0/","usageNoteAr":"نستخدم مراجعة ثابتة من المقال كمرجع وقائع مع العزو، ونلخص الوقائع بالعربية بصياغة أصلية من غير نقل أو ترجمة قريبة لنص ويكيبيديا.","sourceVersion":"oldid=1369262629","supportedClaimIds":["jurassic-claim-fear","jurassic-claim-violence"]},
+      {"id":"jurassic-source-kids-in-mind","publisher":"Kids-In-Mind","sourceType":"published_review","sourceUrl":"https://kids-in-mind.com/j/jurassicpark.htm","accessedOn":"2026-08-14","independenceGroupId":"kids-in-mind","usageBasis":"link_only_factual_reference","rightsLabel":"ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى","rightsUrl":"https://kids-in-mind.com/terms.htm","usageNoteAr":"نستخدم الرابط لتتبع وقائع محددة فقط، ولا ننقل درجات الموقع أو نصوصه أو بنية مراجعته. الوصف العربي مستقل ومكتوب من الصفر.","supportedClaimIds":["jurassic-claim-fear","jurassic-claim-violence","jurassic-claim-language","jurassic-claim-substances","jurassic-claim-sexual"]}
+    ],
+    "claims": [
+      {"id":"jurassic-claim-fear","category":"fear","summaryAr":"توجد مطاردات وتهديدات مباشرة من الديناصورات، وبينها مطاردة أطفال داخل مبنى الحديقة ومواقف حصار وخطر متكرر، وهو سياق تؤكده مجموعتا مصدر مستقلتان.","verification":"corroborated","sourceIds":["jurassic-source-wikipedia","jurassic-source-kids-in-mind"]},
+      {"id":"jurassic-claim-violence","category":"violence","summaryAr":"تقع وفيات وإصابات وهجمات من الديناصورات، وتظهر آثار جسدية لبعضها داخل الأحداث؛ وجود هذا العنف مثبت في مصدرين مستقلين.","verification":"corroborated","sourceIds":["jurassic-source-wikipedia","jurassic-source-kids-in-mind"]},
+      {"id":"jurassic-claim-language","category":"language","summaryAr":"توجد ألفاظ وإهانات وتعبيرات نابية متفرقة، لكن هذا المحور مدعوم حاليًا بمرجع واحد فقط.","verification":"single_source","sourceIds":["jurassic-source-kids-in-mind"]},
+      {"id":"jurassic-claim-substances","category":"substances","summaryAr":"توجد مشاهد أو إشارات إلى الكحول والتدخين واستخدام دواء مسكن داخل سياق الأحداث، والدليل الحالي على هذا المحور من مرجع واحد.","verification":"single_source","sourceIds":["jurassic-source-kids-in-mind"]},
+      {"id":"jurassic-claim-sexual","category":"sexualContent","summaryAr":"توجد إشارات عاطفية أو جسدية محدودة وبعض التعليقات ذات معنى للبالغين، ويأتي توثيقنا الحالي لهذا المحور من مرجع واحد فقط.","verification":"single_source","sourceIds":["jurassic-source-kids-in-mind"]}
+    ],
+    "uncertainCategories": ["bullying","discrimination","selfHarm","grief","flashingLights"]
+  },
+  "presentation": {"titleAr":"الحديقة الجوارسية","titleEn":"Jurassic Park","revision":1,"updatedAt":"2026-08-14T06:08:00+03:00"},
+  "fingerprint": "PENDING"
+}
