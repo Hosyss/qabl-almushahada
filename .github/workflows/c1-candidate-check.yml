@@ -1,0 +1,26 @@
+name: C1 candidate check
+
+on:
+  push:
+    branches:
+      - agent/p4-03-c1-candidate-check
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+    steps:
+      - name: Inspect family-title candidates in live D1 search
+        shell: bash
+        run: |
+          set -euo pipefail
+          for q in 'Frozen' 'Finding Nemo' 'Toy Story' 'The Lion King' 'Inside Out' 'Moana'; do
+            echo "=== $q ==="
+            curl --fail --silent --show-error --location --get --data-urlencode "q=$q" "$WORKER_URL/api/search-suggestions"
+            echo
+          done
