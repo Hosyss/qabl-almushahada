@@ -2,8 +2,7 @@ name: C2B visual QA temporary
 
 on:
   push:
-    branches:
-      - agent/p4-03c2a-asymmetric-decision
+    branches: [agent/p4-03c2a-asymmetric-decision]
 
 permissions:
   contents: read
@@ -18,17 +17,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22.13.0'
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build production bundle
-        run: npm run build:local
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build:local
 
       - name: Prepare isolated local D1
         shell: bash
@@ -36,45 +33,33 @@ jobs:
           set -euo pipefail
           cat > .qa-wrangler.jsonc <<'JSON'
           {
-            "name": "qabl-c2b-local-qa",
-            "main": "worker/index.ts",
-            "compatibility_date": "2026-05-22",
-            "compatibility_flags": ["nodejs_compat"],
-            "d1_databases": [
-              {
-                "binding": "DB",
-                "database_name": "site-creator-d1",
-                "database_id": "00000000-0000-4000-8000-000000000000"
-              }
-            ]
+            "name":"qabl-c2b-local-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-05-22",
+            "compatibility_flags":["nodejs_compat"],
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
           }
           JSON
-
           rm -rf .wrangler/state .wrangler/registry
           for migration in drizzle/*.sql; do
-            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/tmp/d1-migrate.log 2>&1 || {
-              cat /tmp/d1-migrate.log
-              exit 1
-            }
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
           done
-
           node --input-type=module <<'NODE' > /tmp/c2b-qa-seed.sql
           import { createHash } from 'node:crypto';
           import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
           const fixtures = await loadEditorialBootstrapFixtures();
           const q = value => `'${String(value).replaceAll("'", "''")}'`;
-          for (const fixture of fixtures) {
-            const { review, presentation } = fixture;
+          for (const { review, presentation } of fixtures) {
             const qid = review.titleId.replace(/^wd:/u, '');
             const aliases = review.titleId === 'wd:Q102438' ? ['HarryPotter', "Harry Potter and the Sorcerer's Stone"] : [];
             console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
-            const fixtureHash = createHash('sha256').update(`local-qa-catalog-fixture:${qid}`).digest('hex');
-            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-14T00:00:00Z',${q(fixtureHash)},'manual');`);
+            const hash = createHash('sha256').update(`local-qa-catalog-fixture:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-14T00:00:00Z',${q(hash)},'manual');`);
           }
           NODE
-          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/c2b-qa-seed.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/c2b-qa-seed.sql >/dev/null
           node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
-          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
 
       - name: Start isolated preview
         shell: bash
@@ -82,29 +67,22 @@ jobs:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
         run: |
           set -euo pipefail
-          (npm run dev:local -- --port 4173 > /tmp/c2b-server.log 2>&1 & echo $! > /tmp/c2b-server.pid)
+          (npm run dev:local -- --port 4173 >/tmp/c2b-server.log 2>&1 &)
           for i in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
-              exit 0
-            fi
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
             sleep 1
           done
           cat /tmp/c2b-server.log
           exit 1
 
-      - name: Install browser QA driver only
+      - name: Install temporary browser driver
         run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
 
-      - name: Run Chrome Desktop and Mobile QA
+      - name: Run real Chrome QA
         shell: bash
         run: |
           set -euo pipefail
-          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
-          if [ -z "$CHROME" ]; then
-            echo 'Chrome/Chromium is unavailable on runner.' >&2
-            exit 1
-          fi
-          export CHROME
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           mkdir -p qa-artifacts/screenshots
           cat > .qa-c2b-playwright.mjs <<'NODE'
           import fs from 'node:fs/promises';
@@ -122,36 +100,59 @@ jobs:
             ['Q39571','my-neighbor-totoro-1988-editorial-c1-v1'],
           ];
           const report = { browser: await browser.version(), checks: [], suggestions: null };
+          const artworkResource = url => decodeURIComponent(url).includes('/artwork/');
 
           async function inspect(route, viewport, name, screenshot = false) {
             const context = await browser.newContext({ viewport, locale: 'ar-EG' });
             const page = await context.newPage();
+            await page.addInitScript(() => {
+              window.__qaCLS = 0;
+              new PerformanceObserver(list => {
+                for (const e of list.getEntries()) if (!e.hadRecentInput) window.__qaCLS += e.value;
+              }).observe({ type: 'layout-shift', buffered: true });
+            });
             const failedRequests = [];
             page.on('requestfailed', req => failedRequests.push({ url: req.url(), error: req.failure()?.errorText ?? 'failed' }));
             const response = await page.goto(baseURL + route, { waitUntil: 'networkidle' });
             if (!response?.ok()) throw new Error(`${name}: HTTP ${response?.status()} for ${route}`);
+            await page.waitForTimeout(250);
+
+            const initial = await page.evaluate(() => ({
+              cls: window.__qaCLS ?? 0,
+              imageResources: performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => r.name),
+              visibleBroken: [...document.images].filter(img => {
+                const r = img.getBoundingClientRect();
+                const nearViewport = r.bottom >= -200 && r.top <= innerHeight + 200;
+                return nearViewport && (!img.complete || img.naturalWidth === 0);
+              }).map(img => img.currentSrc || img.src),
+            }));
+            if (initial.visibleBroken.length) throw new Error(`${name}: visible broken images ${JSON.stringify(initial.visibleBroken)}`);
+            if (initial.cls > 0.10) throw new Error(`${name}: initial CLS ${initial.cls}`);
+
+            await page.evaluate(async () => {
+              const step = Math.max(300, Math.floor(innerHeight * 0.75));
+              for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+                scrollTo(0, y);
+                await new Promise(r => setTimeout(r, 120));
+              }
+              scrollTo(0, document.documentElement.scrollHeight);
+              await new Promise(r => setTimeout(r, 250));
+              scrollTo(0, 0);
+            });
+            await page.waitForTimeout(350);
+
             const data = await page.evaluate(() => {
               const images = [...document.images];
-              const artwork = images.filter(img => (img.currentSrc || img.src).includes('/artwork/')).map(img => {
-                const rect = img.getBoundingClientRect();
-                const style = getComputedStyle(img);
-                return {
-                  src: new URL(img.currentSrc || img.src).pathname,
-                  alt: img.alt,
-                  naturalWidth: img.naturalWidth,
-                  naturalHeight: img.naturalHeight,
-                  width: Math.round(rect.width),
-                  height: Math.round(rect.height),
-                  loading: img.loading,
-                  objectFit: style.objectFit,
-                  objectPosition: style.objectPosition,
-                };
+              const artwork = images.filter(img => decodeURIComponent(img.currentSrc || img.src).includes('/artwork/')).map(img => {
+                const r = img.getBoundingClientRect();
+                const s = getComputedStyle(img);
+                return { src: img.currentSrc || img.src, alt: img.alt, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight, width: Math.round(r.width), height: Math.round(r.height), loading: img.loading, objectFit: s.objectFit, objectPosition: s.objectPosition };
               });
               const overflow = document.documentElement.scrollWidth > innerWidth + 1;
               const offenders = [...document.querySelectorAll('body *')].filter(el => {
-                const rect = el.getBoundingClientRect();
-                return rect.right > innerWidth + 1 || rect.left < -1;
-              }).slice(0, 20).map(el => ({ tag: el.tagName, className: String(el.className).slice(0, 100) }));
+                const r = el.getBoundingClientRect();
+                return r.right > innerWidth + 1 || r.left < -1;
+              }).slice(0,20).map(el => ({ tag: el.tagName, className: String(el.className).slice(0,100) }));
               return {
                 route: location.pathname + location.search,
                 dir: document.documentElement.dir,
@@ -163,19 +164,23 @@ jobs:
                 brokenImages: images.filter(img => !img.complete || img.naturalWidth === 0).map(img => img.currentSrc || img.src),
                 artwork,
                 disclosureCount: document.body.innerText.split('غلاف توضيحي أصلي — ليس الملصق الرسمي').length - 1,
-                focusableCount: document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])').length,
+                finalImageResources: performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => r.name),
               };
             });
             data.failedRequests = failedRequests;
-            if (data.dir !== 'rtl') throw new Error(`${name}: document direction is ${data.dir}`);
+            data.initialCLS = initial.cls;
+            data.initialArtworkResources = initial.imageResources.filter(artworkResource);
+            data.finalArtworkResources = data.finalImageResources.filter(artworkResource);
+
+            if (data.dir !== 'rtl') throw new Error(`${name}: direction ${data.dir}`);
             if (data.overflow) throw new Error(`${name}: horizontal overflow ${JSON.stringify(data.offenders)}`);
-            if (data.brokenImages.length) throw new Error(`${name}: broken images ${JSON.stringify(data.brokenImages)}`);
-            if (failedRequests.some(item => item.url.includes('/artwork/'))) throw new Error(`${name}: failed artwork requests ${JSON.stringify(failedRequests)}`);
+            if (data.brokenImages.length) throw new Error(`${name}: broken after scroll ${JSON.stringify(data.brokenImages)}`);
+            if (failedRequests.some(x => artworkResource(x.url))) throw new Error(`${name}: failed artwork request ${JSON.stringify(failedRequests)}`);
             for (const art of data.artwork) {
               const ratio = art.naturalWidth / art.naturalHeight;
-              if (art.naturalWidth < 1 || art.naturalHeight < 1 || Math.abs(ratio - 0.75) > 0.02) throw new Error(`${name}: bad optimized artwork ratio ${JSON.stringify(art)}`);
-              if (art.objectFit !== 'cover') throw new Error(`${name}: artwork object-fit is not cover ${JSON.stringify(art)}`);
-              if (!art.alt.trim()) throw new Error(`${name}: artwork alt text is empty`);
+              if (art.naturalWidth < 1 || art.naturalHeight < 1 || Math.abs(ratio - 0.75) > 0.02) throw new Error(`${name}: bad artwork ratio ${JSON.stringify(art)}`);
+              if (art.objectFit !== 'cover') throw new Error(`${name}: object-fit ${art.objectFit}`);
+              if (!art.alt.trim()) throw new Error(`${name}: empty artwork alt`);
             }
             if (screenshot) await page.screenshot({ path: `qa-artifacts/screenshots/${name}.png`, fullPage: true });
             report.checks.push({ name, ...data });
@@ -185,69 +190,57 @@ jobs:
 
           const desktop = { width: 1440, height: 1000 };
           const mobile = { width: 390, height: 844 };
-          const surfaces = [
-            ['/', 'home'],
-            ['/titles?editorialStatus=editorial', 'titles'],
-            ['/search?q=Jurassic%20Park', 'search-jurassic'],
-            ['/title/Q167726', 'title-jurassic'],
-            ['/review?editorialId=jurassic-park-1993-editorial-c1-v1', 'review-jurassic'],
-          ];
-          for (const [route, name] of surfaces) {
+          for (const [route,name] of [
+            ['/','home'], ['/titles?editorialStatus=editorial','titles'], ['/search?q=Jurassic%20Park','search-jurassic'], ['/title/Q167726','title-jurassic'], ['/review?editorialId=jurassic-park-1993-editorial-c1-v1','review-jurassic']
+          ]) {
             await inspect(route, desktop, `desktop-${name}`, true);
             await inspect(route, mobile, `mobile-${name}`, true);
           }
-
           for (const [qid, editorialId] of seven) {
             const title = await inspect(`/title/${qid}`, mobile, `mobile-title-${qid}`);
-            if (title.artwork.length !== 1) throw new Error(`title ${qid}: expected one artwork, got ${title.artwork.length}`);
+            if (title.artwork.length !== 1) throw new Error(`title ${qid}: artwork count ${title.artwork.length}`);
             const review = await inspect(`/review?editorialId=${encodeURIComponent(editorialId)}`, mobile, `mobile-review-${qid}`);
-            if (review.artwork.length !== 1) throw new Error(`review ${qid}: expected one artwork, got ${review.artwork.length}`);
-            if (review.disclosureCount < 1) throw new Error(`review ${qid}: missing original-artwork disclosure`);
+            if (review.artwork.length !== 1) throw new Error(`review ${qid}: artwork count ${review.artwork.length}`);
+            if (review.disclosureCount < 1) throw new Error(`review ${qid}: missing artwork disclosure`);
           }
 
           const context = await browser.newContext({ viewport: mobile, locale: 'ar-EG' });
           const page = await context.newPage();
           await page.goto(baseURL + '/', { waitUntil: 'networkidle' });
+          const beforeSearchResources = await page.evaluate(() => performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => r.name));
           const combo = page.getByRole('combobox');
           await combo.fill('HarryPotter');
           const listbox = page.getByRole('listbox');
           await listbox.waitFor({ state: 'visible' });
-          const options = listbox.getByRole('option');
-          const optionCount = await options.count();
+          const optionCount = await listbox.getByRole('option').count();
           if (optionCount < 1) throw new Error('suggestions: no options');
-          const suggestionBroken = await listbox.locator('img').evaluateAll(imgs => imgs.filter(img => !img.complete || img.naturalWidth === 0).length);
-          if (suggestionBroken) throw new Error('suggestions: broken artwork');
-          const resourcesBefore = await page.evaluate(() => performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => new URL(r.name).pathname));
+          const broken = await listbox.locator('img').evaluateAll(imgs => imgs.filter(img => !img.complete || img.naturalWidth === 0).length);
+          if (broken) throw new Error('suggestions: broken artwork');
           await combo.press('ArrowDown');
           const activeDescendant = await combo.getAttribute('aria-activedescendant');
-          if (!activeDescendant) throw new Error('suggestions: ArrowDown did not set aria-activedescendant');
+          if (!activeDescendant) throw new Error('suggestions: ArrowDown failed');
           await combo.press('Escape');
           const expandedAfterEscape = await combo.getAttribute('aria-expanded');
-          if (expandedAfterEscape !== 'false') throw new Error('suggestions: Escape did not close popup');
-          report.suggestions = { optionCount, activeDescendant, expandedAfterEscape, imageResources: resourcesBefore };
-          await page.screenshot({ path: 'qa-artifacts/screenshots/mobile-suggestions.png', fullPage: true });
+          if (expandedAfterEscape !== 'false') throw new Error('suggestions: Escape failed');
+          const afterSearchResources = await page.evaluate(() => performance.getEntriesByType('resource').filter(r => r.initiatorType === 'img').map(r => r.name));
+          report.suggestions = { optionCount, activeDescendant, expandedAfterEscape, beforeSearchResources, afterSearchResources };
+          await page.screenshot({ path:'qa-artifacts/screenshots/mobile-suggestions.png', fullPage:true });
           await context.close();
 
-          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report, null, 2));
-          console.log(JSON.stringify({ checks: report.checks.length, suggestions: report.suggestions }, null, 2));
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report,null,2));
+          console.log(JSON.stringify({ checks:report.checks.length, homeMobile:report.checks.find(x=>x.name==='mobile-home'), suggestions:report.suggestions },null,2));
           await browser.close();
           NODE
           node .qa-c2b-playwright.mjs
 
-      - name: Record QA summary
+      - name: Summarize and upload QA evidence
         if: always()
         shell: bash
         run: |
-          echo '### C2B temporary visual QA' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Branch-only local D1 preview; no Production D1 and no deploy.' >> "$GITHUB_STEP_SUMMARY"
           if [ -f qa-artifacts/report.json ]; then
-            node -e 'const r=require("./qa-artifacts/report.json"); console.log(`- Rendered checks: ${r.checks.length}`); console.log(`- Broken images: ${r.checks.reduce((n,c)=>n+c.brokenImages.length,0)}`); console.log(`- Horizontal overflow surfaces: ${r.checks.filter(c=>c.overflow).length}`); console.log(`- Suggestion options: ${r.suggestions?.optionCount ?? 0}`);' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo '- report.json was not produced; inspect job logs.' >> "$GITHUB_STEP_SUMMARY"
+            node -e 'const r=require("./qa-artifacts/report.json"); console.log(`checks=${r.checks.length}`); console.log(`broken=${r.checks.reduce((n,c)=>n+c.brokenImages.length,0)}`); console.log(`overflow=${r.checks.filter(c=>c.overflow).length}`); console.log(`maxCLS=${Math.max(...r.checks.map(c=>c.initialCLS)).toFixed(4)}`);' | tee qa-artifacts/summary.txt
           fi
-
-      - name: Upload screenshots and QA report
-        if: always()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: c2b-visual-qa-${{ github.sha }}
