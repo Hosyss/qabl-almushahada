@@ -9,20 +9,21 @@ Last updated: 2026-08-14 (Africa/Cairo)
 - The working tree was created from the official GitHub source archive for that commit.
 - A local temporary Git baseline commit was created only to track diffs in the active workspace. Its SHA is workspace-specific and is **not** claimed to be the GitHub commit.
 - The local review workspace has no Git remote; publishing for CI uses a dedicated GitHub review branch created from the verified source commit.
-- The source archive baseline remains unchanged; all C2A changes are isolated to the review branch.
+- The source archive baseline remains unchanged; all C2A/C2B changes are isolated to the review branch.
 
 ## Baseline gates before C2A
 
 - Engine: `259/259` passed.
 - Migrations: passed.
-- Lint: environment-blocked because `eslint` is unavailable locally.
-- Production build: environment-blocked because `vinext` is unavailable locally.
+- Lint: environment-blocked because `eslint` was unavailable in the original local container.
+- Production build: environment-blocked because `vinext` was unavailable in the original local container.
+- Those two environment blocks are no longer merge-readiness blockers: GitHub CI later ran the real repository dependencies and passed lint and production build on the review branch.
 
 ## Current checkpoint
 
 `P4-03C2A — Asymmetric Decision Semantics` + `P4-03C2B — Original Editorial Artwork`
 
-Draft-review branch only. No merge to `main`, D1 write, or Production deploy.
+Draft-review branch only. No merge to `main`, Production D1 write, or Production deploy.
 
 ### Editorial artwork
 
@@ -80,28 +81,53 @@ No schema or migration change was made. The alternative documented-version ident
 ## Final verification completed
 
 - C2A focused regression: `12/12` passed after the final presentation hardening.
-- Full Engine suite after C2B: `273/273` passed, including two artwork allowlist/asset regressions.
-- Migrations after C2B: passed.
-- Core C2A TypeScript source-only check using global TypeScript 5.8.3: passed.
-- `git diff --check`: passed.
+- Full Engine suite after C2B and the visual-layout fix: `273/273` passed.
+- Migrations and DB regressions: passed.
+- `npm run lint:local`: passed in GitHub CI.
+- `npm run build:local`: passed in GitHub CI.
+- Public Quality checkpoint: passed.
+- B4 Editorial Persistence checkpoint: passed.
 - Full Evidence regression remains green.
 - Partial Editorial fallback remains green.
 - Jurassic UI is server-hard-scoped to Jurassic; the other six editorial titles do not mount the C2A client panel.
-- Public C2A metadata is rendered with Arabic labels instead of exposing raw internal tokens, and the Jurassic headline now fails closed if publication quality is ever not passed.
+- Public C2A metadata is rendered with Arabic labels instead of exposing raw internal tokens, and the Jurassic headline fails closed if publication quality is ever not passed.
 
-### GitHub CI gates
+### Real Desktop/Mobile visual QA
 
-GitHub Actions for artwork commit `c6c6369ef6e3ce1508b079fc05eea897f707eb63` completed successfully:
+A temporary read-only GitHub Actions workflow was used solely to render the draft branch against an **isolated local D1**. It had no Production D1 write and performed no deployment.
 
-- `npm ci`: passed.
-- Engine: `273/273` passed.
-- Migrations and DB regressions: passed.
+Final post-fix visual evidence was produced from review-branch commit `64602ef23f69e8d45ae53a60e49ee6e068b80cc7`:
+
+- Visual QA run: `31799765313` — **success**.
+- Browser: headless Chrome on the GitHub runner.
+- Desktop viewport: `1440×1000`.
+- Mobile viewport: `390×844`.
+- Rendered checks: **24**.
+- Broken images after actual scroll/lazy-load: **0**.
+- Horizontal-overflow surfaces: **0**.
+- Maximum measured initial CLS: **0.0000**.
+- All seven title pages and all seven editorial/review pages rendered their correct allowlisted artwork on mobile.
+- Artwork retained a `3:4` rendered source ratio, `object-fit: cover`, and non-empty alternative text.
+- RTL remained active on checked surfaces.
+- Search suggestions remained keyboard accessible: `ArrowDown` established `aria-activedescendant`; `Escape` closed the listbox and returned `aria-expanded=false`.
+- Lazy loading behaved usefully: mobile home initially fetched only the two near-fold artworks and loaded all four home-card artworks after scroll; searching `HarryPotter` added the Harry Potter artwork rather than eagerly fetching all seven.
+- Artifact ID: `9218835497`.
+- Artifact digest: `sha256:b5ed5d37a00c06c47a073502fb2be8360d2c07567d8d2a61ef2287da27ff61b3`.
+
+The visual review found one real C2B regression before closure: the desktop title-directory grid allowed four narrow artwork cards, causing the long Harry Potter English title to wrap pathologically. The scoped fix changed the directory grid minimum from `245px` to `320px`, producing a three-column desktop layout at the current shell width while preserving the mobile layout. The full 24-check visual matrix then passed and the post-fix `desktop-titles.png` was manually inspected.
+
+### GitHub CI gates on the visual-layout fix
+
+For commit `64602ef23f69e8d45ae53a60e49ee6e068b80cc7`:
+
+- Checkpoint run `31799767945`: **success**.
+- Engine: **273/273 passed**.
+- Directory and persistence regressions: passed.
+- `npm run test:migrations`: passed.
 - `npm run lint:local`: passed.
 - `npm run build:local`: passed.
-- Public Quality checkpoint: passed.
-- B4 Editorial Persistence checkpoint: passed.
-
-The remaining merge-readiness blocker is visual Desktop/Mobile QA on a rendered build.
+- Public Quality run `31799765395`: **success**.
+- B4 Editorial Persistence run `31799768017`: **success**.
 
 A broader source-only TypeScript traversal through the existing editorial module also reaches the pre-existing baseline diagnostic in `lib/review-engine/hydrate.ts:159`; the same diagnostic is reproducible on untouched `base`, so it is not introduced by C2A.
 
@@ -112,9 +138,10 @@ A broader source-only TypeScript traversal through the existing editorial module
 - No eighth title was added.
 - No image pipeline was added.
 - No Exact Version migration was added.
-- The local workspace has no remote; the dedicated GitHub review branch is the only authorized external write for CI.
-- No merge, Production deploy, or D1 write occurred.
+- Artwork remains presentation-only.
+- The visual QA used local runner D1 state only and performed no Production D1 write.
+- No merge or Production deploy occurred.
 
 ## Required next review
 
-Owner review is required before any merge/deploy. The draft PR must run `lint:local` and `build:local` with full dependencies; merge readiness also requires review of the final diff and UX in a real built application.
+C2A/C2B implementation, repository gates, and real Desktop/Mobile visual QA are complete on the draft branch. The temporary visual-QA workflow must not remain in the final PR and is removed after this evidence is recorded. Owner review of the final diff is still required before any merge or Production deploy.
