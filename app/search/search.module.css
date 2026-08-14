@@ -37,7 +37,10 @@
 .filterActions a { color: var(--terracotta); font-size: 15px; font-weight: 900; white-space: nowrap; }
 .filterNote { margin: 0 0 20px; color: #465c54; font-size: 15px; line-height: 1.9; }
 .grid { display: grid; gap: 14px; }
-.card, .suggestionCard { padding: 22px 24px; background: rgba(255,255,255,.82); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 12px 34px rgba(26,72,61,.06); }
+.card, .suggestionCard { padding: 18px; background: rgba(255,255,255,.82); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 12px 34px rgba(26,72,61,.06); }
+.card { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 18px; align-items: start; }
+.cardArtwork { width: 110px; aspect-ratio: 3 / 4; }
+.cardCopy { min-width: 0; }
 .cardTop { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .status { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 900; }
 .status_verified { color: var(--forest-deep); background: var(--sage); }
@@ -52,10 +55,12 @@
 .empty h2 { margin: 14px 0 6px; font-size: 26px; }
 .empty p { margin: 0; color: #435950; font-size: 17px; line-height: 1.9; }
 .didYouMean { padding-top: 8px; }
-.suggestionCard { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 14px; color: var(--ink); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.suggestionCard { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 14px; align-items: center; color: var(--ink); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.suggestionArtwork { width: 72px; aspect-ratio: 3 / 4; border-radius: 12px; }
+.suggestionCopy { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 14px; }
 .suggestionCard:hover, .suggestionCard:focus-visible { border-color: rgba(24,77,64,.38); transform: translateY(-1px); outline: none; }
-.suggestionCard strong { grid-column: 1 / -1; font-size: 22px; line-height: 1.6; }
-.suggestionCard span { color: #344c43; font-size: 17px; font-weight: 750; overflow-wrap: anywhere; }
+.suggestionCopy strong { grid-column: 1 / -1; font-size: 22px; line-height: 1.6; }
+.suggestionCopy > span { color: #344c43; font-size: 17px; font-weight: 750; overflow-wrap: anywhere; }
 .suggestionCard small { color: #465b53; font-size: 16px; font-weight: 900; }
 
 @media (max-width: 840px) { .filters { grid-template-columns: repeat(2, minmax(0,1fr)); } }
@@ -67,6 +72,10 @@
   .filters { grid-template-columns: 1fr; }
   .filterActions { flex-wrap: wrap; }
   .filterActions button { flex: 1 1 160px; }
-  .card, .suggestionCard { padding: 20px; }
-  .suggestionCard { grid-template-columns: 1fr; }
+  .card, .suggestionCard { padding: 14px; }
+  .card { grid-template-columns: 88px minmax(0,1fr); gap: 12px; }
+  .cardArtwork { width: 88px; }
+  .suggestionCard { grid-template-columns: 64px minmax(0,1fr); }
+  .suggestionArtwork { width: 64px; }
+  .suggestionCopy { grid-template-columns: 1fr; }
 }

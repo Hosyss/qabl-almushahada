@@ -5,6 +5,7 @@ import { listPublicCatalogDirectory, type PublicCatalogDirectoryEditorialStatus,
 import { buildPublicCatalogTitleHref, PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 import { getPublicTitleDisplayNames } from "@/lib/public-title-search";
 import styles from "../title/catalog.module.css";
+import TitleArtwork from "../title-artwork";
 import { EditorialFilter } from "./editorial-filter";
 
 export const dynamic = "force-dynamic";
@@ -50,10 +51,13 @@ export default async function TitlesPage({ searchParams }: Props) {
           const href = buildPublicCatalogTitleHref(title.titleId); if (!href) return null;
           const names = getPublicTitleDisplayNames({ canonicalName: title.canonicalName, originalName: title.originalName });
           return <article className={styles.card} key={title.titleId}>
-            <div className={styles.cardStateLine}><span className={`${styles.badge} ${title.hasVerifiedReview ? styles.state_verified : styles.state_catalog}`}>{title.hasVerifiedReview ? "مراجعة موثقة حالية" : "كتالوج فقط"}</span>{title.hasEditorialReview ? <span className={styles.badge}>تحليل تحريري</span> : null}<span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span></div>
-            <h2>{names.arabicName}</h2><p className={styles.originalTitle} dir="ltr">{names.englishName}</p>
-            <div className={styles.meta}><span>السنة: {title.releaseYear}</span><span>{title.qid}</span></div>
-            <Link className={styles.cardLink} href={href}>فتح صفحة العمل ←</Link>
+            <TitleArtwork titleId={title.titleId} className={styles.cardArtwork} sizes="(max-width: 640px) 96px, 116px" fallback />
+            <div className={styles.cardCopy}>
+              <div className={styles.cardStateLine}><span className={`${styles.badge} ${title.hasVerifiedReview ? styles.state_verified : styles.state_catalog}`}>{title.hasVerifiedReview ? "مراجعة موثقة حالية" : "كتالوج فقط"}</span>{title.hasEditorialReview ? <span className={styles.badge}>تحليل تحريري</span> : null}<span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span></div>
+              <h2>{names.arabicName}</h2><p className={styles.originalTitle} dir="ltr">{names.englishName}</p>
+              <div className={styles.meta}><span>السنة: {title.releaseYear}</span><span>{title.qid}</span></div>
+              <Link className={styles.cardLink} href={href}>فتح صفحة العمل ←</Link>
+            </div>
           </article>;
         })}</section>
         <nav className={styles.pagination} aria-label="صفحات دليل العناوين">

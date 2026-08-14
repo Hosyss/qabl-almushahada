@@ -5,9 +5,11 @@ import { notFound } from "next/navigation";
 import { loadPublicCatalogTitle } from "@/db/public-catalog-service";
 import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
 import { loadEditorialPublicationForTitleId } from "@/lib/public-editorial-read";
-import { buildPublicCatalogCanonicalUrl, buildPublicCatalogDescription, parsePublicCatalogQid } from "@/lib/public-catalog";
+import { buildPublicCatalogCanonicalUrl, buildPublicCatalogDescription, parsePublicCatalogQid, PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 import { getPublicTitleDisplayNames } from "@/lib/public-title-search";
+import { getTitleArtwork, TITLE_ARTWORK_DISCLOSURE_AR } from "@/lib/title-artwork";
 import styles from "../catalog.module.css";
+import TitleArtwork from "../../title-artwork";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ qid: string }> };
@@ -26,11 +28,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = await loadPublicCatalogTitle(qid);
     if (!title) return { title: UNAVAILABLE, robots: { index: false, follow: false } };
     const names = await resolveNames(title);
+    const artwork = getTitleArtwork(title.titleId);
     return {
       title: `${names.arabicName} - ${names.englishName} (${title.releaseYear}) | قبل المشاهدة`,
       description: buildPublicCatalogDescription(title),
       alternates: { canonical: buildPublicCatalogCanonicalUrl(qid) },
       robots: { index: Boolean(names.editorial), follow: true },
+      openGraph: artwork ? { images: [{ url: artwork.src, width: 720, height: 960, alt: artwork.altAr }] } : undefined,
     };
   } catch { return { title: UNAVAILABLE, robots: { index: false, follow: false } }; }
 }
@@ -43,6 +47,7 @@ export default async function CatalogTitlePage({ params }: Props) {
   if (!title) notFound();
   const names = await resolveNames(title);
   const editorial = names.editorial;
+  const artwork = getTitleArtwork(title.titleId);
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
     "@type": title.kind === "movie" ? "Movie" : "TVSeries",
@@ -51,6 +56,7 @@ export default async function CatalogTitlePage({ params }: Props) {
     datePublished: String(title.releaseYear),
     sameAs: title.sourceUrl,
     url: buildPublicCatalogCanonicalUrl(title.qid),
+    image: artwork ? `${PUBLIC_SITE_ORIGIN}${artwork.src}` : undefined,
   }).replaceAll("<", "\\u003c");
 
   return (
@@ -59,10 +65,15 @@ export default async function CatalogTitlePage({ params }: Props) {
       <div className={styles.shell}>
         <header className={styles.header}><Link className={styles.brand} href="/">قبل المشاهدة</Link><Link className={styles.back} href="/titles">كل عناوين الدليل</Link></header>
         <article className={styles.detailCard}>
-          <span className={styles.kicker}>صفحة العمل</span>
-          <h1>{names.arabicName}</h1><p className={styles.originalTitle} dir="ltr">{names.englishName}</p>
-          <div className={styles.meta}><span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span><span>{title.releaseYear}</span><span>{title.qid}</span></div>
-          <p>وجود العمل في الدليل لا يعني وجود حكم ملاءمة مكتمل. الاسم العربي والإنجليزي والسنة مرتبطون بنفس سجل D1، وأي تحليل أو قرار أسري يبقى مسارًا منفصلًا ببوابات تحقق خاصة به.</p>
+          <div className={styles.detailLead}>
+            <div>
+              <span className={styles.kicker}>صفحة العمل</span>
+              <h1>{names.arabicName}</h1><p className={styles.originalTitle} dir="ltr">{names.englishName}</p>
+              <div className={styles.meta}><span>{title.kind === "movie" ? "فيلم" : "مسلسل"}</span><span>{title.releaseYear}</span><span>{title.qid}</span></div>
+              <p>وجود العمل في الدليل لا يعني وجود حكم ملاءمة مكتمل. الاسم العربي والإنجليزي والسنة مرتبطون بنفس سجل D1، وأي تحليل أو قرار أسري يبقى مسارًا منفصلًا ببوابات تحقق خاصة به.</p>
+            </div>
+            {artwork ? <div><TitleArtwork titleId={title.titleId} className={styles.detailArtwork} sizes="230px" priority showDisclosure /><p className={styles.detailArtworkNote}>{TITLE_ARTWORK_DISCLOSURE_AR}</p></div> : null}
+          </div>
           <div className={styles.sourceBox}><dl>
             <dt>المصدر</dt><dd><a href={title.sourceUrl} rel="noreferrer">Wikidata - {title.qid}</a></dd>
             <dt>الرخصة</dt><dd>{title.sourceLicense}</dd><dt>نسخة سياسة المصدر</dt><dd>{title.policyVersion}</dd>

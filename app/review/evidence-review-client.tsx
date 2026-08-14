@@ -12,6 +12,7 @@ import type {
   PublicEvidenceReviewView,
 } from "@/lib/public-evidence-review";
 import { formatFactTime, getFactSummaryForSpoilerMode } from "@/lib/public-review-presentation";
+import TitleArtwork from "../title-artwork";
 
 const CATEGORY_ICONS: Record<ContentCategory, string> = {
   fear: "◌",
@@ -54,10 +55,7 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
       </header>
 
       <section className="review-title-card" aria-labelledby="review-title">
-        <div className="review-poster" aria-hidden="true">
-          <span>◎</span>
-          <small>أدلة</small>
-        </div>
+        <TitleArtwork titleId={review.title.id} className="review-poster review-poster--artwork" sizes="108px" priority fallback />
         <div className="review-title-copy">
           <div className="review-title-badges">
             <span className="review-demo-badge">مراجعة مبنية على أدلة</span>

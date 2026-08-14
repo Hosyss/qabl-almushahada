@@ -1983,6 +1983,9 @@ a {
 .review-poster small { position: relative; z-index: 1; }
 .review-poster span { font-size: 39px; }
 .review-poster small { font-size: 9px; opacity: 0.86; }
+.review-poster--artwork { margin: 0; display: block; background: var(--forest); }
+.review-poster--artwork::before,
+.review-poster--artwork::after { display: none; }
 
 .review-title-badges {
   display: flex;

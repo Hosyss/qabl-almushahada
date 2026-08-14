@@ -5,6 +5,7 @@ import { listEditorialPublications } from "@/lib/public-editorial-read";
 import { buildPublicCatalogTitleHref, PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 
 import TitleSearchCombobox from "./search/title-search-combobox";
+import TitleArtwork from "./title-artwork";
 
 export default async function Home() {
   const publications = await listEditorialPublications(4);
@@ -41,10 +42,13 @@ export default async function Home() {
             const titleHref = buildPublicCatalogTitleHref(review.titleId);
             return (
               <article className="quality-home__card" key={review.id}>
-                <span className="quality-home__status">تحليل تحريري جزئي — الحكم غير مكتمل</span>
-                <h3>{presentation.titleAr}</h3><p className="quality-home__english" dir="ltr">{presentation.titleEn}</p><p className="quality-home__year">{review.releaseYear}</p>
-                <p>وقائع مستخلصة ومتحقق منها من مراجع معلنة. هذا المسار لا يدّعي مشاهدة نسخة محددة ولا يملك سلطة إصدار حكم ملاءمة.</p>
-                <div className="quality-home__card-actions">{titleHref ? <Link href={titleHref}>صفحة العمل</Link> : null}<Link href={buildPublicEditorialReviewHref(review.id)}>اقرأ التحليل</Link></div>
+                <TitleArtwork titleId={review.titleId} className="quality-home__artwork" sizes="(max-width: 680px) 34vw, 150px" />
+                <div className="quality-home__card-copy">
+                  <span className="quality-home__status">تحليل تحريري جزئي — الحكم غير مكتمل</span>
+                  <h3>{presentation.titleAr}</h3><p className="quality-home__english" dir="ltr">{presentation.titleEn}</p><p className="quality-home__year">{review.releaseYear}</p>
+                  <p>وقائع مستخلصة ومتحقق منها من مراجع معلنة. هذا المسار لا يدّعي مشاهدة نسخة محددة ولا يملك سلطة إصدار حكم ملاءمة.</p>
+                  <div className="quality-home__card-actions">{titleHref ? <Link href={titleHref}>صفحة العمل</Link> : null}<Link href={buildPublicEditorialReviewHref(review.id)}>اقرأ التحليل</Link></div>
+                </div>
               </article>
             );
           })}

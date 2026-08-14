@@ -17,11 +17,16 @@
 .hero h1, .detailCard h1 { margin: 16px 0 6px; font-size: clamp(2rem, 5vw, 4.2rem); line-height: 1.22; }
 .originalTitle { margin: 0 0 10px !important; color: #334d43 !important; font-size: clamp(18px, 2.3vw, 24px); line-height: 1.65 !important; font-weight: 750; text-align: right; overflow-wrap: anywhere; }
 .hero p, .detailCard p, .notice p, .card p { line-height: 1.9; color: #43564d; font-size: 18px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 16px; margin-top: 26px; }
-.card { min-width: 0; border-radius: 22px; padding: 22px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 26px; }
+.card { min-width: 0; border-radius: 22px; padding: 16px; display: grid; grid-template-columns: 116px minmax(0,1fr); gap: 16px; align-items: start; }
+.cardArtwork { width: 116px; aspect-ratio: 3 / 4; }
+.cardCopy { min-width: 0; }
 .card h2 { margin: 14px 0 4px; font-size: 1.25rem; line-height: 1.55; }
 .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 18px 0; color: #4d6158; font-size: 16px; font-weight: 750; }
 .detailCard { margin-top: 18px; }
+.detailLead { display: grid; grid-template-columns: minmax(0,1fr) 230px; gap: 34px; align-items: start; }
+.detailArtwork { width: 230px; aspect-ratio: 3 / 4; grid-column: 2; grid-row: 1 / span 2; }
+.detailArtworkNote { margin: 10px 0 0 !important; color: #62736c !important; font-size: 13px !important; text-align: center; }
 .sourceBox { margin-top: 28px; padding: 20px; border-radius: 18px; background: #eef2eb; }
 .sourceBox dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; margin: 0; font-size: 16px; line-height: 1.85; }
 .sourceBox dt { font-weight: 900; }
@@ -67,6 +72,10 @@
   .directoryActions { justify-content: flex-start; flex-wrap: wrap; }
   .directorySummary { align-items: flex-start; flex-direction: column; gap: 2px; }
   .cardStateLine { flex-direction: column; }
+  .card { grid-template-columns: 96px minmax(0,1fr); gap: 12px; }
+  .cardArtwork { width: 96px; }
+  .detailLead { grid-template-columns: 1fr; }
+  .detailArtwork { width: min(220px, 72vw); grid-column: 1; grid-row: auto; justify-self: center; }
   .pagination { gap: 8px; }
   .pagination a, .pagination span { min-width: 72px; }
 }

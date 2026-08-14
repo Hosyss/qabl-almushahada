@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import styles from "./title-search-combobox.module.css";
+import TitleArtwork from "../title-artwork";
 
 type Suggestion = { id: string; arabicName: string; englishName: string; releaseYear: number; href: string };
 type Payload = { mode?: "empty" | "matches" | "did_you_mean" | "none"; suggestions?: Suggestion[]; error?: string };
@@ -106,7 +107,8 @@ export default function TitleSearchCombobox({ initialQuery = "", hiddenFields = 
         <div id={listId} className={styles.list} role="listbox">
           {items.map((item, index) => <a key={item.id} id={`${listId}-${index}`} href={item.href} role="option" aria-selected={index === active}
             className={`${styles.option}${index === active ? ` ${styles.active}` : ""}`} onMouseEnter={() => setActive(index)} onMouseDown={(event) => event.preventDefault()}>
-            <strong>{item.arabicName}</strong><span dir="ltr">{item.englishName}</span><small>({item.releaseYear})</small>
+            <TitleArtwork titleId={item.id} className={styles.artwork} sizes="48px" fallback />
+            <span className={styles.optionCopy}><strong>{item.arabicName}</strong><span dir="ltr">{item.englishName}</span><small>({item.releaseYear})</small></span>
           </a>)}
         </div>
         <div className={styles.hint}>↑ ↓ للتنقل · Enter للفتح · Esc للإغلاق</div>

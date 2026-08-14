@@ -11,8 +11,11 @@ import {
   getEditorialCategoryLabelAr,
   type EditorialReviewPublication,
 } from "@/lib/editorial-review";
+import { JURASSIC_C2A_EDITORIAL_ID } from "@/lib/editorial-work-level-decision";
 
 import EditorialSummaryDialog from "./editorial-summary-dialog";
+import EditorialWorkLevelCaution from "./editorial-work-level-caution";
+import TitleArtwork from "../title-artwork";
 
 const SOURCE_TYPE_LABELS = {
   published_review: "مرجع خارجي مرتبط — وقائع عامة بالرابط فقط",
@@ -68,11 +71,11 @@ export default async function EditorialReviewView({ review }: { review: Editoria
       </header>
 
       <section className="review-title-card" aria-labelledby="review-title">
-        <div className="review-poster" aria-hidden="true"><span>◎</span><small>تحليل</small></div>
+        <TitleArtwork titleId={review.titleId} className="review-poster review-poster--artwork" sizes="108px" priority showDisclosure />
         <div className="review-title-copy">
           <div className="review-title-badges">
             <span className="review-demo-badge">تحليل تحريري جزئي</span>
-            <span className="review-type-badge">الحكم غير مكتمل</span>
+            <span className="review-type-badge">{review.id === JURASSIC_C2A_EDITORIAL_ID ? "تحذير على مستوى العمل" : "الحكم غير مكتمل"}</span>
           </div>
           <h1 id="review-title">{presentation.titleAr}</h1>
           <p className="review-original-title" dir="ltr">{presentation.titleEn}</p>
@@ -80,7 +83,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
         </div>
         <div className="review-verification">
           <span className="review-verification__icon" aria-hidden="true">!</span>
-          <span><small>حالة القرار</small><strong>المعلومات غير كافية لإصدار حكم نهائي</strong></span>
+          <span><small>حالة القرار</small><strong>{review.id === JURASSIC_C2A_EDITORIAL_ID ? "الملاءمة الكاملة غير محسومة؛ راجع تحذير حدود الأسرة أدناه" : "المعلومات غير كافية لإصدار حكم نهائي"}</strong></span>
         </div>
       </section>
 
@@ -110,6 +113,10 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             fingerprint={fingerprint}
           />
         </section>
+
+        {review.id === JURASSIC_C2A_EDITORIAL_ID ? (
+          <EditorialWorkLevelCaution review={review} publicationQualityPassed={assessment.publishable} />
+        ) : null}
 
         <section className="editorial-supported" aria-labelledby="supported-title">
           <div className="review-section-head review-section-head--simple">

@@ -9,6 +9,7 @@ import { classifyPublicSearchAvailability } from "@/lib/public-search-result-sta
 import { getPublicTitleDisplayNames, type PublicTitleKind, type PublicTitleSearchResult } from "@/lib/public-title-search";
 import styles from "./search.module.css";
 import TitleSearchCombobox from "./title-search-combobox";
+import TitleArtwork from "../title-artwork";
 
 const KIND_LABELS: Record<PublicTitleKind, string> = { movie: "فيلم", series: "مسلسل", episode: "حلقة", special: "عمل خاص" };
 const AGE_LABELS: Record<PublicSearchAgeOption, string> = { 5: "3–5 سنوات", 8: "6–8 سنوات", 11: "9–11 سنة", 14: "12–14 سنة", 17: "15–17 سنة" };
@@ -99,16 +100,19 @@ function SearchResultCard({ result }: { result: PublicTitleSearchResult }) {
   const copy = editorialState ? EDITORIAL_COPY : AVAILABILITY_COPY[availability];
   const href = buildPublicCatalogTitleHref(result.id);
   return <article className={styles.card}>
-    <div className={styles.cardTop}><span className={`${styles.status} ${styles[`status_${availability}`]}`}>{copy.label}</span><span className={styles.year}>{result.releaseYear}</span></div>
-    <h3>{names.arabicName}</h3><p className={styles.original} dir="ltr">{names.englishName}</p>
-    <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && names.editorialId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(names.editorialId)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
+    <TitleArtwork titleId={result.id} className={styles.cardArtwork} sizes="110px" fallback />
+    <div className={styles.cardCopy}>
+      <div className={styles.cardTop}><span className={`${styles.status} ${styles[`status_${availability}`]}`}>{copy.label}</span><span className={styles.year}>{result.releaseYear}</span></div>
+      <h3>{names.arabicName}</h3><p className={styles.original} dir="ltr">{names.englishName}</p>
+      <div className={styles.meta}><span>{KIND_LABELS[result.kind]}</span><span aria-hidden="true">•</span><span>{copy.description}</span>{href ? <><span aria-hidden="true">•</span><Link className={styles.back} href={href}>صفحة العمل ←</Link></> : null}{editorialState && names.editorialId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicEditorialReviewHref(names.editorialId)}>فتح التحليل التحريري ←</Link></> : null}{availability === "verified" && result.verifiedBundleId ? <><span aria-hidden="true">•</span><Link className={styles.back} href={buildPublicReviewHref(result.verifiedBundleId)}>فتح المراجعة الموثقة ←</Link></> : null}</div>
+    </div>
   </article>;
 }
 
 function DidYouMeanResults({ query, results }: { query: string; results: PublicTitleSearchResult[] }) {
   return <div className={styles.didYouMean}><div className={styles.resultsHeading}><div><span>مطابقة محافظة</span><h2>هل تقصد؟</h2></div><small>اقتراحات قريبة فقط وليست نتيجة مؤكدة لـ «{query}». اختر العمل بنفسك.</small></div><div className={styles.grid}>{results.map((result) => {
     const href = buildPublicCatalogTitleHref(result.id); if (!href) return null; const names = titleNames(result);
-    return <Link className={styles.suggestionCard} href={href} key={result.id}><strong>{names.arabicName}</strong><span dir="ltr">{names.englishName}</span><small>({result.releaseYear})</small></Link>;
+    return <Link className={styles.suggestionCard} href={href} key={result.id}><TitleArtwork titleId={result.id} className={styles.suggestionArtwork} sizes="72px" fallback /><span className={styles.suggestionCopy}><strong>{names.arabicName}</strong><span dir="ltr">{names.englishName}</span><small>({result.releaseYear})</small></span></Link>;
   })}</div></div>;
 }
 

@@ -38,9 +38,10 @@ test("Arab family profile remains editable by the family", () => {
 });
 
 test("Arab policy is explicitly editorial, not an official universal Arab rating", () => {
-  assert.match(ARAB_FAMILY_POLICY_LABEL_AR, /الأسرة العربية/);
-  assert.match(ARAB_FAMILY_POLICY_NOTICE_AR, /ليست تصنيفًا حكوميًا موحدًا/);
+  assert.equal(ARAB_FAMILY_POLICY_LABEL_AR, "إعدادات افتراضية قابلة للتعديل");
+  assert.match(ARAB_FAMILY_POLICY_NOTICE_AR, /ليست تصنيفًا عمريًا رسميًا/);
   assert.match(ARAB_FAMILY_POLICY_NOTICE_AR, /تعديل حدودها/);
+  assert.match(ARAB_FAMILY_POLICY_NOTICE_AR, /ليست.*معيارًا موحدًا للأسر العربية/);
 });
 
 test("Arab family policy rejects impossible ages", () => {
