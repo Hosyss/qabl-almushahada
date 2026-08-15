@@ -1,0 +1,252 @@
+name: P4-03C3 practical verdict QA temporary
+
+on:
+  push:
+    branches: [agent/practical-editorial-verdict]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p4-03c3-practical-verdict-qa
+  cancel-in-progress: true
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build:local
+
+      - name: Prepare isolated local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name":"qabl-p4-03c3-local-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-05-22",
+            "compatibility_flags":["nodejs_compat"],
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
+          }
+          JSON
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
+          done
+          node --input-type=module <<'NODE' > /tmp/p4-03c3-qa-seed.sql
+          import { createHash } from 'node:crypto';
+          import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
+          const fixtures = await loadEditorialBootstrapFixtures();
+          if (fixtures.length !== 10) throw new Error(`Expected exactly 10 fixtures, found ${fixtures.length}`);
+          const q = value => `'${String(value).replaceAll("'", "''")}'`;
+          for (const { review, presentation } of fixtures) {
+            const qid = review.titleId.replace(/^wd:/u, '');
+            const aliases = review.titleId === 'wd:Q102438' ? ["Harry Potter and the Sorcerer's Stone"] : [];
+            console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
+            const hash = createHash('sha256').update(`local-c3-qa-catalog:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-15T00:00:00Z',${q(hash)},'manual');`);
+          }
+          NODE
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/p4-03c3-qa-seed.sql >/dev/null
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
+
+      - name: Start isolated preview
+        shell: bash
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
+        run: |
+          set -euo pipefail
+          (npm run dev:local -- --host 127.0.0.1 --port 4173 >/tmp/p4-03c3-server.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/p4-03c3-server.log
+          exit 1
+
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+
+      - name: Run Chrome practical-verdict QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p qa-artifacts/screenshots
+          cat > .qa-p4-03c3-playwright.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright-core';
+
+          const baseURL = 'http://127.0.0.1:4173';
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const viewports = {
+            desktop: { width: 1440, height: 1000 },
+            mobile: { width: 390, height: 844 },
+          };
+          const allEditorialIds = [
+            'cars-2006-editorial-pilot-v1',
+            'et-1982-editorial-batch-v1',
+            'harry-potter-philosophers-stone-2001-editorial-batch-v1',
+            'minions-2015-editorial-batch-v1',
+            'barbie-2023-editorial-c1-v1',
+            'jurassic-park-1993-editorial-c1-v1',
+            'my-neighbor-totoro-1988-editorial-c1-v1',
+            'alice-in-wonderland-2010-editorial-c2-v1',
+            'the-hunger-games-2012-editorial-c2-v1',
+            'spider-man-no-way-home-2021-editorial-c2-v1',
+          ];
+          const report = { browser: await browser.version(), allTen: [], et: [], safety: [], failures: [] };
+          const hard = (condition, message) => { if (!condition) throw new Error(message); };
+          const storageKey = 'qabl-almushahada.family-settings.v1';
+          const forbiddenIncomplete = 'المعلومات غير كافية لإصدار حكم نهائي';
+
+          async function openEditorial(id, viewport) {
+            const context = await browser.newContext({ viewport, locale: 'ar-EG' });
+            const page = await context.newPage();
+            await page.addInitScript((key) => {
+              localStorage.removeItem(key);
+              window.__qaCLS = 0;
+              new PerformanceObserver((list) => {
+                for (const entry of list.getEntries()) if (!entry.hadRecentInput) window.__qaCLS += entry.value;
+              }).observe({ type: 'layout-shift', buffered: true });
+            }, storageKey);
+            const requests = [];
+            page.on('request', (request) => requests.push({ method: request.method(), url: request.url() }));
+            const response = await page.goto(`${baseURL}/review?editorialId=${encodeURIComponent(id)}`, { waitUntil: 'networkidle' });
+            hard(response?.ok(), `${id}: HTTP ${response?.status()}`);
+            return { context, page, requests };
+          }
+
+          async function basicPageSafety(page, label) {
+            await page.waitForTimeout(250);
+            const state = await page.evaluate(() => ({
+              body: document.body.innerText,
+              scrollWidth: document.documentElement.scrollWidth,
+              innerWidth,
+              cls: window.__qaCLS || 0,
+              broken: [...document.images].filter((img) => !img.complete || img.naturalWidth === 0).map((img) => img.currentSrc || img.src),
+              dir: document.documentElement.dir,
+              articleDescriptions: [...document.querySelectorAll('script[type="application/ld+json"]')].map((script) => {
+                try { return JSON.parse(script.textContent || '{}'); } catch { return null; }
+              }).filter(Boolean).filter((item) => item?.['@type'] === 'Article').map((item) => String(item.description || '')),
+            }));
+            hard(state.dir === 'rtl', `${label}: document is not RTL`);
+            hard(state.scrollWidth <= state.innerWidth + 1, `${label}: horizontal overflow ${state.scrollWidth}/${state.innerWidth}`);
+            hard(state.cls <= 0.01, `${label}: CLS ${state.cls}`);
+            hard(state.broken.length === 0, `${label}: broken images ${state.broken.join(', ')}`);
+            hard(!state.body.includes(forbiddenIncomplete), `${label}: old incomplete verdict is still user-visible`);
+            hard(!state.body.includes('decisionEligible') && !state.body.includes('insufficient_data'), `${label}: raw technical decision token visible`);
+            return state;
+          }
+
+          for (const id of allEditorialIds) {
+            const { context, page } = await openEditorial(id, viewports.desktop);
+            const state = await basicPageSafety(page, `all-ten-${id}`);
+            hard(state.body.includes('حدد عمر الطفل لإصدار الحكم'), `${id}: did not ask for family profile`);
+            hard(state.body.includes('التحليل جاهز لحكم الأسرة'), `${id}: did not expose mature-analysis readiness`);
+            hard(state.body.includes('المحاور غير المحسومة'), `${id}: unresolved axes not visible`);
+            hard(state.articleDescriptions.some((description) => description.includes('حكمًا عمليًا وفق عمر الطفل وحدود الأسرة')), `${id}: JSON-LD description did not adopt practical verdict contract`);
+            report.allTen.push({ id, asksFamilyProfile: true, oldIncompleteAbsent: true, cls: state.cls });
+            await context.close();
+          }
+
+          async function testET(mode, viewport) {
+            const { context, page, requests } = await openEditorial('et-1982-editorial-batch-v1', viewport);
+            let state = await basicPageSafety(page, `${mode}-et-no-settings`);
+            hard(state.body.includes('حدد عمر الطفل لإصدار الحكم'), `${mode}: E.T. no-settings label missing`);
+            hard(state.body.includes('الأدلة جاهزة، والناقص هو إعداد الأسرة فقط'), `${mode}: evidence-ready copy missing`);
+            await page.screenshot({ path: `qa-artifacts/screenshots/${mode}-et-no-settings.png`, fullPage: true });
+
+            const dialogButton = page.getByRole('button', { name: /اقرأ التحليل كاملًا/u });
+            await dialogButton.click();
+            const dialog = page.locator('dialog.editorial-summary-dialog');
+            hard(await dialog.evaluate((el) => el.open), `${mode}: dialog did not open`);
+            for (let i = 0; i < 14; i += 1) {
+              await page.keyboard.press('Tab');
+              hard(await dialog.evaluate((el) => el.contains(document.activeElement)), `${mode}: Tab escaped dialog`);
+            }
+            for (let i = 0; i < 14; i += 1) {
+              await page.keyboard.press('Shift+Tab');
+              hard(await dialog.evaluate((el) => el.contains(document.activeElement)), `${mode}: Shift+Tab escaped dialog`);
+            }
+            await page.keyboard.press('Escape');
+            hard(!(await dialog.evaluate((el) => el.open)), `${mode}: Escape failed`);
+            hard(await dialogButton.evaluate((el) => document.activeElement === el), `${mode}: focus did not return to opener`);
+
+            await page.getByLabel('عمر الطفل').selectOption('8');
+            await page.getByLabel('حد الخوف').selectOption('1');
+            const bullying = page.getByRole('checkbox', { name: /تجنب التنمر بالكامل/u });
+            if (await bullying.isChecked()) await bullying.uncheck();
+            await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
+            await page.waitForTimeout(100);
+            state = await basicPageSafety(page, `${mode}-et-age8`);
+            hard(state.body.includes('لا أنصح به وفق حدود أسرتك'), `${mode}: E.T. age 8 did not produce not-recommended verdict`);
+            hard(state.body.includes('سبب المنع'), `${mode}: E.T. age 8 missing determining reason`);
+            hard(state.body.includes('المحاور غير المحسومة'), `${mode}: E.T. age 8 hid unknown axes`);
+            await page.screenshot({ path: `qa-artifacts/screenshots/${mode}-et-age8.png`, fullPage: true });
+
+            await page.getByLabel('عمر الطفل').selectOption('16');
+            await page.getByLabel('حد الخوف').selectOption('3');
+            if (await bullying.isChecked()) await bullying.uncheck();
+            await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
+            await page.waitForTimeout(100);
+            state = await basicPageSafety(page, `${mode}-et-age16`);
+            hard(state.body.includes('يحتاج انتباهك قبل المشاهدة'), `${mode}: E.T. age 16 did not produce needs-attention verdict`);
+            hard(!state.body.includes('ينفع للمشاهدة وفق حدود أسرتك') || state.body.includes('النتائج الممكنة بعد تحديد إعدادات الأسرة'), `${mode}: E.T. age 16 was incorrectly promoted to watch`);
+            await page.screenshot({ path: `qa-artifacts/screenshots/${mode}-et-age16.png`, fullPage: true });
+
+            hard(!requests.some((request) => request.method !== 'GET' && request.method !== 'HEAD'), `${mode}: saving family settings caused a non-GET network request`);
+            const saved = await page.evaluate((key) => localStorage.getItem(key), storageKey);
+            hard(Boolean(saved), `${mode}: family settings were not saved locally`);
+            report.et.push({ mode, noSettings: 'family_profile_required', age8: 'not_recommended', age16: 'needs_attention', localOnly: true });
+            await context.close();
+          }
+
+          await testET('desktop', viewports.desktop);
+          await testET('mobile', viewports.mobile);
+
+          for (const [id, age] of [
+            ['jurassic-park-1993-editorial-c1-v1', '10'],
+            ['the-hunger-games-2012-editorial-c2-v1', '10'],
+          ]) {
+            const { context, page } = await openEditorial(id, viewports.desktop);
+            await page.getByLabel('عمر الطفل').selectOption(age);
+            await page.getByLabel('حد الخوف').selectOption('2');
+            const bullying = page.getByRole('checkbox', { name: /تجنب التنمر بالكامل/u });
+            if (await bullying.isChecked()) await bullying.uncheck();
+            await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
+            await page.waitForTimeout(100);
+            const body = await page.locator('body').innerText();
+            hard(!body.includes(forbiddenIncomplete), `${id}: old incomplete verdict returned`);
+            hard(!body.includes('ينفع للمشاهدة وفق حدود أسرتك') || body.includes('النتائج الممكنة بعد تحديد إعدادات الأسرة'), `${id}: unsafe blanket watch verdict for age ${age}`);
+            hard(body.includes('يحتاج انتباهك قبل المشاهدة') || body.includes('لا أنصح به وفق حدود أسرتك'), `${id}: no actionable verdict for age ${age}`);
+            report.safety.push({ id, age, actionable: true, blanketWatch: false });
+            await context.close();
+          }
+
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report, null, 2));
+          await browser.close();
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+          node .qa-p4-03c3-playwright.mjs
+
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-03c3-practical-verdict-qa-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
