@@ -1,6 +1,7 @@
 import type { ParsedPublicTitleSearchRequest } from "../lib/public-title-search.ts";
 
 export const MAX_PUBLIC_TITLE_SEARCH_CANDIDATES = 256;
+export const MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS = 4;
 
 export interface PublicTitleCandidateQuery {
   sql: string;
@@ -30,7 +31,10 @@ export function buildSqlSubsequencePattern(token: string): string {
 export function buildPublicTitleCandidateQuery(parsed: ParsedPublicTitleSearchRequest): PublicTitleCandidateQuery {
   const predicates: string[] = [];
   const bindings: string[] = [];
-  for (const token of parsed.tokens) {
+  // Candidate SQL is only a bounded prefilter. Keep its bind count below the D1/workerd
+  // statement ceiling for long real-world titles; the full parsed query is still applied
+  // by the deterministic ranker after candidate retrieval.
+  for (const token of parsed.tokens.slice(0, MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS)) {
     const broad = buildSqlSubsequencePattern(token);
     const anchor = `%${escapeLike(Array.from(token).slice(0, token.length >= 5 ? 2 : 1).join(""))}%`;
     predicates.push(`(canonicalSearch LIKE ? ESCAPE '\\' OR originalSearch LIKE ? ESCAPE '\\' OR aliasSearch LIKE ? ESCAPE '\\' OR canonicalSearch LIKE ? ESCAPE '\\' OR originalSearch LIKE ? ESCAPE '\\' OR aliasSearch LIKE ? ESCAPE '\\')`);
