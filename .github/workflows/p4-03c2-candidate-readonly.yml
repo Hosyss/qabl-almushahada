@@ -24,8 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Read candidate titles from Production D1
+      - name: Read Production D1 catalog
         shell: bash
         run: |
           set -euo pipefail
-          npx wrangler d1 execute "$CF_D1_DATABASE_NAME" --remote --command "SELECT id, canonical_name, original_name, release_year, kind, search_aliases_json FROM titles WHERE lower(canonical_name) IN ('frozen','inside out','finding nemo','the lion king','toy story','home alone','coco','moana','up','the incredibles','spirited away') OR lower(COALESCE(original_name,'')) IN ('frozen','inside out','finding nemo','the lion king','toy story','home alone','coco','moana','up','the incredibles','spirited away') ORDER BY release_year, canonical_name;" --json
+          npx wrangler d1 execute "$CF_D1_DATABASE_NAME" --remote --command "SELECT id, canonical_name, original_name, release_year, kind, search_aliases_json FROM titles ORDER BY release_year DESC, canonical_name LIMIT 250;" --json
