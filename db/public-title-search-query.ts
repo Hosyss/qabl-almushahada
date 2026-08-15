@@ -31,9 +31,9 @@ export function buildSqlSubsequencePattern(token: string): string {
 export function buildPublicTitleCandidateQuery(parsed: ParsedPublicTitleSearchRequest): PublicTitleCandidateQuery {
   const predicates: string[] = [];
   const bindings: string[] = [];
-  // Candidate SQL is only a bounded prefilter. Keep its bind count below the D1/workerd
-  // statement ceiling for long real-world titles; the full parsed query is still applied
-  // by the deterministic ranker after candidate retrieval.
+  // Candidate SQL is only a bounded prefilter. Keep its bind count and LIKE complexity
+  // bounded for long real-world titles; the full parsed query is still applied by the
+  // deterministic ranker after candidate retrieval.
   for (const token of parsed.tokens.slice(0, MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS)) {
     const broad = buildSqlSubsequencePattern(token);
     const anchor = `%${escapeLike(Array.from(token).slice(0, token.length >= 5 ? 2 : 1).join(""))}%`;
@@ -41,7 +41,10 @@ export function buildPublicTitleCandidateQuery(parsed: ParsedPublicTitleSearchRe
     bindings.push(broad, broad, broad, anchor, anchor, anchor);
   }
   const exact = escapeLike(parsed.normalizedQuery);
-  const prefix = `${exact}%`;
+  // SQL ordering is only a candidate-order hint. Using the complete multi-word query as
+  // a LIKE prefix can cross workerd/D1's LIKE complexity ceiling; one normalized token is
+  // sufficient here because exact equality and the full JS ranker retain final precision.
+  const prefix = `${escapeLike(parsed.tokens[0] ?? parsed.normalizedQuery)}%`;
   bindings.push(exact, exact, prefix, prefix);
   const canonical = normalizedSqlColumn("t.canonical_name");
   const original = normalizedSqlColumn("t.original_name");
