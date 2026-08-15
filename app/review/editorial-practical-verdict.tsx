@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { createArabFamilyProfile } from "@/lib/arab-family-policy";
 import { getAsymmetricCategoryLabelAr } from "@/lib/asymmetric-decision-presentation";
@@ -55,12 +55,9 @@ export default function EditorialPracticalVerdict({
     () => settingsLoaded ? parseLocalFamilySettings(settingsSnapshot) : null,
     [settingsLoaded, settingsSnapshot],
   );
-  const [form, setForm] = useState<LocalFamilySettings>(DEFAULT_FORM);
+  const [draft, setDraft] = useState<LocalFamilySettings | null>(null);
   const [savedNotice, setSavedNotice] = useState("");
-
-  useEffect(() => {
-    if (settings) setForm(settings);
-  }, [settings]);
+  const form = draft ?? settings ?? DEFAULT_FORM;
 
   const generalVerdict = useMemo(
     () => decidePracticalEditorialVerdict({ review, publicationQualityPassed }),
@@ -83,14 +80,20 @@ export default function EditorialPracticalVerdict({
   const unknownLabels = verdict.unknownCategories.map(getAsymmetricCategoryLabelAr);
   const referenceOnlyLabels = verdict.referenceOnlyCategories.map(getAsymmetricCategoryLabelAr);
 
+  function updateDraft(patch: Partial<LocalFamilySettings>) {
+    setDraft({ ...form, ...patch });
+  }
+
   function saveSettings() {
     window.localStorage.setItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY, serializeLocalFamilySettings(form));
+    setDraft(null);
     window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
     setSavedNotice("تم حفظ إعدادات الأسرة على هذا الجهاز وتحديث الحكم.");
   }
 
   function clearSettings() {
     window.localStorage.removeItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
+    setDraft(null);
     window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
     setSavedNotice("تم حذف إعدادات الأسرة المحلية. لن نفترض عمرًا أو حدودًا من عندنا.");
   }
@@ -149,7 +152,7 @@ export default function EditorialPracticalVerdict({
             <select
               aria-label="عمر الطفل"
               value={form.childAge}
-              onChange={(event) => setForm((current) => ({ ...current, childAge: Number(event.target.value) }))}
+              onChange={(event) => updateDraft({ childAge: Number(event.target.value) })}
             >
               {Array.from({ length: 15 }, (_, index) => index + 3).map((age) => (
                 <option key={age} value={age}>{age} سنة</option>
@@ -161,7 +164,7 @@ export default function EditorialPracticalVerdict({
             <select
               aria-label="حد الخوف"
               value={form.fearLimit}
-              onChange={(event) => setForm((current) => ({ ...current, fearLimit: Number(event.target.value) as 0 | 1 | 2 | 3 }))}
+              onChange={(event) => updateDraft({ fearLimit: Number(event.target.value) as 0 | 1 | 2 | 3 })}
             >
               <option value={0}>صفر — لا أقبل وجوده</option>
               <option value={1}>منخفض</option>
@@ -173,7 +176,7 @@ export default function EditorialPracticalVerdict({
             <input
               type="checkbox"
               checked={form.avoidBullying}
-              onChange={(event) => setForm((current) => ({ ...current, avoidBullying: event.target.checked }))}
+              onChange={(event) => updateDraft({ avoidBullying: event.target.checked })}
             />
             تجنب التنمر بالكامل
           </label>
