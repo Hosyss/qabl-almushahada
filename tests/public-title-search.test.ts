@@ -26,7 +26,7 @@ const HARRY: PublicTitleSearchCandidate = {
   id: "wd:Q102438",
   canonicalName: "هاري بوتر وحجر الفيلسوف",
   originalName: "Harry Potter and the Philosopher's Stone",
-  aliases: ["HarryPotter", "Harry Potter and the Sorcerer's Stone"],
+  aliases: ["Harry Potter and the Sorcerer's Stone"],
   kind: "movie",
   releaseYear: 2001,
   hasVerifiedReview: false,
@@ -88,7 +88,7 @@ test("HarryPotter becomes did-you-mean, not a confirmed direct result", () => {
   const result = discover("HarryPotter");
   assert.deepEqual(result.matches, []);
   assert.equal(result.didYouMean[0]?.id, HARRY.id);
-  assert.equal(result.didYouMean[0]?.matchKind, "alias_exact");
+  assert.equal(result.didYouMean[0]?.matchKind, "compact_match");
 });
 
 test("harry potter is a direct English prefix match", () => {
