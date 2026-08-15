@@ -1,0 +1,105 @@
+{
+  "review": {
+    "id": "spider-man-no-way-home-2021-editorial-c2-v1",
+    "titleId": "wd:Q68934496",
+    "titleLabel": "الرجل العنكبوت: لا طريق للوطن",
+    "releaseYear": 2021,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-15T06:30:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى فيلم الرجل العنكبوت: لا طريق للوطن (2021)، وليس توثيقًا لنسخة بث أو مونتاج بعينه. نستخدم مراجعة ثابتة من ويكيبيديا، ويظل Kids-In-Mind رابطًا لوقائع النسخة السينمائية فقط؛ كما أن وجود إصدار سينمائي ممتد لاحقًا يمنع تعميم تفاصيل نسخة واحدة على جميع الإصدارات.",
+    "analysisAr": "يحتاج ولي الأمر هنا إلى الانتباه خصوصًا إلى كثرة المواجهات بين الأبطال والخصوم وما يصاحبها من إصابات ووفاة شخصية مهمة داخل الأحداث. توجد أيضًا إشارات عاطفية وجسدية، وألفاظ قوية، وظهور للكحول أو مواد علاجية في سياق القصة، لكن هذه المحاور الأخيرة يدعمها حاليًا مرجع رابط واحد فقط. لذلك نعرض الوقائع التي أمكن تتبعها ونترك بقية المحاور غير محسومة من دون تحويل شهرة الفيلم أو تصنيفه الخارجي إلى حكم ملاءمة.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {
+        "id": "spider-nwh-source-wikipedia",
+        "publisher": "Wikipedia (English)",
+        "sourceType": "open_encyclopedia",
+        "sourceUrl": "https://en.wikipedia.org/w/index.php?title=Spider-Man%3A_No_Way_Home&oldid=1368615000",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "wikipedia-en",
+        "usageBasis": "open_license",
+        "rightsLabel": "CC BY-SA 4.0",
+        "rightsUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "usageNoteAr": "نستخدم مراجعة ثابتة من المقال كمرجع وقائع مع العزو، ونكتب الملخص والتحليل العربيين من الصفر من غير نسخ أو ترجمة قريبة لنص ويكيبيديا.",
+        "sourceVersion": "oldid=1368615000",
+        "supportedClaimIds": [
+          "spider-nwh-claim-violence"
+        ]
+      },
+      {
+        "id": "spider-nwh-source-kids-in-mind",
+        "publisher": "Kids-In-Mind",
+        "sourceType": "published_review",
+        "sourceUrl": "https://kids-in-mind.com/s/spider-man-no-way-home-parents-guide-movie-review-rating.htm",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "kids-in-mind",
+        "usageBasis": "link_only_factual_reference",
+        "rightsLabel": "ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى",
+        "rightsUrl": "https://kids-in-mind.com/terms.htm",
+        "usageNoteAr": "نستخدم الرابط لتتبع وقائع محددة في النسخة السينمائية فقط. لا ننقل نص المراجعة أو درجاتها أو تقسيماتها، ولا نعممها على الإصدار الممتد أو نسخ الفيديو.",
+        "supportedClaimIds": [
+          "spider-nwh-claim-violence",
+          "spider-nwh-claim-sexual",
+          "spider-nwh-claim-language",
+          "spider-nwh-claim-substances"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "spider-nwh-claim-violence",
+        "category": "violence",
+        "summaryAr": "يتضمن العمل مواجهات متكررة بين شخصيات خارقة وخصومها، مع أضرار واسعة وإصابات ووفاة شخصية رئيسية ضمن مجرى الأحداث؛ وجود العنف مدعوم بمصدرين مستقلين.",
+        "verification": "corroborated",
+        "sourceIds": [
+          "spider-nwh-source-wikipedia",
+          "spider-nwh-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "spider-nwh-claim-sexual",
+        "category": "sexualContent",
+        "summaryAr": "توجد مشاهد تقارب عاطفي وقبلات وإشارات لفظية ذات معنى للبالغين، لكن هذا المحور موثق لدينا حاليًا بمرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "spider-nwh-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "spider-nwh-claim-language",
+        "category": "language",
+        "summaryAr": "توجد ألفاظ قوية وإهانات وتعبيرات غير مناسبة للأطفال الأصغر، والدليل الحالي المنشور لدينا لهذا المحور يأتي من مرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "spider-nwh-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "spider-nwh-claim-substances",
+        "category": "substances",
+        "summaryAr": "تظهر إشارات إلى الشرب وحالة سكر، كما تظهر مواد علاجية تستخدم داخل سياق الأحداث، وهذا المحور مدعوم حاليًا بمرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "spider-nwh-source-kids-in-mind"
+        ]
+      }
+    ],
+    "uncertainCategories": [
+      "fear",
+      "bullying",
+      "discrimination",
+      "selfHarm",
+      "grief",
+      "flashingLights"
+    ]
+  },
+  "presentation": {
+    "titleAr": "الرجل العنكبوت: لا طريق للوطن",
+    "titleEn": "Spider-Man: No Way Home",
+    "revision": 1,
+    "updatedAt": "2026-08-15T06:30:00+03:00"
+  },
+  "fingerprint": "sha256:d418a426a6b5f9611ebcfb8424089204db658f07eadb41d6a8075693bc780bfd"
+}
