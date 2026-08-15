@@ -8,6 +8,7 @@ import {
   isEditorialWorkEstablished,
 } from "../lib/editorial-practical-verdict.ts";
 import type { EditorialReviewPublication } from "../lib/editorial-review.ts";
+import { CONTENT_CATEGORIES, type FamilyProfile } from "../lib/review-engine/types.ts";
 
 const FIXTURES = [
   "cars-2006-editorial-pilot-v1.json",
@@ -31,20 +32,31 @@ function loadFixture(name: string): EditorialReviewPublication {
   return parsed.review;
 }
 
-test("all ten current editorial publications are old enough for a practical verdict", () => {
+function allMaxFamily(age = 17): FamilyProfile {
+  return {
+    id: "test:all-max",
+    childAge: age,
+    maxSeverity: Object.fromEntries(CONTENT_CATEGORIES.map((category) => [category, 4])) as FamilyProfile["maxSeverity"],
+    blockedFlags: [],
+  };
+}
+
+test("all ten current editorial publications are mature and no longer fail for evidence incompleteness", () => {
   for (const name of FIXTURES) {
     const review = loadFixture(name);
     const verdict = decidePracticalEditorialVerdict({ review, now: NOW });
     assert.equal(verdict.establishedWork, true, review.id);
-    assert.notEqual(verdict.outcome, "not_ready", review.id);
+    assert.equal(verdict.outcome, "needs_family_profile", review.id);
+    assert.notEqual(verdict.reasonCode, "editorial_corpus_too_thin", review.id);
   }
 });
 
-test("E.T. no longer becomes insufficient merely because five axes remain unknown", () => {
+test("E.T. asks for family settings instead of claiming the evidence is incomplete", () => {
   const review = loadFixture("et-1982-editorial-batch-v1.json");
   const verdict = decidePracticalEditorialVerdict({ review, now: NOW });
 
-  assert.equal(verdict.outcome, "watch_with_guidance");
+  assert.equal(verdict.outcome, "needs_family_profile");
+  assert.equal(verdict.reasonCode, "family_profile_required");
   assert.equal(verdict.confidence, "medium");
   assert.deepEqual(verdict.unknownCategories, review.uncertainCategories);
   assert.equal(verdict.unknownCategories.length, 5);
@@ -67,7 +79,7 @@ test("verified presence exceeds a zero family limit without inventing numeric se
   assert.deepEqual(verdict.unknownCategories, review.uncertainCategories);
 });
 
-test("unknown axes remain unknown when a mature title receives a watch-with-guidance verdict", () => {
+test("a mature title becomes needs-attention when family limits cannot be proven from missing severity", () => {
   const review = loadFixture("my-neighbor-totoro-1988-editorial-c1-v1.json");
   const verdict = decidePracticalEditorialVerdict({
     review,
@@ -75,12 +87,28 @@ test("unknown axes remain unknown when a mature title receives a watch-with-guid
     family: createArabFamilyProfile({ childAge: 16, fearLimit: 3, avoidBullying: false }),
   });
 
-  assert.equal(verdict.outcome, "watch_with_guidance");
+  assert.equal(verdict.outcome, "needs_attention");
+  assert.equal(verdict.reasonCode, "attention_required_for_unbounded_or_unknown_content");
   assert.deepEqual(verdict.unknownCategories, review.uncertainCategories);
+  assert.ok(verdict.attentionCategories.length > 0);
   assert.ok(verdict.unknownCategories.length > 0);
 });
 
-test("link-only facts can inform guidance but cannot alone prove a zero-limit exceedance", () => {
+test("a provably permissive family profile can receive a positive practical verdict without fabricated severity", () => {
+  const review = loadFixture("et-1982-editorial-batch-v1.json");
+  const verdict = decidePracticalEditorialVerdict({
+    review,
+    now: NOW,
+    family: allMaxFamily(),
+  });
+
+  assert.equal(verdict.outcome, "watch");
+  assert.equal(verdict.reasonCode, "within_provable_family_bounds");
+  assert.equal(verdict.attentionCategories.length, 0);
+  assert.equal(Object.hasOwn(verdict, "severity"), false);
+});
+
+test("link-only facts can inform attention but cannot alone prove a zero-limit exceedance", () => {
   const review = loadFixture("et-1982-editorial-batch-v1.json");
   const verdict = decidePracticalEditorialVerdict({ review, now: NOW });
 
@@ -101,24 +129,13 @@ test("a failed publication quality gate still blocks the practical verdict", () 
 });
 
 test("the 90-day rule never guesses a same-year release date", () => {
+  assert.equal(isEditorialWorkEstablished({ releaseYear: 2026, now: NOW }), false);
   assert.equal(
-    isEditorialWorkEstablished({ releaseYear: 2026, now: NOW }),
-    false,
-  );
-  assert.equal(
-    isEditorialWorkEstablished({
-      releaseYear: 2026,
-      releaseDate: "2026-04-01",
-      now: NOW,
-    }),
+    isEditorialWorkEstablished({ releaseYear: 2026, releaseDate: "2026-04-01", now: NOW }),
     true,
   );
   assert.equal(
-    isEditorialWorkEstablished({
-      releaseYear: 2026,
-      releaseDate: "2026-07-01",
-      now: NOW,
-    }),
+    isEditorialWorkEstablished({ releaseYear: 2026, releaseDate: "2026-07-01", now: NOW }),
     false,
   );
 });
