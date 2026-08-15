@@ -1,0 +1,60 @@
+name: P4-03C2 docs update
+
+on:
+  push:
+    branches:
+      - agent/p4-03c2-three-more-editorials
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, '[docs-ready]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/p4-03c2-three-more-editorials
+      - name: Update project state and roadmap
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          state=Path('docs/PROJECT_STATE.md')
+          s=state.read_text()
+          s=s.replace('آخر تحديث: 14 أغسطس 2026', 'آخر تحديث: 15 أغسطس 2026', 1)
+          marker='## P4-03C2 — Three Editorial Additions\n'
+          block='''## P4-03C2 — Three Editorial Additions\n\n- checkpoint الحالي يضيف **3 تحليلات فقط** من عناوين موجودة أصلًا في Production D1: Alice in Wonderland (2010)، The Hunger Games (2012)، Spider-Man: No Way Home (2021).\n- الهدف المقفول: الانتقال من **7 إلى 10 current editorial publications فقط**؛ لا فيلم حادي عشر.\n- Wikipedia لكل عمل مثبتة إلى revision ثابتة تحت `CC BY-SA 4.0`، وKids-In-Mind يبقى `link_only_factual_reference` مع قيد النسخة السينمائية وعدم تعميم نسخ الفيديو/الإصدارات الممتدة.\n- النصوص العربية أصلية، `decisionEligible = false`، ولا Severity أو Exact Version أو منصة مشاهدة مخترعة.\n- أضيفت ثلاثة أغلفة توضيحية أصلية محلية بلا Poster/Screenshot/شعار/شخصية محمية، ولا تدخل في evidence أو decision.\n- السبعة السابقون مقفولون باختبارات fingerprints؛ verifier وbootstrap مقفولان على **10 بالضبط** بعد الدمج.\n- Branch gates الحالية تشمل Engine + migrations + lint + production build + Public Quality؛ Production D1/Deploy/Live Smoke/Chrome QA تبقى خطوات ما بعد الدمج ولا تُسجل Passed قبل تنفيذها.\n- بعد إغلاق هذا checkpoint إنتاجيًا يتوقف توسيع المحتوى مؤقتًا؛ المرحلة التالية المنفصلة هي **Public report intake** ثم readiness للفهرسة وAdSense.\n\n'''
+          if marker not in s:
+              anchor='## الحالة العامة\n'
+              if anchor in s:
+                  s=s.replace(anchor, block+anchor, 1)
+              else:
+                  s=s.replace('\n## ', '\n'+block+'## ', 1)
+          state.write_text(s)
+
+          road=Path('docs/ROADMAP.md')
+          r=road.read_text()
+          r=r.replace('آخر تحديث: 14 أغسطس 2026', 'آخر تحديث: 15 أغسطس 2026', 1)
+          old='''12. Public report intake — checkpoint مستقل ومؤجل.\n13. التوسع بعد السبعة — **متوقف**؛ لا فيلم ثامن ولا دفعة محتوى جديدة.'''
+          new='''12. P4-03C2 — **قيد المراجعة**؛ إضافة Alice in Wonderland (2010) وThe Hunger Games (2012) وSpider-Man: No Way Home (2021) لرفع الإجمالي من 7 إلى **10 فقط** عبر D1 Editorial Persistence الحالي.\n13. Public report intake — checkpoint مستقل، **التالي بعد إغلاق P4-03C2 إنتاجيًا** ولم يبدأ بعد.\n14. التوسع بعد العشرة — **سيتوقف مؤقتًا**؛ لا فيلم حادي عشر ولا دفعة محتوى جديدة قبل قناة البلاغ والاستعداد للفهرسة/AdSense.'''
+          if old in r:
+              r=r.replace(old,new,1)
+          section='''## P4-03C2 — Three Editorial Additions\n\n- [x] اختيار ثلاثة عناوين موجودة فعليًا في Production D1: `wd:Q174385`, `wd:Q212965`, `wd:Q68934496`.\n- [x] Wikipedia fixed revisions + Kids-In-Mind link-only مع version caveats.\n- [x] Fixtures جديدة `decisionEligible=false` ولا `none` مصطنعة.\n- [x] حراس regression يقفلون العدد عند 10 ويحفظون fingerprints للسبعة السابقين.\n- [x] ثلاثة أغلفة أصلية محلية وallowlist من 10 فقط.\n- [x] homepage contract يظل أحدث 4 فقط، وLive Smoke محدث ليتوقع 10 في الدليل/sitemap بعد Production.\n- [x] Branch Checkpoint: Engine + migrations + lint + production build ناجحة.\n- [x] Public Quality على الفرع ناجح.\n- [ ] PR مستقل + B4 persistence checks.\n- [ ] بعد الدمج: Production D1 verification + Cloudflare deploy + Live Product Smoke + Chrome QA.\n- [ ] توقف عند 10؛ لا فيلم حادي عشر.\n\n'''
+          if '## P4-03C2 — Three Editorial Additions\n' not in r:
+              anchor='## P4-03C1 — Production quality checkpoint للثلاثة الجدد\n'
+              r=r.replace(anchor,section+anchor,1)
+          road.write_text(r)
+          PY
+      - name: Commit documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "P4-03C2 Docs Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/PROJECT_STATE.md docs/ROADMAP.md
+          git diff --cached --quiet && exit 0
+          git commit -m "P4-03C2 update project state and roadmap [docs-ready]"
+          git push origin HEAD:agent/p4-03c2-three-more-editorials
