@@ -90,7 +90,7 @@ test("practical editorial UI stays source-safe and does not pretend to be a veri
   assert.match(view, /حكم عملي على مستوى العمل/u);
   assert.match(view, /التحليل جاهز لحكم الأسرة/u);
   assert.match(view, /مدعومة بمصدرين مستقلين على الأقل/u);
-  assert.match(view, /محاور لم نستطع حسمها/u);
+  assert.match(view, /المحاور غير المحسومة/u);
   assert.match(view, /<details/u);
   assert.doesNotMatch(view, /insufficient_data|decisionEligible|P4-03/u);
   assert.doesNotMatch(view, /المصادر المؤهلة|اتفاق مصدرين مستقلين\+/u);
@@ -131,7 +131,7 @@ test("sitemap uses current D1 editorial heads rather than the TypeScript registr
 test("review policy separates practical family verdict from verified exact-version review", async () => {
   const policy = await source("app/review-policy/page.tsx");
   assert.match(policy, /حكم عملي للأسرة على مستوى العمل/u);
-  assert.match(policy, /مراجعة موثقة لنسخة محددة/u);
+  assert.match(policy, /المراجعة الموثقة لنسخة محددة/u);
   assert.match(policy, /90 يوم/u);
   assert.match(policy, /لا نخمن عمر طفل/u);
   assert.match(policy, /لا نقول إن المحتوى داخلها من غير شدة موثقة/u);
