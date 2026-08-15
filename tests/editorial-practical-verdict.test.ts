@@ -46,7 +46,8 @@ test("all ten current editorial publications are mature and no longer fail for e
     const review = loadFixture(name);
     const verdict = decidePracticalEditorialVerdict({ review, now: NOW });
     assert.equal(verdict.establishedWork, true, review.id);
-    assert.equal(verdict.outcome, "needs_family_profile", review.id);
+    assert.equal(verdict.outcome, "watch_with_guidance", review.id);
+    assert.equal(verdict.reasonCode, "family_profile_required", review.id);
     assert.notEqual(verdict.reasonCode, "editorial_corpus_too_thin", review.id);
   }
 });
@@ -55,7 +56,7 @@ test("E.T. asks for family settings instead of claiming the evidence is incomple
   const review = loadFixture("et-1982-editorial-batch-v1.json");
   const verdict = decidePracticalEditorialVerdict({ review, now: NOW });
 
-  assert.equal(verdict.outcome, "needs_family_profile");
+  assert.equal(verdict.outcome, "watch_with_guidance");
   assert.equal(verdict.reasonCode, "family_profile_required");
   assert.equal(verdict.confidence, "medium");
   assert.deepEqual(verdict.unknownCategories, review.uncertainCategories);
