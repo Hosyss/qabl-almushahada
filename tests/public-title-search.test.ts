@@ -13,7 +13,12 @@ import {
   type PublicTitleSearchCandidate,
   type PublicTitleSearchResult,
 } from "../lib/public-title-search.ts";
-import { MAX_PUBLIC_TITLE_SEARCH_CANDIDATES, buildPublicTitleCandidateQuery, buildSqlSubsequencePattern } from "../db/public-title-search-query.ts";
+import {
+  MAX_PUBLIC_TITLE_SEARCH_CANDIDATES,
+  MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS,
+  buildPublicTitleCandidateQuery,
+  buildSqlSubsequencePattern,
+} from "../db/public-title-search-query.ts";
 
 const HARRY: PublicTitleSearchCandidate = {
   id: "wd:Q102438",
@@ -35,6 +40,19 @@ const NEMO: PublicTitleSearchCandidate = {
   aliases: [],
   kind: "movie",
   releaseYear: 2003,
+  hasVerifiedReview: false,
+  hasReviewInProgress: false,
+  verifiedBundleId: null,
+  verifiedMaxSeverity: null,
+};
+
+const SPIDER: PublicTitleSearchCandidate = {
+  id: "wd:Q68934496",
+  canonicalName: "الرجل العنكبوت: لا طريق للوطن",
+  originalName: "Spider-Man: No Way Home",
+  aliases: [],
+  kind: "movie",
+  releaseYear: 2021,
   hasVerifiedReview: false,
   hasReviewInProgress: false,
   verifiedBundleId: null,
@@ -101,6 +119,18 @@ test("a small Arabic typo is suggested but not promoted", () => {
   assert.deepEqual(result.matches, []);
   assert.equal(result.didYouMean[0]?.id, HARRY.id);
   assert.equal(result.didYouMean[0]?.matchKind, "fuzzy_match");
+});
+
+test("long real Arabic titles keep all ranking tokens while SQL prefilter bindings stay bounded", () => {
+  const parsed = parsePublicTitleSearchRequest({ query: SPIDER.canonicalName });
+  assert.equal(parsed.tokens.length, 6);
+  const query = buildPublicTitleCandidateQuery(parsed);
+  assert.equal(MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS, 4);
+  assert.equal(query.bindings.length, 28);
+  assert.equal(query.sql.split("?").length - 1, query.bindings.length);
+  const result = rankPublicTitleSearchDiscovery(parsed, [SPIDER]);
+  assert.equal(result.matches[0]?.id, SPIDER.id);
+  assert.equal(result.matches[0]?.matchKind, "canonical_exact");
 });
 
 test("a distant title is not suggested", () => {
