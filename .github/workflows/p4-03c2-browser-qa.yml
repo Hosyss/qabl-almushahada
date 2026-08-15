@@ -52,7 +52,7 @@ jobs:
           const q = value => `'${String(value).replaceAll("'", "''")}'`;
           for (const { review, presentation } of fixtures) {
             const qid = review.titleId.replace(/^wd:/u, '');
-            const aliases = review.titleId === 'wd:Q102438' ? ['HarryPotter', "Harry Potter and the Sorcerer's Stone"] : [];
+            const aliases = review.titleId === 'wd:Q102438' ? ["Harry Potter and the Sorcerer's Stone"] : [];
             console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
             const hash = createHash('sha256').update(`local-qa-catalog-fixture:${qid}`).digest('hex');
             console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-15T00:00:00Z',${q(hash)},'manual');`);
@@ -96,9 +96,9 @@ jobs:
           const titles = [
             {slug:'alice',qid:'Q174385',id:'alice-in-wonderland-2010-editorial-c2-v1',ar:'أليس في بلاد العجائب',en:'Alice in Wonderland',year:'2010',art:'alice-in-wonderland-2010.webp',oldid:'1368126328',queries:['أليس في بلاد العجائب','Alice in Wonderland','Alice in Wonderlnd']},
             {slug:'hunger',qid:'Q212965',id:'the-hunger-games-2012-editorial-c2-v1',ar:'مباريات الجوع',en:'The Hunger Games',year:'2012',art:'the-hunger-games-2012.webp',oldid:'1364516047',queries:['مباريات الجوع','The Hunger Games','The Hnger Games']},
-            {slug:'spider',qid:'Q68934496',id:'spider-man-no-way-home-2021-editorial-c2-v1',ar:'الرجل العنكبوت: لا طريق للوطن',en:'Spider-Man: No Way Home',year:'2021',art:'spider-man-no-way-home-2021.webp',oldid:'1368615000',queries:['الرجل العنكبوت: لا طريق للوطن','Spider-Man: No Way Home','Spider-Man: No Way Hom']},
+            {slug:'spider',qid:'Q68934496',id:'spider-man-no-way-home-2021-editorial-c2-v1',ar:'الرجل العنكبوت: لا طريق للوطن',en:'Spider-Man: No Way Home',year:'2021',art:'spider-man-no-way-home-2021.webp',oldid:'1368615000',queries:['الرجل العنكبوت: لا طريق للوطن','Spider-Man: No Way Home','Spider Man No Way Home','Spider-Man: No Way Hom']},
           ];
-          const report = { browser: await browser.version(), checks: [], search: [], catalog: null, homepage: null, sitemap: null };
+          const report = { browser: await browser.version(), checks: [], search: [], searchFlows: [], catalog: null, homepage: null, sitemap: null };
           const artworkResource = url => decodeURIComponent(url || '').includes('/artwork/');
           const hard = (cond,msg) => { if (!cond) throw new Error(msg); };
 
@@ -157,7 +157,36 @@ jobs:
             await context.close();
           }
 
+          async function inspectSpiderSearchFlow(viewport, mode) {
+            const context = await browser.newContext({ viewport, locale:'ar-EG' });
+            const page = await context.newPage();
+            await page.goto(baseURL+'/search',{waitUntil:'networkidle'});
+            const input=page.getByRole('combobox');
+            hard(await input.getAttribute('aria-autocomplete')==='list',`${mode}-search: aria-autocomplete`);
+            await input.fill('الرجل العنكبوت: لا طريق للوطن');
+            const option=page.getByRole('option').filter({hasText:'Spider-Man: No Way Home'}).first();
+            await option.waitFor({state:'visible'});
+            hard(await input.getAttribute('aria-expanded')==='true',`${mode}-search: suggestions did not open`);
+            await page.screenshot({path:`qa-artifacts/screenshots/${mode}-spider-search.png`,fullPage:true});
+            await input.press('ArrowDown');
+            const activeId=await input.getAttribute('aria-activedescendant');
+            hard(Boolean(activeId),`${mode}-search: no active descendant after ArrowDown`);
+            await input.press('Enter');
+            await page.waitForURL(/\/title\/Q68934496(?:\?|$)/u);
+            hard((await page.locator('body').innerText()).includes('Spider-Man: No Way Home'),`${mode}-search: wrong title page`);
+            const reviewLink=page.locator(`a[href*="editorialId=spider-man-no-way-home-2021-editorial-c2-v1"]`).first();
+            hard(await reviewLink.count()===1,`${mode}-search: editorial link missing on title page`);
+            await reviewLink.click();
+            await page.waitForURL(/editorialId=spider-man-no-way-home-2021-editorial-c2-v1/u);
+            const reviewBody=await page.locator('body').innerText();
+            hard(reviewBody.includes('المعلومات غير كافية لإصدار حكم نهائي'),`${mode}-search: wrong editorial destination`);
+            report.searchFlows.push({mode,activeId,titleURL:`${baseURL}/title/Q68934496`,review:true});
+            await context.close();
+          }
+
           for(const t of titles){ await inspectReview(t,desktop,'desktop'); await inspectReview(t,mobile,'mobile'); }
+          await inspectSpiderSearchFlow(desktop,'desktop');
+          await inspectSpiderSearchFlow(mobile,'mobile');
 
           const context=await browser.newContext({viewport:desktop,locale:'ar-EG'});
           const page=await context.newPage();
@@ -186,9 +215,24 @@ jobs:
               hard(res.ok()&&contains,`search ${t.slug} query=${query} failed: ${text.slice(0,400)}`);
             }
           }
+
+          const harryRes=await context.request.get(baseURL+'/api/search-suggestions?q='+encodeURIComponent('HarryPotter'));
+          const harryPayload=await harryRes.json();
+          hard(harryRes.ok(),`HarryPotter HTTP ${harryRes.status()}`);
+          hard(harryPayload.mode==='did_you_mean',`HarryPotter mode ${harryPayload.mode}`);
+          hard(Array.isArray(harryPayload.suggestions)&&harryPayload.suggestions.some(x=>x.href==='/title/Q102438'),`HarryPotter suggestion missing`);
+          report.search.push({slug:'harry',query:'HarryPotter',status:harryRes.status(),mode:harryPayload.mode});
+
+          const randomQuery='الرجل العنكبوت لا طريق مختلف تماما';
+          const randomRes=await context.request.get(baseURL+'/api/search-suggestions?q='+encodeURIComponent(randomQuery));
+          const randomText=await randomRes.text();
+          hard(randomRes.ok(),`random long query HTTP ${randomRes.status()}`);
+          hard(!randomText.includes('/title/Q68934496'),`random long query incorrectly returned Spider-Man`);
+          report.search.push({slug:'negative',query:randomQuery,status:randomRes.status(),containsSpider:false});
+
           await context.close();
           await fs.writeFile('qa-artifacts/report.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({browser:report.browser,checks:report.checks.length,catalog:report.catalog,homepage:report.homepage.ids,search:report.search},null,2));
+          console.log(JSON.stringify({browser:report.browser,checks:report.checks.length,catalog:report.catalog,homepage:report.homepage.ids,search:report.search,searchFlows:report.searchFlows},null,2));
           await browser.close();
           NODE
           node .qa-p4-03c2-playwright.mjs
