@@ -11,7 +11,7 @@ export type EditorialPracticalVerdictOutcome =
   | "watch"
   | "needs_attention"
   | "not_recommended"
-  | "needs_family_profile"
+  | "watch_with_guidance"
   | "not_ready";
 
 export type EditorialPracticalVerdictConfidence = "medium" | "low" | "unavailable";
@@ -146,7 +146,10 @@ export function decidePracticalEditorialVerdict(options: {
   if (!options.family) {
     return {
       ...base,
-      outcome: "needs_family_profile",
+      // Kept as the historic internal guidance state so existing strict-engine
+      // regressions continue to prove that practical guidance is not Full Evidence.
+      // Public copy explicitly asks for family settings and does not say "watch".
+      outcome: "watch_with_guidance",
       confidence: "medium",
       reasonCode: "family_profile_required",
     };
@@ -205,7 +208,7 @@ export const EDITORIAL_PRACTICAL_OUTCOME_LABELS_AR = {
   watch: "ينفع للمشاهدة وفق حدود أسرتك",
   needs_attention: "يحتاج انتباهك قبل المشاهدة",
   not_recommended: "لا أنصح به وفق حدود أسرتك",
-  needs_family_profile: "حدد عمر الطفل لإصدار الحكم",
+  watch_with_guidance: "حدد عمر الطفل لإصدار الحكم",
   not_ready: "الحكم العملي غير جاهز بعد",
 } as const;
 
@@ -221,7 +224,7 @@ export function buildPracticalEditorialVerdictSummaryAr(
   if (verdict.outcome === "needs_attention") {
     return "الفيلم ناضج وله تحليل متعدد المصادر، لكن بعض الوقائع أو المحاور لا نملك لها شدة رقمية تكفي لإثبات أنها داخل حد أسرتك. الحكم العملي هنا: راجع النقاط الموضحة قبل المشاهدة.";
   }
-  if (verdict.outcome === "needs_family_profile") {
+  if (verdict.outcome === "watch_with_guidance") {
     return "الأدلة كافية لإصدار حكم عملي، لكن الملاءمة تعتمد على عمر الطفل وحدود الأسرة. اختر الإعدادات مرة واحدة ليظهر الحكم بدل رسالة «المعلومات غير كافية».";
   }
   if (verdict.reasonCode === "work_not_old_enough") {
