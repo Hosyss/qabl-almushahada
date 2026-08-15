@@ -27,15 +27,15 @@ export default async function Home() {
       <section className="quality-home__hero" aria-labelledby="home-title">
         <div className="quality-home__hero-copy">
           <span>دليل عربي يساعدك تاخد قرار قبل المشاهدة</span>
-          <h1 id="home-title">اعرف هل العمل ينفع للمشاهدة، وإيه اللي محتاج انتباه.</h1>
-          <p>ابحث بالعربي أو الإنجليزي. التحليل التحريري الناضج يصدر حكمًا عمليًا على مستوى العمل، ويعرض الوقائع والمصادر والمحاور التي ما زالت غير محسومة بدل ما يخفيها.</p>
+          <h1 id="home-title">اعرف هل العمل ينفع لأسرتك، وإيه اللي محتاج انتباه.</h1>
+          <p>ابحث بالعربي أو الإنجليزي. التحليل الناضج يطلب عمر الطفل وحدود الأسرة محليًا ثم يعطي نتيجة عملية، ويعرض الوقائع والمصادر والمحاور غير المحسومة بدل ما يخفيها أو يسميها آمنة.</p>
         </div>
         <div className="quality-home__search"><TitleSearchCombobox /><p>الاقتراحات تأتي من عناوين D1 فقط، والمطابقة التقريبية تظهر بصيغة «هل تقصد؟».</p></div>
       </section>
       <section className="quality-home__published" aria-labelledby="published-title">
         <div className="quality-home__section-head">
           <div><span>المحتوى الحقيقي المنشور</span><h2 id="published-title">تحليلات منشورة حديثًا</h2></div>
-          <p>هذه أحدث أربع صفحات منشورة حاليًا من current-head في D1، وكل صفحة ناضجة تعرض حكمًا عمليًا على مستوى العمل من غير ادعاء مشاهدة نسخة محددة.</p>
+          <p>هذه أحدث أربع صفحات منشورة حاليًا من current-head في D1. التحليل الناضج جاهز لإصدار حكم الأسرة من غير ادعاء مشاهدة نسخة محددة.</p>
         </div>
         <div className="quality-home__grid">
           {publications.map(({ review, presentation }) => {
@@ -44,9 +44,9 @@ export default async function Home() {
               <article className="quality-home__card" key={review.id}>
                 <TitleArtwork titleId={review.titleId} className="quality-home__artwork" sizes="(max-width: 680px) 34vw, 150px" />
                 <div className="quality-home__card-copy">
-                  <span className="quality-home__status">تحليل متعدد المصادر — حكم عملي متاح</span>
+                  <span className="quality-home__status">تحليل متعدد المصادر — جاهز لحكم الأسرة</span>
                   <h3>{presentation.titleAr}</h3><p className="quality-home__english" dir="ltr">{presentation.titleEn}</p><p className="quality-home__year">{review.releaseYear}</p>
-                  <p>نوضح ما ثبت وجوده، وما بقي غير محسوم، ونفصل الحكم العملي عن ختم الثقة الأعلى لنسخة مشاهدة محددة.</p>
+                  <p>حدد عمر الطفل داخل صفحة التحليل لتحصل على: ينفع، يحتاج انتباه، أو لا ننصح به وفق حدود أسرتك.</p>
                   <div className="quality-home__card-actions">{titleHref ? <Link href={titleHref}>صفحة العمل</Link> : null}<Link href={buildPublicEditorialReviewHref(review.id)}>اقرأ التحليل والحكم</Link></div>
                 </div>
               </article>
@@ -58,15 +58,15 @@ export default async function Home() {
       <section className="quality-home__types" aria-labelledby="types-title">
         <div className="quality-home__section-head"><div><span>مستويان للثقة، مش منتجان منفصلان</span><h2 id="types-title">إيه الفرق بين الحكم العملي وختم النسخة المحددة؟</h2></div></div>
         <div className="quality-home__type-grid">
-          <article><strong>حكم عملي على مستوى العمل</strong><p>يعتمد على تحليل تحريري ناضج ومتعدد المصادر. يجيب «ينفع للمشاهدة ولا لأ؟» مع إبقاء المحاور غير المحسومة ظاهرة، ومن غير اختراع Severity أو تحويل المجهول إلى «لا يوجد».</p></article>
+          <article><strong>حكم عملي للأسرة</strong><p>يعتمد على تحليل تحريري ناضج ومتعدد المصادر + إعدادات الأسرة المحلية. لا يقول «ينفع» من غير عمر وحدود، ولا يحول unknown إلى none، ولا يخترع Severity.</p></article>
           <article><strong>مراجعة موثقة لنسخة محددة</strong><p>ترتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين واعتماد وتدقيق. دي درجة ثقة أعلى عندما نحتاج إثباتًا دقيقًا أن الحكم يخص نسخة بعينها.</p></article>
         </div>
         <Link className="quality-home__policy-link" href="/review-policy">اقرأ سياسة المراجعة كاملة</Link>
       </section>
       <section className="quality-home__principles" aria-label="قواعد الثقة">
-        <article><strong>المجهول ما بيتحولش لآمن</strong><p>صمت المصدر لا يتحول إلى «غير موجود»، لكن المحور المجهول لا يمسح الحكم العملي كله في عمل ناضج.</p></article>
+        <article><strong>المجهول ما بيتحولش لآمن</strong><p>صمت المصدر لا يتحول إلى «غير موجود». لو المجهول يمكن أن يؤثر في حد الأسرة فالنتيجة تصبح «يحتاج انتباهك» بدل حكم إيجابي مزيف.</p></article>
         <article><strong>المصدر ظاهر</strong><p>نوضح المرجع المرتبط، تاريخ الوصول، وما الذي يدعمه، من غير نسخ مراجعاته أو درجاته.</p></article>
-        <article><strong>درجة الثقة واضحة</strong><p>نفرق بين حكم عملي على مستوى العمل وبين ختم أعلى لنسخة مشاهدة محددة، بدل استخدام «غير مكتمل» كإجابة دائمة.</p></article>
+        <article><strong>لا «غير مكتمل» كإجابة دائمة</strong><p>العمل الناضج متعدد المصادر ينتقل إلى حكم عملي للأسرة؛ عدم اكتمال ختم النسخة المحددة لا يلغي وظيفة المنصة الأساسية.</p></article>
       </section>
       <footer className="quality-home__footer"><strong>© قبل المشاهدة</strong><div><Link href="/privacy">الخصوصية</Link><Link href="/corrections">التصحيح</Link><Link href="/titles">الدليل</Link></div></footer>
     </main>
