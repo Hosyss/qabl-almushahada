@@ -1,0 +1,116 @@
+{
+  "review": {
+    "id": "the-hunger-games-2012-editorial-c2-v1",
+    "titleId": "wd:Q212965",
+    "titleLabel": "مباريات الجوع",
+    "releaseYear": 2012,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-15T06:31:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى فيلم مباريات الجوع (2012)، وليس مراجعة لنسخة منصة أو إصدار منزلي محدد. ويكيبيديا مربوطة بمراجعة ثابتة، بينما Kids-In-Mind يستخدم كرابط وقائع للنسخة السينمائية فقط، لذلك لا نعمم تفاصيله على إصدارات فيديو قد تحتوي اختلافات.",
+    "analysisAr": "جوهر التحذير الأسري في الفيلم هو أن مراهقين يُجبرون على مسابقة متلفزة تنتهي بموت المشاركين حتى يبقى ناجٍ واحد، وتدور أحداث كثيرة حول المطاردة والقتل والإصابة والتهديد المستمر. توجد كذلك إشارات عاطفية، وألفاظ، وشرب كحول أو سُكر موثقة حاليًا بمرجع رابط واحد. لا نستخدم أرقام التصنيف الخارجي ولا نفترض أن المحاور التي لم تذكرها المصادر آمنة.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {
+        "id": "hunger-games-source-wikipedia",
+        "publisher": "Wikipedia (English)",
+        "sourceType": "open_encyclopedia",
+        "sourceUrl": "https://en.wikipedia.org/w/index.php?title=The_Hunger_Games_%28film%29&oldid=1364516047",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "wikipedia-en",
+        "usageBasis": "open_license",
+        "rightsLabel": "CC BY-SA 4.0",
+        "rightsUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "usageNoteAr": "نستخدم مراجعة ثابتة من المقال لإسناد وقائع القصة مع العزو، ونكتب النص العربي من الصفر من غير نسخ أو ترجمة قريبة.",
+        "sourceVersion": "oldid=1364516047",
+        "supportedClaimIds": [
+          "hunger-games-claim-violence",
+          "hunger-games-claim-fear"
+        ]
+      },
+      {
+        "id": "hunger-games-source-kids-in-mind",
+        "publisher": "Kids-In-Mind",
+        "sourceType": "published_review",
+        "sourceUrl": "https://kids-in-mind.com/h/hungergames.htm",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "kids-in-mind",
+        "usageBasis": "link_only_factual_reference",
+        "rightsLabel": "ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى",
+        "rightsUrl": "https://kids-in-mind.com/terms.htm",
+        "usageNoteAr": "نستخدم الرابط لتتبع وقائع محددة في النسخة السينمائية فقط. لا ننقل النص أو الدرجات أو البنية، ولا نعمم تفاصيل النسخة على إصدارات الفيديو.",
+        "supportedClaimIds": [
+          "hunger-games-claim-violence",
+          "hunger-games-claim-fear",
+          "hunger-games-claim-sexual",
+          "hunger-games-claim-language",
+          "hunger-games-claim-substances"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "hunger-games-claim-violence",
+        "category": "violence",
+        "summaryAr": "تقوم المسابقة المركزية على إجبار مراهقين على قتال مميت، وتظهر وفيات وإصابات ومطاردات واعتداءات خلال محاولة البقاء؛ وجود هذا العنف مدعوم بمصدرين مستقلين.",
+        "verification": "corroborated",
+        "sourceIds": [
+          "hunger-games-source-wikipedia",
+          "hunger-games-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "hunger-games-claim-fear",
+        "category": "fear",
+        "summaryAr": "يتكرر خطر الموت المباشر على المشاركين الصغار مع مطاردات وتهديدات وضغط للبقاء، وهو سياق خطر وخوف تؤيده مجموعتا مصدر مستقلتان.",
+        "verification": "corroborated",
+        "sourceIds": [
+          "hunger-games-source-wikipedia",
+          "hunger-games-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "hunger-games-claim-sexual",
+        "category": "sexualContent",
+        "summaryAr": "توجد إشارات عاطفية وملابس أو مشاهد تكشف أجزاء من الجسد في سياقات غير صريحة، لكن توثيقنا الحالي لهذا المحور يعتمد على مرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "hunger-games-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "hunger-games-claim-language",
+        "category": "language",
+        "summaryAr": "توجد ألفاظ وإهانات وتعبيرات قوية متفرقة، والدليل الحالي لدينا لهذا المحور من مرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "hunger-games-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "hunger-games-claim-substances",
+        "category": "substances",
+        "summaryAr": "تظهر مشاهد شرب كحول وحالة سُكر، كما يظهر تغير في الإدراك مرتبط بسم حشرات داخل القصة؛ هذا المحور مدعوم حاليًا بمرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "hunger-games-source-kids-in-mind"
+        ]
+      }
+    ],
+    "uncertainCategories": [
+      "bullying",
+      "discrimination",
+      "selfHarm",
+      "grief",
+      "flashingLights"
+    ]
+  },
+  "presentation": {
+    "titleAr": "مباريات الجوع",
+    "titleEn": "The Hunger Games",
+    "revision": 1,
+    "updatedAt": "2026-08-15T06:31:00+03:00"
+  },
+  "fingerprint": "sha256:d9995cc633082b411a8f332773bc4c597bdb2a31a3baa9e26c27c98aafe633ae"
+}
