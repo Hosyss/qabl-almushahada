@@ -21,8 +21,8 @@ jobs:
           from pathlib import Path
           p=Path('app/api/search-suggestions/route.ts')
           s=p.read_text()
-          old='  } catch {\n    return Response.json({ error: "search_unavailable", suggestions: [] }, { status: 503 });\n  }'
-          new='  } catch (error) {\n    console.error("QA_SEARCH_ERROR", error);\n    return Response.json({ error: "search_unavailable", suggestions: [] }, { status: 503 });\n  }'
+          old='  } catch (error) {\n    if (error instanceof TypeError || error instanceof RangeError) {'
+          new='  } catch (error) {\n    console.error("QA_SEARCH_ERROR", error);\n    if (error instanceof TypeError || error instanceof RangeError) {'
           if old not in s: raise SystemExit('catch block not found')
           p.write_text(s.replace(old,new,1))
           PY
