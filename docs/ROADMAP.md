@@ -1,6 +1,6 @@
 # خطة تنفيذ «قبل المشاهدة» — الحالة التشغيلية
 
-آخر تحديث: 14 أغسطس 2026
+آخر تحديث: 15 أغسطس 2026
 
 > التاريخ التفصيلي محفوظ في `docs/ROADMAP_ARCHIVE_2026-08-13.md` وGit history.
 
@@ -17,8 +17,23 @@
 9. P4-03C2A Asymmetric Decision Semantics — **مدمجة ومنشورة إنتاجيًا** ضمن PR #67؛ Jurassic Park فقط على مستوى العمل، بلا migration لهوية النسخة.
 10. P4-03C2B Original Editorial Artwork — **مدمجة ومنشورة إنتاجيًا** ضمن PR #67؛ سبعة أغلفة أصلية محلية مع disclosure وfallback، بلا مصدر صور خارجي.
 11. C1 three-title production quality checkpoint — **نُفذ للثلاثة فقط**؛ كل فحوص العرض/SEO/المصادر نجحت، وكشف focus trap واحدًا أُصلح في PR #68 ونجح Browser QA قبل الدمج.
-12. Public report intake — checkpoint مستقل ومؤجل.
-13. التوسع بعد السبعة — **متوقف**؛ لا فيلم ثامن ولا دفعة محتوى جديدة.
+12. P4-03C2 — **قيد المراجعة**؛ إضافة Alice in Wonderland (2010) وThe Hunger Games (2012) وSpider-Man: No Way Home (2021) لرفع الإجمالي من 7 إلى **10 فقط** عبر D1 Editorial Persistence الحالي.
+13. Public report intake — checkpoint مستقل، **التالي بعد إغلاق P4-03C2 إنتاجيًا** ولم يبدأ بعد.
+14. التوسع بعد العشرة — **سيتوقف مؤقتًا**؛ لا فيلم حادي عشر ولا دفعة محتوى جديدة قبل قناة البلاغ والاستعداد للفهرسة/AdSense.
+
+## P4-03C2 — Three Editorial Additions
+
+- [x] اختيار ثلاثة عناوين موجودة فعليًا في Production D1: `wd:Q174385`, `wd:Q212965`, `wd:Q68934496`.
+- [x] Wikipedia fixed revisions + Kids-In-Mind link-only مع version caveats.
+- [x] Fixtures جديدة `decisionEligible=false` ولا `none` مصطنعة.
+- [x] حراس regression يقفلون العدد عند 10 ويحفظون fingerprints للسبعة السابقين.
+- [x] ثلاثة أغلفة أصلية محلية وallowlist من 10 فقط.
+- [x] homepage contract يظل أحدث 4 فقط، وLive Smoke محدث ليتوقع 10 في الدليل/sitemap بعد Production.
+- [x] Branch Checkpoint: Engine + migrations + lint + production build ناجحة.
+- [x] Public Quality على الفرع ناجح.
+- [ ] PR مستقل + B4 persistence checks.
+- [ ] بعد الدمج: Production D1 verification + Cloudflare deploy + Live Product Smoke + Chrome QA.
+- [ ] توقف عند 10؛ لا فيلم حادي عشر.
 
 ## P4-03C1 — Production quality checkpoint للثلاثة الجدد
 
