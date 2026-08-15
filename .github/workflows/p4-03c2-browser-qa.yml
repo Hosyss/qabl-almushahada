@@ -1,0 +1,203 @@
+name: P4-03C2 browser QA temporary
+
+on:
+  push:
+    branches: [agent/p4-03c2-three-more-editorials]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p4-03c2-browser-qa-temporary
+  cancel-in-progress: true
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build:local
+
+      - name: Prepare isolated local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name":"qabl-p4-03c2-local-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-05-22",
+            "compatibility_flags":["nodejs_compat"],
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
+          }
+          JSON
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
+          done
+          node --input-type=module <<'NODE' > /tmp/p4-03c2-qa-seed.sql
+          import { createHash } from 'node:crypto';
+          import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
+          const fixtures = await loadEditorialBootstrapFixtures();
+          if (fixtures.length !== 10) throw new Error(`Expected 10 fixtures, found ${fixtures.length}`);
+          const q = value => `'${String(value).replaceAll("'", "''")}'`;
+          for (const { review, presentation } of fixtures) {
+            const qid = review.titleId.replace(/^wd:/u, '');
+            const aliases = review.titleId === 'wd:Q102438' ? ['HarryPotter', "Harry Potter and the Sorcerer's Stone"] : [];
+            console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
+            const hash = createHash('sha256').update(`local-qa-catalog-fixture:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-15T00:00:00Z',${q(hash)},'manual');`);
+          }
+          NODE
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/p4-03c2-qa-seed.sql >/dev/null
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
+
+      - name: Start isolated preview
+        shell: bash
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
+        run: |
+          set -euo pipefail
+          (npm run dev:local -- --port 4173 >/tmp/p4-03c2-server.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/p4-03c2-server.log
+          exit 1
+
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+
+      - name: Run Chrome Desktop and Mobile QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p qa-artifacts/screenshots
+          cat > .qa-p4-03c2-playwright.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright-core';
+
+          const baseURL = 'http://127.0.0.1:4173';
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const desktop = { width: 1440, height: 1000 };
+          const mobile = { width: 390, height: 844 };
+          const titles = [
+            {slug:'alice',qid:'Q174385',id:'alice-in-wonderland-2010-editorial-c2-v1',ar:'أليس في بلاد العجائب',en:'Alice in Wonderland',year:'2010',art:'alice-in-wonderland-2010.webp',oldid:'1368126328',queries:['أليس في بلاد العجائب','Alice in Wonderland','Alice in Wonderlnd']},
+            {slug:'hunger',qid:'Q212965',id:'the-hunger-games-2012-editorial-c2-v1',ar:'مباريات الجوع',en:'The Hunger Games',year:'2012',art:'the-hunger-games-2012.webp',oldid:'1364516047',queries:['مباريات الجوع','The Hunger Games','The Hnger Games']},
+            {slug:'spider',qid:'Q68934496',id:'spider-man-no-way-home-2021-editorial-c2-v1',ar:'الرجل العنكبوت: لا طريق للوطن',en:'Spider-Man: No Way Home',year:'2021',art:'spider-man-no-way-home-2021.webp',oldid:'1368615000',queries:['الرجل العنكبوت: لا طريق للوطن','Spider-Man: No Way Home','Spider-Man: No Way Hom']},
+          ];
+          const report = { browser: await browser.version(), checks: [], search: [], catalog: null, homepage: null, sitemap: null };
+          const artworkResource = url => decodeURIComponent(url || '').includes('/artwork/');
+          const hard = (cond,msg) => { if (!cond) throw new Error(msg); };
+
+          async function inspectReview(t, viewport, mode) {
+            const context = await browser.newContext({ viewport, locale:'ar-EG' });
+            const page = await context.newPage();
+            await page.addInitScript(() => {
+              window.__qaCLS = 0;
+              new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__qaCLS += e.value; }).observe({type:'layout-shift',buffered:true});
+            });
+            const failedRequests=[];
+            page.on('requestfailed',req=>failedRequests.push({url:req.url(),error:req.failure()?.errorText||'failed'}));
+            const response=await page.goto(`${baseURL}/review?editorialId=${encodeURIComponent(t.id)}`,{waitUntil:'networkidle'});
+            hard(response?.ok(),`${mode}-${t.slug}: HTTP ${response?.status()}`);
+            await page.waitForTimeout(300);
+            const data=await page.evaluate(() => {
+              const imgs=[...document.images];
+              const artwork=imgs.filter(img=>decodeURIComponent(img.currentSrc||img.src).includes('/artwork/')).map(img=>({src:img.currentSrc||img.src,alt:img.alt,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,objectFit:getComputedStyle(img).objectFit}));
+              const ld=[...document.querySelectorAll('script[type="application/ld+json"]')].map(s=>{try{return JSON.parse(s.textContent||'{}')}catch{return null}}).filter(Boolean);
+              return {body:document.body.innerText,title:document.title,dir:document.documentElement.dir,scrollWidth:document.documentElement.scrollWidth,innerWidth,broken:imgs.filter(img=>!img.complete||img.naturalWidth===0).map(img=>img.currentSrc||img.src),artwork,canonical:document.querySelector('link[rel="canonical"]')?.href||'',ld,cls:window.__qaCLS||0};
+            });
+            hard(data.dir==='rtl',`${mode}-${t.slug}: dir=${data.dir}`);
+            hard(data.scrollWidth<=data.innerWidth+1,`${mode}-${t.slug}: horizontal overflow`);
+            hard(data.broken.length===0,`${mode}-${t.slug}: broken images`);
+            hard(!failedRequests.some(x=>artworkResource(x.url)),`${mode}-${t.slug}: failed artwork request`);
+            hard(data.cls<=0.01,`${mode}-${t.slug}: CLS ${data.cls}`);
+            for(const text of [t.ar,t.en,t.year,'المعلومات غير كافية لإصدار حكم نهائي','الخلاصة التحريرية','الوقائع المدعومة','محاور لم نستطع حسمها','Wikipedia (English)','Kids-In-Mind','CC BY-SA 4.0','ربط للمصدر ومرجع وقائع فقط','غلاف توضيحي أصلي — ليس الملصق الرسمي']) hard(data.body.includes(text),`${mode}-${t.slug}: missing ${text}`);
+            for(const forbidden of ['decisionEligible','insufficient_data','work_level','single_source','corroborated','P4-03']) hard(!data.body.includes(forbidden),`${mode}-${t.slug}: visible technical token ${forbidden}`);
+            hard(data.artwork.length===1,`${mode}-${t.slug}: artwork count ${data.artwork.length}`);
+            const art=data.artwork[0];
+            hard(decodeURIComponent(art.src).includes(t.art),`${mode}-${t.slug}: wrong artwork ${art.src}`);
+            hard(art.naturalWidth>0&&art.naturalHeight>0&&Math.abs(art.naturalWidth/art.naturalHeight-.75)<.02,`${mode}-${t.slug}: bad artwork ratio`);
+            hard(art.objectFit==='cover',`${mode}-${t.slug}: object fit ${art.objectFit}`);
+            hard(art.alt.trim().length>20,`${mode}-${t.slug}: short artwork alt`);
+            hard(data.canonical.includes(`editorialId=${t.id}`),`${mode}-${t.slug}: canonical ${data.canonical}`);
+            const article=data.ld.find(x=>x?.['@type']==='Article');
+            hard(article,`${mode}-${t.slug}: missing Article JSON-LD`);
+            hard(String(article.headline).includes(t.ar)&&String(article.headline).includes(t.en)&&String(article.headline).includes(t.year),`${mode}-${t.slug}: Article headline`);
+            hard(Array.isArray(article.citation)&&article.citation.some(x=>String(x).includes(`oldid=${t.oldid}`))&&article.citation.some(x=>String(x).includes('kids-in-mind.com')),`${mode}-${t.slug}: citations`);
+
+            await page.screenshot({path:`qa-artifacts/screenshots/${mode}-${t.slug}.png`,fullPage:true});
+            const opener=page.getByRole('button',{name:/اقرأ التحليل كاملًا/});
+            await opener.click();
+            const dialog=page.locator('dialog.editorial-summary-dialog');
+            hard(await dialog.evaluate(el=>el.open),`${mode}-${t.slug}: dialog not open`);
+            hard(await dialog.getAttribute('aria-labelledby')==='editorial-summary-dialog-title',`${mode}-${t.slug}: aria-labelledby`);
+            hard(await dialog.getAttribute('aria-describedby')==='editorial-summary-dialog-description',`${mode}-${t.slug}: aria-describedby`);
+            const forward=[]; for(let i=0;i<12;i++){await page.keyboard.press('Tab');forward.push(await dialog.evaluate(el=>el.contains(document.activeElement)));}
+            const backward=[]; for(let i=0;i<12;i++){await page.keyboard.press('Shift+Tab');backward.push(await dialog.evaluate(el=>el.contains(document.activeElement)));}
+            hard(forward.every(Boolean)&&backward.every(Boolean),`${mode}-${t.slug}: focus escaped dialog`);
+            await page.screenshot({path:`qa-artifacts/screenshots/${mode}-${t.slug}-dialog.png`,fullPage:true});
+            await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+            hard(!(await dialog.evaluate(el=>el.open)),`${mode}-${t.slug}: Escape failed`);
+            hard(await opener.evaluate(el=>document.activeElement===el),`${mode}-${t.slug}: focus restore failed`);
+            report.checks.push({slug:t.slug,mode,cls:data.cls,artwork:art,focusForward:forward,focusBackward:backward,failedRequests});
+            await context.close();
+          }
+
+          for(const t of titles){ await inspectReview(t,desktop,'desktop'); await inspectReview(t,mobile,'mobile'); }
+
+          const context=await browser.newContext({viewport:desktop,locale:'ar-EG'});
+          const page=await context.newPage();
+          await page.goto(baseURL+'/',{waitUntil:'networkidle'});
+          const home=await page.evaluate(()=>({body:document.body.innerText,ids:[...new Set([...document.querySelectorAll('a[href*="editorialId="]')].map(a=>new URL(a.href).searchParams.get('editorialId')).filter(Boolean))]}));
+          const expectedLatest=['alice-in-wonderland-2010-editorial-c2-v1','the-hunger-games-2012-editorial-c2-v1','spider-man-no-way-home-2021-editorial-c2-v1','barbie-2023-editorial-c1-v1'];
+          hard(home.ids.length===4,`homepage editorial count ${home.ids.length}`);
+          for(const id of expectedLatest) hard(home.ids.includes(id),`homepage missing ${id}`);
+          report.homepage=home;
+
+          const filter=await context.request.get(baseURL+'/titles?editorialStatus=editorial'); hard(filter.ok(),`filter HTTP ${filter.status()}`);
+          const html=await filter.text();
+          const qids=[...new Set([...html.matchAll(/href="\/title\/(Q\d+)"/g)].map(m=>m[1]))].sort();
+          const expectedQids=['Q102438','Q11621','Q13619743','Q167726','Q174385','Q182153','Q212965','Q39571','Q55436290','Q68934496'].sort();
+          hard(JSON.stringify(qids)===JSON.stringify(expectedQids),`editorial filter mismatch ${JSON.stringify(qids)}`);
+          report.catalog={qids,count:qids.length};
+
+          const sitemapRes=await context.request.get(baseURL+'/sitemap.xml'); hard(sitemapRes.ok(),`sitemap HTTP ${sitemapRes.status()}`); const sitemap=await sitemapRes.text();
+          for(const t of titles){ hard(sitemap.includes(`/title/${t.qid}`),`sitemap missing ${t.qid}`); hard(sitemap.includes(`editorialId=${t.id}`),`sitemap missing ${t.id}`); }
+          report.sitemap={ok:true};
+
+          for(const t of titles){
+            for(const query of t.queries){
+              const res=await context.request.get(baseURL+'/api/search-suggestions?q='+encodeURIComponent(query)); const text=await res.text();
+              const contains=text.includes(`/title/${t.qid}`); report.search.push({slug:t.slug,query,status:res.status(),contains});
+              hard(res.ok()&&contains,`search ${t.slug} query=${query} failed: ${text.slice(0,400)}`);
+            }
+          }
+          await context.close();
+          await fs.writeFile('qa-artifacts/report.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({browser:report.browser,checks:report.checks.length,catalog:report.catalog,homepage:report.homepage.ids,search:report.search},null,2));
+          await browser.close();
+          NODE
+          node .qa-p4-03c2-playwright.mjs
+
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-03c2-browser-qa-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
