@@ -15,8 +15,10 @@ import {
 } from "../lib/public-title-search.ts";
 import {
   MAX_PUBLIC_TITLE_SEARCH_CANDIDATES,
+  MAX_PUBLIC_TITLE_SQL_ORDER_PREFIX_CHARS,
   MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS,
   buildPublicTitleCandidateQuery,
+  buildSqlOrderPrefixPattern,
   buildSqlSubsequencePattern,
 } from "../db/public-title-search-query.ts";
 
@@ -24,7 +26,7 @@ const HARRY: PublicTitleSearchCandidate = {
   id: "wd:Q102438",
   canonicalName: "هاري بوتر وحجر الفيلسوف",
   originalName: "Harry Potter and the Philosopher's Stone",
-  aliases: ["Harry Potter and the Sorcerer's Stone"],
+  aliases: ["HarryPotter", "Harry Potter and the Sorcerer's Stone"],
   kind: "movie",
   releaseYear: 2001,
   hasVerifiedReview: false,
@@ -86,7 +88,7 @@ test("HarryPotter becomes did-you-mean, not a confirmed direct result", () => {
   const result = discover("HarryPotter");
   assert.deepEqual(result.matches, []);
   assert.equal(result.didYouMean[0]?.id, HARRY.id);
-  assert.equal(result.didYouMean[0]?.matchKind, "compact_match");
+  assert.equal(result.didYouMean[0]?.matchKind, "alias_exact");
 });
 
 test("harry potter is a direct English prefix match", () => {
@@ -121,16 +123,52 @@ test("a small Arabic typo is suggested but not promoted", () => {
   assert.equal(result.didYouMean[0]?.matchKind, "fuzzy_match");
 });
 
-test("long real Arabic titles keep all ranking tokens while SQL prefilter bindings stay bounded", () => {
+test("Spider-Man full Arabic title keeps five ranking tokens while SQL LIKE ordering stays bounded", () => {
   const parsed = parsePublicTitleSearchRequest({ query: SPIDER.canonicalName });
   assert.equal(parsed.tokens.length, 5);
   const query = buildPublicTitleCandidateQuery(parsed);
   assert.equal(MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS, 4);
+  assert.equal(MAX_PUBLIC_TITLE_SQL_ORDER_PREFIX_CHARS, 12);
   assert.equal(query.bindings.length, 28);
   assert.equal(query.sql.split("?").length - 1, query.bindings.length);
+  assert.equal(query.bindings[24], parsed.normalizedQuery);
+  assert.equal(query.bindings[25], parsed.normalizedQuery);
+  assert.equal(query.bindings[26], buildSqlOrderPrefixPattern(parsed.normalizedQuery));
+  assert.equal(query.bindings[27], buildSqlOrderPrefixPattern(parsed.normalizedQuery));
+  assert.notEqual(query.bindings[26], `${parsed.normalizedQuery}%`);
+  assert.ok(Array.from(query.bindings[26]).length <= MAX_PUBLIC_TITLE_SQL_ORDER_PREFIX_CHARS + 1);
+
   const result = rankPublicTitleSearchDiscovery(parsed, [SPIDER]);
   assert.equal(result.matches[0]?.id, SPIDER.id);
   assert.equal(result.matches[0]?.matchKind, "canonical_exact");
+});
+
+test("Spider-Man English title matches exactly with punctuation", () => {
+  const result = discover("Spider-Man: No Way Home", [SPIDER]);
+  assert.equal(result.matches[0]?.id, SPIDER.id);
+  assert.equal(result.matches[0]?.matchKind, "original_exact");
+});
+
+test("Spider-Man English title matches exactly without punctuation", () => {
+  const result = discover("Spider Man No Way Home", [SPIDER]);
+  assert.equal(result.matches[0]?.id, SPIDER.id);
+  assert.equal(result.matches[0]?.matchKind, "original_exact");
+});
+
+test("five-or-more-token queries are decided by the complete ranker query", () => {
+  const exact = discover("الرجل العنكبوت لا طريق للوطن", [SPIDER]);
+  assert.equal(exact.matches[0]?.id, SPIDER.id);
+  assert.equal(exact.matches[0]?.matchKind, "canonical_exact");
+
+  const wrongTail = discover("الرجل العنكبوت لا طريق مختلف", [SPIDER]);
+  assert.deepEqual(wrongTail.matches, []);
+  assert.deepEqual(wrongTail.didYouMean, []);
+});
+
+test("a long unrelated query never promotes Spider-Man from a broad SQL candidate set", () => {
+  const result = discover("فيلم عشوائي طويل جدا لا يخص الرجل", [SPIDER]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.didYouMean, []);
 });
 
 test("a distant title is not suggested", () => {
