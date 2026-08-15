@@ -40,7 +40,7 @@ jobs:
           INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES ('diag-q68934496','wd:Q68934496','source-policy:wikidata:2026-08-13.1:catalog_metadata','Q68934496','https://www.wikidata.org/wiki/Q68934496','2026-08-15T00:00:00Z','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','manual');
           SQL
           npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/seed.sql >/dev/null
-      - name: Reproduce and print server error
+      - name: Measure prefilter complexity
         shell: bash
         env:
           CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
@@ -48,12 +48,11 @@ jobs:
           set -euo pipefail
           (npm run dev:local -- --port 4173 >/tmp/search-diag-server.log 2>&1 &)
           for i in $(seq 1 60); do curl --fail --silent http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
-          echo '--- short query ---'
-          curl --silent --show-error --get --data-urlencode 'q=الرجل العنكبوت' http://127.0.0.1:4173/api/search-suggestions || true
-          echo
-          echo '--- full query ---'
-          curl --silent --show-error --get --data-urlencode 'q=الرجل العنكبوت: لا طريق للوطن' http://127.0.0.1:4173/api/search-suggestions || true
-          echo
+          for query in 'الرجل العنكبوت' 'الرجل العنكبوت لا' 'الرجل العنكبوت لا طريق' 'الرجل العنكبوت: لا طريق للوطن'; do
+            echo "--- $query ---"
+            curl --silent --show-error --get --data-urlencode "q=$query" http://127.0.0.1:4173/api/search-suggestions || true
+            echo
+          done
           sleep 1
           echo '--- server log ---'
           cat /tmp/search-diag-server.log
