@@ -151,7 +151,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
 
         <section className="editorial-uncertain" aria-labelledby="uncertain-title">
           <div>
-            <span>محاور لم نستطع حسمها</span>
+            <span>المحاور غير المحسومة</span>
             <h2 id="uncertain-title">{assessment.uncertainCategoryCount} من 10 محاور ما زالت غير محسومة</h2>
             <p>
               غياب الذكر في المراجع الحالية لا يثبت أن المحتوى غير موجود، لذلك لا نحوله إلى «لا يوجد».
