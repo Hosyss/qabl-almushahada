@@ -1,0 +1,57 @@
+name: P4-03C2 count update
+
+on:
+  push:
+    branches:
+      - agent/p4-03c2-three-more-editorials
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, '[counts-ready]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/p4-03c2-three-more-editorials
+      - name: Update ten-publication persistence guards
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+            'scripts/cloudflare-migrate.mjs': [
+              ('fixtures.length !== 7', 'fixtures.length !== 10'),
+              ('Expected exactly 7 frozen editorial fixtures', 'Expected exactly 10 frozen editorial fixtures'),
+              ('rows.length !== 7', 'rows.length !== 10'),
+              ('Expected exactly 7 current editorial heads in production', 'Expected exactly 10 current editorial heads in production'),
+              ('P4-03C1 editorial current heads verified.', 'P4-03C2 editorial current heads verified.'),
+              ('Expected exactly 7 editorial bootstrap fixtures', 'Expected exactly 10 editorial bootstrap fixtures'),
+              ('p4-03-c1-editorial-bootstrap.sql', 'p4-03-c2-editorial-bootstrap.sql'),
+              ('Applying idempotent P4-03C1 editorial bootstrap.', 'Applying idempotent P4-03C2 editorial bootstrap.'),
+              ('Verified 7 production editorial current heads exactly match the frozen P4-03C1 bootstrap fixtures.', 'Verified 10 production editorial current heads exactly match the frozen P4-03C2 bootstrap fixtures.'),
+            ],
+            'tests/editorial-persistence-cutover.test.mjs': [
+              ('/exactly 7 current editorial heads/u', '/exactly 10 current editorial heads/u'),
+            ],
+          }
+          for name, pairs in replacements.items():
+              path=Path(name); text=path.read_text()
+              for old,new in pairs:
+                  if old not in text:
+                      raise SystemExit(f'missing expected token in {name}: {old}')
+                  text=text.replace(old,new)
+              path.write_text(text)
+          PY
+      - name: Commit count updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "P4-03C2 Persistence Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add scripts/cloudflare-migrate.mjs tests/editorial-persistence-cutover.test.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "P4-03C2 enforce exactly ten persisted editorials [counts-ready]"
+          git push origin HEAD:agent/p4-03c2-three-more-editorials
