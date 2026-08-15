@@ -1,0 +1,116 @@
+{
+  "review": {
+    "id": "alice-in-wonderland-2010-editorial-c2-v1",
+    "titleId": "wd:Q174385",
+    "titleLabel": "أليس في بلاد العجائب",
+    "releaseYear": 2010,
+    "kind": "movie",
+    "policyVersion": "2026-08-13.2",
+    "publishedAt": "2026-08-15T06:32:00+03:00",
+    "scopeAr": "هذا تحليل تحريري على مستوى فيلم أليس في بلاد العجائب (2010)، وليس مراجعة لنسخة منصة أو إصدار منزلي محدد. نستخدم مراجعة ثابتة من ويكيبيديا، ويظل Kids-In-Mind رابط وقائع للنسخة السينمائية فقط؛ لذلك لا نعمم تفاصيله على نسخ فيديو قد تختلف.",
+    "analysisAr": "خلف الشكل الخيالي توجد مواجهات مع مخلوقات خطرة ومعركة تنتهي بقطع رأس مخلوق كبير، إلى جانب تهديدات بالقتل وقطع الرأس. توجد أيضًا إشارات عاطفية وجسدية، وألفاظ، وتدخين في سياق القصة، لكن هذه المحاور الأخيرة موثقة حاليًا بمرجع رابط واحد. نعرض هذه الوقائع من دون استخدام درجات خارجية أو افتراض أن ما لم يُذكر غير موجود.",
+    "decisionStatus": "insufficient_data",
+    "decisionEligible": false,
+    "sources": [
+      {
+        "id": "alice-source-wikipedia",
+        "publisher": "Wikipedia (English)",
+        "sourceType": "open_encyclopedia",
+        "sourceUrl": "https://en.wikipedia.org/w/index.php?title=Alice_in_Wonderland_%282010_film%29&oldid=1368126328",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "wikipedia-en",
+        "usageBasis": "open_license",
+        "rightsLabel": "CC BY-SA 4.0",
+        "rightsUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "usageNoteAr": "نستخدم مراجعة ثابتة من المقال لإسناد وقائع القصة مع العزو، ونكتب الصياغة العربية أصلية من الصفر من غير نسخ أو ترجمة قريبة.",
+        "sourceVersion": "oldid=1368126328",
+        "supportedClaimIds": [
+          "alice-claim-violence",
+          "alice-claim-fear"
+        ]
+      },
+      {
+        "id": "alice-source-kids-in-mind",
+        "publisher": "Kids-In-Mind",
+        "sourceType": "published_review",
+        "sourceUrl": "https://kids-in-mind.com/a/aliceinwonderland.htm",
+        "accessedOn": "2026-08-15",
+        "independenceGroupId": "kids-in-mind",
+        "usageBasis": "link_only_factual_reference",
+        "rightsLabel": "ربط للمصدر ومرجع وقائع فقط — لا ترخيص بإعادة نشر المحتوى",
+        "rightsUrl": "https://kids-in-mind.com/terms.htm",
+        "usageNoteAr": "نستخدم الرابط لتتبع وقائع محددة في النسخة السينمائية فقط. لا ننقل نص المراجعة أو درجاتها أو تقسيماتها، ولا نعمم التفاصيل على نسخ فيديو أو إصدارات أخرى.",
+        "supportedClaimIds": [
+          "alice-claim-violence",
+          "alice-claim-fear",
+          "alice-claim-sexual",
+          "alice-claim-language",
+          "alice-claim-substances"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "alice-claim-violence",
+        "category": "violence",
+        "summaryAr": "يتضمن العمل قتالًا بسلاح أبيض ومواجهات مع مخلوقات خطرة، وينتهي أحد الصراعات بقطع رأس المخلوق الخصم؛ وجود العنف مدعوم بمصدرين مستقلين.",
+        "verification": "corroborated",
+        "sourceIds": [
+          "alice-source-wikipedia",
+          "alice-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "alice-claim-fear",
+        "category": "fear",
+        "summaryAr": "تواجه أليس مطاردات وتهديدات بالقتل وقطع الرأس ومخلوقات عدائية داخل العالم الخيالي، وهو سياق خوف وتهديد تؤيده مجموعتا مصدر مستقلتان.",
+        "verification": "corroborated",
+        "sourceIds": [
+          "alice-source-wikipedia",
+          "alice-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "alice-claim-sexual",
+        "category": "sexualContent",
+        "summaryAr": "توجد إشارات عاطفية وجسدية وملابس أو مواقف تكشف أجزاء من الجسد من دون محتوى جنسي صريح، لكن هذا المحور مدعوم حاليًا بمرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "alice-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "alice-claim-language",
+        "category": "language",
+        "summaryAr": "توجد إهانات ومناداة بأسماء وتعبيرات قوية متفرقة، والدليل الحالي المنشور لدينا لهذا المحور من مرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "alice-source-kids-in-mind"
+        ]
+      },
+      {
+        "id": "alice-claim-substances",
+        "category": "substances",
+        "summaryAr": "يظهر تدخين النرجيلة في سياق إحدى الشخصيات الخيالية، وهذا المحور موثق لدينا حاليًا بمرجع واحد فقط.",
+        "verification": "single_source",
+        "sourceIds": [
+          "alice-source-kids-in-mind"
+        ]
+      }
+    ],
+    "uncertainCategories": [
+      "bullying",
+      "discrimination",
+      "selfHarm",
+      "grief",
+      "flashingLights"
+    ]
+  },
+  "presentation": {
+    "titleAr": "أليس في بلاد العجائب",
+    "titleEn": "Alice in Wonderland",
+    "revision": 1,
+    "updatedAt": "2026-08-15T06:32:00+03:00"
+  },
+  "fingerprint": "sha256:90a839bf8d9ba990f98706400ef95d8925fb36f771d48953ad37f0d85246b072"
+}

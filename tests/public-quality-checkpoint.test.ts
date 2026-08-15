@@ -31,7 +31,7 @@ test("homepage has no generic /review CTA and reads real editorial publications 
   assert.doesNotMatch(home, /SearchAction/u);
 
   const publications = await frozenEditorialPublications();
-  assert.equal(publications.length, 7);
+  assert.equal(publications.length, 10);
   for (const { review } of publications) {
     const reviewHref = buildPublicEditorialReviewHref(review.id);
     const titleHref = buildPublicCatalogTitleHref(review.titleId);
@@ -130,7 +130,7 @@ test("review policy clearly separates partial editorial analysis from verified v
 test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
   const publications = await frozenEditorialPublications();
   const kidSources = publications.flatMap(({ review }) => review.sources).filter((item: { publisher: string }) => item.publisher === "Kids-In-Mind");
-  assert.equal(kidSources.length, 7);
+  assert.equal(kidSources.length, 10);
   for (const item of kidSources) {
     assert.equal(item.usageBasis, "link_only_factual_reference");
     assert.match(item.rightsLabel, /لا .*ترخيص.*إعادة نشر/u);

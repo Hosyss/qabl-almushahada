@@ -22,7 +22,10 @@ const MINIONS_ID = "minions-2015-editorial-batch-v1";
 const BARBIE_ID = "barbie-2023-editorial-c1-v1";
 const JURASSIC_ID = "jurassic-park-1993-editorial-c1-v1";
 const TOTORO_ID = "my-neighbor-totoro-1988-editorial-c1-v1";
-const ALL_IDS = [CARS_ID, ET_ID, HARRY_ID, MINIONS_ID, BARBIE_ID, JURASSIC_ID, TOTORO_ID] as const;
+const ALICE_ID = "alice-in-wonderland-2010-editorial-c2-v1";
+const HUNGER_ID = "the-hunger-games-2012-editorial-c2-v1";
+const SPIDER_ID = "spider-man-no-way-home-2021-editorial-c2-v1";
+const ALL_IDS = [CARS_ID, ET_ID, HARRY_ID, MINIONS_ID, BARBIE_ID, JURASSIC_ID, TOTORO_ID, ALICE_ID, HUNGER_ID, SPIDER_ID] as const;
 const EXPECTED_EVIDENCE = new Map([
   [CARS_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
   [ET_ID, { corroborated: 4, singleSource: 1, uncertain: 5 }],
@@ -31,11 +34,14 @@ const EXPECTED_EVIDENCE = new Map([
   [BARBIE_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
   [JURASSIC_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
   [TOTORO_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
+  [ALICE_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
+  [HUNGER_ID, { corroborated: 2, singleSource: 3, uncertain: 5 }],
+  [SPIDER_ID, { corroborated: 1, singleSource: 3, uncertain: 6 }],
 ]);
 
-test("frozen bootstrap contains exactly the seven current editorial publications", () => {
+test("frozen bootstrap contains exactly the ten current editorial publications", () => {
   const reviews = listFrozenEditorialReviews();
-  assert.equal(reviews.length, 7);
+  assert.equal(reviews.length, 10);
   assert.deepEqual(new Set(reviews.map((review) => review.id)), new Set(ALL_IDS));
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q182153")?.id, CARS_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q11621")?.id, ET_ID);
@@ -44,6 +50,9 @@ test("frozen bootstrap contains exactly the seven current editorial publications
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q55436290")?.id, BARBIE_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q167726")?.id, JURASSIC_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q39571")?.id, TOTORO_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q174385")?.id, ALICE_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q212965")?.id, HUNGER_ID);
+  assert.equal(getFrozenEditorialReviewForTitleId("wd:Q68934496")?.id, SPIDER_ID);
   assert.equal(getFrozenEditorialReviewForTitleId("wd:Q44578"), null);
 });
 

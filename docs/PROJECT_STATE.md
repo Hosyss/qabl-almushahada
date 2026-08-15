@@ -1,6 +1,17 @@
 # حالة مشروع «قبل المشاهدة»
 
-آخر تحديث: 14 أغسطس 2026
+آخر تحديث: 15 أغسطس 2026
+
+## P4-03C2 — Three Editorial Additions
+
+- checkpoint الحالي يضيف **3 تحليلات فقط** من عناوين موجودة أصلًا في Production D1: Alice in Wonderland (2010)، The Hunger Games (2012)، Spider-Man: No Way Home (2021).
+- الهدف المقفول: الانتقال من **7 إلى 10 current editorial publications فقط**؛ لا فيلم حادي عشر.
+- Wikipedia لكل عمل مثبتة إلى revision ثابتة تحت `CC BY-SA 4.0`، وKids-In-Mind يبقى `link_only_factual_reference` مع قيد النسخة السينمائية وعدم تعميم نسخ الفيديو/الإصدارات الممتدة.
+- النصوص العربية أصلية، `decisionEligible = false`، ولا Severity أو Exact Version أو منصة مشاهدة مخترعة.
+- أضيفت ثلاثة أغلفة توضيحية أصلية محلية بلا Poster/Screenshot/شعار/شخصية محمية، ولا تدخل في evidence أو decision.
+- السبعة السابقون مقفولون باختبارات fingerprints؛ verifier وbootstrap مقفولان على **10 بالضبط** بعد الدمج.
+- Branch gates الحالية تشمل Engine + migrations + lint + production build + Public Quality؛ Production D1/Deploy/Live Smoke/Chrome QA تبقى خطوات ما بعد الدمج ولا تُسجل Passed قبل تنفيذها.
+- بعد إغلاق هذا checkpoint إنتاجيًا يتوقف توسيع المحتوى مؤقتًا؛ المرحلة التالية المنفصلة هي **Public report intake** ثم readiness للفهرسة وAdSense.
 
 ## الحالة الحالية
 

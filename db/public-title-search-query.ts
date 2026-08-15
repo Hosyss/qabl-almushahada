@@ -1,6 +1,8 @@
 import type { ParsedPublicTitleSearchRequest } from "../lib/public-title-search.ts";
 
 export const MAX_PUBLIC_TITLE_SEARCH_CANDIDATES = 256;
+export const MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS = 4;
+export const MAX_PUBLIC_TITLE_SQL_ORDER_PREFIX_CHARS = 12;
 
 export interface PublicTitleCandidateQuery {
   sql: string;
@@ -27,18 +29,29 @@ export function buildSqlSubsequencePattern(token: string): string {
   return characters.length === 0 ? "%" : `%${characters.map(escapeLike).join("%")}%`;
 }
 
+export function buildSqlOrderPrefixPattern(normalizedQuery: string): string {
+  const boundedPrefix = Array.from(normalizedQuery).slice(0, MAX_PUBLIC_TITLE_SQL_ORDER_PREFIX_CHARS).join("");
+  return `${escapeLike(boundedPrefix)}%`;
+}
+
 export function buildPublicTitleCandidateQuery(parsed: ParsedPublicTitleSearchRequest): PublicTitleCandidateQuery {
   const predicates: string[] = [];
   const bindings: string[] = [];
-  for (const token of parsed.tokens) {
+  // Candidate SQL is only a bounded prefilter. Keep its bind count and LIKE complexity
+  // bounded for long real-world titles; the full parsed query is still applied by the
+  // deterministic ranker after candidate retrieval.
+  for (const token of parsed.tokens.slice(0, MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS)) {
     const broad = buildSqlSubsequencePattern(token);
     const anchor = `%${escapeLike(Array.from(token).slice(0, token.length >= 5 ? 2 : 1).join(""))}%`;
     predicates.push(`(canonicalSearch LIKE ? ESCAPE '\\' OR originalSearch LIKE ? ESCAPE '\\' OR aliasSearch LIKE ? ESCAPE '\\' OR canonicalSearch LIKE ? ESCAPE '\\' OR originalSearch LIKE ? ESCAPE '\\' OR aliasSearch LIKE ? ESCAPE '\\')`);
     bindings.push(broad, broad, broad, anchor, anchor, anchor);
   }
   const exact = escapeLike(parsed.normalizedQuery);
-  const prefix = `${exact}%`;
-  bindings.push(exact, exact, prefix, prefix);
+  // SQL ordering is only a candidate-order hint. Never feed the full long query into LIKE:
+  // use a fixed-size normalized prefix, then let exact equality and the full JS ranker make
+  // the real relevance decision. This prefix is not a match rule and cannot promote a title.
+  const orderPrefix = buildSqlOrderPrefixPattern(parsed.normalizedQuery);
+  bindings.push(exact, exact, orderPrefix, orderPrefix);
   const canonical = normalizedSqlColumn("t.canonical_name");
   const original = normalizedSqlColumn("t.original_name");
   const aliases = normalizedSqlColumn("t.search_aliases_json");
