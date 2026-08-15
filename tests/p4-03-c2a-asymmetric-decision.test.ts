@@ -11,6 +11,7 @@ import {
   decideEditorialWorkLevelForFamily,
   summarizeEditorialWorkLevelEvidence,
 } from "../lib/editorial-work-level-decision.ts";
+import { decidePracticalEditorialVerdict } from "../lib/editorial-practical-verdict.ts";
 import { createArabFamilyProfile } from "../lib/arab-family-policy.ts";
 import { assessEditorialReviewPublication } from "../lib/editorial-review.ts";
 import {
@@ -309,7 +310,7 @@ test("9. customized family limits determine the negative result using the user's
   assert.match(buildAsymmetricDecisionPresentation(strict).preferencesLabelAr, /مخصصة بالكامل/u);
 });
 
-test("10. Jurassic Park end-to-end is work-level, source-safe, explicit, and non-synthetic", () => {
+test("10. Jurassic strict evidence remains source-safe while practical verdict is non-synthetic", () => {
   const review = getFrozenEditorialReviewById(JURASSIC_ID);
   assert.ok(review);
   const { summary } = summarizeEditorialWorkLevelEvidence(review, {}, true);
@@ -326,31 +327,31 @@ test("10. Jurassic Park end-to-end is work-level, source-safe, explicit, and non
   assert.equal(summary.allowedSourceIds.length, 1);
   assert.equal(summary.excludedReferenceOnlySourceIds.length, 1);
 
-  const result = decideEditorialWorkLevelForFamily({
+  const strictResult = decideEditorialWorkLevelForFamily({
     review,
     family: createArabFamilyProfile({ childAge: 10, fearLimit: 1, avoidBullying: false }),
     usedDefaultPreferences: false,
     publicationQualityPassed: true,
   });
-  assert.equal(result.decision.outcome, "insufficient_data");
-  assert.equal(result.decision.decisionScope, "work_level");
-  assert.equal(result.decision.decisionBasis, "incomplete_evidence");
-  assert.deepEqual(new Set(result.decision.severityMissingCategories), new Set(["fear", "violence"]));
+  assert.equal(strictResult.decision.outcome, "insufficient_data");
+  assert.equal(strictResult.decision.decisionScope, "work_level");
+  assert.equal(strictResult.decision.decisionBasis, "incomplete_evidence");
+  assert.deepEqual(new Set(strictResult.decision.severityMissingCategories), new Set(["fear", "violence"]));
+
+  const practical = decidePracticalEditorialVerdict({
+    review,
+    publicationQualityPassed: true,
+    now: new Date("2026-08-15T12:00:00Z"),
+  });
+  assert.equal(practical.outcome, "watch_with_guidance");
+  assert.deepEqual(new Set(practical.unknownCategories), new Set(review.uncertainCategories));
+  assert.equal(Object.hasOwn(practical, "severity"), false);
+  assert.ok(practical.referenceOnlyCategories.includes("language"));
 
   const parentUi = readFileSync(new URL("../app/review/editorial-review-view.tsx", import.meta.url), "utf8");
-  assert.match(parentUi, /تحذير على مستوى العمل/u);
-  assert.match(parentUi, /الملاءمة الكاملة غير محسومة/u);
-
-  const ui = readFileSync(new URL("../app/review/editorial-work-level-caution.tsx", import.meta.url), "utf8");
-  assert.match(ui, /هذا الاستنتاج مبني على معلومات موثقة عن العمل، وقد تختلف بعض التفاصيل حسب نسخة العرض/u);
-  assert.match(ui, /الأدلة الحالية غير مكتملة/u);
-  assert.match(ui, /بوابة جودة سجل النشر غير مجتازة/u);
-  assert.match(ui, /تعديلاتك المحفوظة/u);
-  assert.match(ui, /لا نصف النتيجة بأنها تخصيص كامل/u);
-  assert.match(ui, /لم نفترض عمر طفل أو حدودًا مخفية/u);
-  assert.match(ui, /المحاور الخمسة التي لم تُحسم أصلًا/u);
-  assert.match(ui, /مرجع رابط فقط ولا نسمح لها بحسم القرار/u);
-  assert.match(ui, /ما الذي يمنع نتيجة «ضمن حدودك»/u);
+  assert.match(parentUi, /EditorialPracticalVerdict/u);
+  assert.match(parentUi, /حكم عملي على مستوى العمل/u);
+  assert.match(parentUi, /المحاور غير المحسومة/u);
 });
 
 test("11. existing Full Evidence public view still requires complete coverage and remains unchanged", () => {
@@ -434,7 +435,7 @@ test("11. existing Full Evidence public view still requires complete coverage an
   assert.equal(view.categories.find((item) => item.id === "violence")?.severity, 2);
 });
 
-test("12. Partial Editorial fallback remains and C2A UI is hard-scoped to Jurassic only", () => {
+test("12. persisted editorial authority stays strict while practical UI applies to mature titles", () => {
   const review = getFrozenEditorialReviewById(JURASSIC_ID);
   assert.ok(review);
   const assessment = assessEditorialReviewPublication(review);
@@ -447,8 +448,11 @@ test("12. Partial Editorial fallback remains and C2A UI is hard-scoped to Jurass
   assert.match(reviewPage, /EditorialReviewView review=\{persisted\.review\}/u);
 
   const editorialView = readFileSync(new URL("../app/review/editorial-review-view.tsx", import.meta.url), "utf8");
-  assert.match(editorialView, /review\.id === JURASSIC_C2A_EDITORIAL_ID \? \(\s*<EditorialWorkLevelCaution/su);
+  assert.match(editorialView, /<EditorialPracticalVerdict review=\{review\}/u);
+  assert.doesNotMatch(editorialView, /JURASSIC_C2A_EDITORIAL_ID/u);
 
-  const caution = readFileSync(new URL("../app/review/editorial-work-level-caution.tsx", import.meta.url), "utf8");
-  assert.match(caution, /if \(review\.id !== JURASSIC_C2A_EDITORIAL_ID\) return null/u);
+  const practicalUi = readFileSync(new URL("../app/review/editorial-practical-verdict.tsx", import.meta.url), "utf8");
+  assert.match(practicalUi, /ينفع للمشاهدة/u);
+  assert.match(practicalUi, /لا أنصح به وفق حدود أسرتك/u);
+  assert.match(practicalUi, /لا يحوّل المحاور غير المحسومة إلى «لا يوجد»/u);
 });
