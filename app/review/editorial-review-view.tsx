@@ -1,12 +1,12 @@
 import Link from "next/link";
 
+import { buildPracticalEditorialReviewDescription } from "@/lib/editorial-practical-verdict";
 import {
   buildEditorialPublicationContentFingerprint,
   getEditorialPublicationPresentation,
 } from "@/lib/editorial-publication-presentation";
 import {
   assessEditorialReviewPublication,
-  buildEditorialReviewDescription,
   buildPublicEditorialReviewCanonicalUrl,
   getEditorialCategoryLabelAr,
   type EditorialReviewPublication,
@@ -36,7 +36,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
     "@context": "https://schema.org",
     "@type": "Article",
     headline: `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear})`,
-    description: buildEditorialReviewDescription(review),
+    description: buildPracticalEditorialReviewDescription(review),
     inLanguage: "ar",
     datePublished: review.publishedAt,
     dateModified: presentation.updatedAt,
@@ -82,7 +82,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
         </div>
         <div className="review-verification">
           <span className="review-verification__icon" aria-hidden="true">✓</span>
-          <span><small>حالة القرار</small><strong>حكم عملي متاح — والتفاصيل غير المحسومة تظل ظاهرة</strong></span>
+          <span><small>حالة القرار</small><strong>التحليل جاهز لحكم الأسرة — والمجهول يظل ظاهرًا</strong></span>
         </div>
       </section>
 
@@ -94,7 +94,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             <p>{review.analysisAr.replaceAll("Harry", "هاري")}</p>
             <p className="editorial-type-note">
               هذا تحليل للعمل من مراجع معلنة، وليس ادعاءً بأن فريقنا شاهد نسخة محددة بمنصة ولغة ومدة وبصمة محتوى.
-              الحكم العملي أدناه يجيب سؤال المشاهدة على مستوى العمل، بينما ختم النسخة المحددة يظل مسارًا أعلى مستقلًا.
+              الحكم العملي أدناه يجيب قرار الأسرة بعد تحديد العمر والحدود، بينما ختم النسخة المحددة يظل مسارًا أعلى مستقلًا.
             </p>
           </div>
           <EditorialSummaryDialog
@@ -155,7 +155,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             <h2 id="uncertain-title">{assessment.uncertainCategoryCount} من 10 محاور ما زالت غير محسومة</h2>
             <p>
               غياب الذكر في المراجع الحالية لا يثبت أن المحتوى غير موجود، لذلك لا نحوله إلى «لا يوجد».
-              وجود هذه المحاور يخفض قوة الحكم العملي لكنه لا يمسحه بالكامل في عمل ناضج وله تحليل متعدد المصادر.
+              وجود هذه المحاور قد يحول الحكم إلى «يحتاج انتباهك»، لكنه لا يعيد العمل الناضج تلقائيًا إلى «المعلومات غير كافية».
             </p>
           </div>
           <ul>{uncertainLabels.map((label) => <li key={label}>{label}</li>)}</ul>
@@ -193,7 +193,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
               أو درجاتها أو بنيتها، ولا ندّعي مشاهدة نسخة محددة.
             </p>
             <p>
-              الحكم العملي يستخدم corpus تحريري ناضج ومتعدد المصادر ليجيب سؤال «ينفع للمشاهدة ولا لأ؟» مع إبقاء المجهول ظاهرًا.
+              الحكم العملي يستخدم corpus تحريري ناضج ومتعدد المصادر ليعطي الأسرة نتيجة واضحة: ينفع، يحتاج انتباه، أو لا ننصح به وفق حدودها.
               المراجعة الموثقة لنسخة محددة تظل مستوى ثقة أعلى يرتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين.
             </p>
             <p><strong>نطاق هذا التحليل:</strong> {review.scopeAr.replaceAll("Harry", "هاري")}</p>
@@ -227,7 +227,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
 
       <section className="review-end">
         <span aria-hidden="true">✦</span>
-        <div><small>نهاية التحليل</small><h2>الحكم العملي ظاهر، والوقائع والمجهول ظاهرون من غير إخفاء.</h2></div>
+        <div><small>نهاية التحليل</small><h2>قرار الأسرة واضح، والوقائع والمجهول ظاهرون من غير إخفاء.</h2></div>
         <Link href="/search">ابحث عن عنوان آخر <span aria-hidden="true">←</span></Link>
       </section>
     </main>
