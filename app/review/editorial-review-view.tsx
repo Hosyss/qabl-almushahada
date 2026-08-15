@@ -11,10 +11,9 @@ import {
   getEditorialCategoryLabelAr,
   type EditorialReviewPublication,
 } from "@/lib/editorial-review";
-import { JURASSIC_C2A_EDITORIAL_ID } from "@/lib/editorial-work-level-decision";
 
+import EditorialPracticalVerdict from "./editorial-practical-verdict";
 import EditorialSummaryDialog from "./editorial-summary-dialog";
-import EditorialWorkLevelCaution from "./editorial-work-level-caution";
 import TitleArtwork from "../title-artwork";
 
 const SOURCE_TYPE_LABELS = {
@@ -74,16 +73,16 @@ export default async function EditorialReviewView({ review }: { review: Editoria
         <TitleArtwork titleId={review.titleId} className="review-poster review-poster--artwork" sizes="108px" priority showDisclosure />
         <div className="review-title-copy">
           <div className="review-title-badges">
-            <span className="review-demo-badge">تحليل تحريري جزئي</span>
-            <span className="review-type-badge">{review.id === JURASSIC_C2A_EDITORIAL_ID ? "تحذير على مستوى العمل" : "الحكم غير مكتمل"}</span>
+            <span className="review-demo-badge">تحليل تحريري متعدد المصادر</span>
+            <span className="review-type-badge">حكم عملي على مستوى العمل</span>
           </div>
           <h1 id="review-title">{presentation.titleAr}</h1>
           <p className="review-original-title" dir="ltr">{presentation.titleEn}</p>
           <p>فيلم · {review.releaseYear}</p>
         </div>
         <div className="review-verification">
-          <span className="review-verification__icon" aria-hidden="true">!</span>
-          <span><small>حالة القرار</small><strong>{review.id === JURASSIC_C2A_EDITORIAL_ID ? "الملاءمة الكاملة غير محسومة؛ راجع تحذير حدود الأسرة أدناه" : "المعلومات غير كافية لإصدار حكم نهائي"}</strong></span>
+          <span className="review-verification__icon" aria-hidden="true">✓</span>
+          <span><small>حالة القرار</small><strong>حكم عملي متاح — والتفاصيل غير المحسومة تظل ظاهرة</strong></span>
         </div>
       </section>
 
@@ -95,7 +94,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             <p>{review.analysisAr.replaceAll("Harry", "هاري")}</p>
             <p className="editorial-type-note">
               هذا تحليل للعمل من مراجع معلنة، وليس ادعاءً بأن فريقنا شاهد نسخة محددة بمنصة ولغة ومدة وبصمة محتوى.
-              المراجعة الموثقة لنسخة محددة لها مسار أعلى مستقل ولم تكتمل هنا.
+              الحكم العملي أدناه يجيب سؤال المشاهدة على مستوى العمل، بينما ختم النسخة المحددة يظل مسارًا أعلى مستقلًا.
             </p>
           </div>
           <EditorialSummaryDialog
@@ -114,9 +113,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
           />
         </section>
 
-        {review.id === JURASSIC_C2A_EDITORIAL_ID ? (
-          <EditorialWorkLevelCaution review={review} publicationQualityPassed={assessment.publishable} />
-        ) : null}
+        <EditorialPracticalVerdict review={review} publicationQualityPassed={assessment.publishable} />
 
         <section className="editorial-supported" aria-labelledby="supported-title">
           <div className="review-section-head review-section-head--simple">
@@ -157,8 +154,8 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             <span>محاور لم نستطع حسمها</span>
             <h2 id="uncertain-title">{assessment.uncertainCategoryCount} من 10 محاور ما زالت غير محسومة</h2>
             <p>
-              القاعدة واحدة لكل هذه المحاور: غياب الذكر في المراجع الحالية لا يثبت أن المحتوى غير موجود،
-              لذلك لا نحوله إلى «لا يوجد» ولا نكرر نفس التنبيه داخل كل محور.
+              غياب الذكر في المراجع الحالية لا يثبت أن المحتوى غير موجود، لذلك لا نحوله إلى «لا يوجد».
+              وجود هذه المحاور يخفض قوة الحكم العملي لكنه لا يمسحه بالكامل في عمل ناضج وله تحليل متعدد المصادر.
             </p>
           </div>
           <ul>{uncertainLabels.map((label) => <li key={label}>{label}</li>)}</ul>
@@ -189,15 +186,15 @@ export default async function EditorialReviewView({ review }: { review: Editoria
         </section>
 
         <details className="editorial-details">
-          <summary>كيف نفصل التحليل التحريري عن المراجعة الموثقة؟</summary>
+          <summary>كيف نفصل الحكم العملي عن المراجعة الموثقة لنسخة محددة؟</summary>
           <div>
             <p>
               في التحليل التحريري نستخدم الوقائع فقط ونكتب النص العربي من الصفر. لا ننقل نص مراجعة خارجية أو ترجمتها
               أو درجاتها أو بنيتها، ولا ندّعي مشاهدة نسخة محددة.
             </p>
             <p>
-              المراجعة الموثقة لنسخة محددة تتطلب منصة ولغة ومدة وبصمة محتوى، ومراجعين مستقلين واعتمادًا وتدقيقًا.
-              وحدها تلك الدورة يمكن أن تمنح مسار الحكم سلطة بعد اكتمال كل البوابات.
+              الحكم العملي يستخدم corpus تحريري ناضج ومتعدد المصادر ليجيب سؤال «ينفع للمشاهدة ولا لأ؟» مع إبقاء المجهول ظاهرًا.
+              المراجعة الموثقة لنسخة محددة تظل مستوى ثقة أعلى يرتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين.
             </p>
             <p><strong>نطاق هذا التحليل:</strong> {review.scopeAr.replaceAll("Harry", "هاري")}</p>
           </div>
@@ -230,7 +227,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
 
       <section className="review-end">
         <span aria-hidden="true">✦</span>
-        <div><small>نهاية التحليل</small><h2>المعروف ظاهر بإسناده، وما لم يُحسم ظاهر مرة واحدة بوضوح.</h2></div>
+        <div><small>نهاية التحليل</small><h2>الحكم العملي ظاهر، والوقائع والمجهول ظاهرون من غير إخفاء.</h2></div>
         <Link href="/search">ابحث عن عنوان آخر <span aria-hidden="true">←</span></Link>
       </section>
     </main>
