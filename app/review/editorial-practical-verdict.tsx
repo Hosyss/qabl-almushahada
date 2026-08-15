@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { createArabFamilyProfile } from "@/lib/arab-family-policy";
 import { getAsymmetricCategoryLabelAr } from "@/lib/asymmetric-decision-presentation";
@@ -13,16 +13,25 @@ import type { EditorialReviewPublication } from "@/lib/editorial-review";
 import {
   LOCAL_FAMILY_SETTINGS_STORAGE_KEY,
   parseLocalFamilySettings,
+  serializeLocalFamilySettings,
+  type LocalFamilySettings,
 } from "@/lib/local-family-settings";
 
 const SETTINGS_LOADING_SNAPSHOT = "__qabl_family_settings_loading__";
+const SETTINGS_CHANGED_EVENT = "qabl-family-settings-changed";
+const DEFAULT_FORM: LocalFamilySettings = { childAge: 12, fearLimit: 2, avoidBullying: true };
 
 function subscribe(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
     if (event.key === LOCAL_FAMILY_SETTINGS_STORAGE_KEY) onStoreChange();
   };
+  const handleLocalChange = () => onStoreChange();
   window.addEventListener("storage", handleStorage);
-  return () => window.removeEventListener("storage", handleStorage);
+  window.addEventListener(SETTINGS_CHANGED_EVENT, handleLocalChange);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(SETTINGS_CHANGED_EVENT, handleLocalChange);
+  };
 }
 
 function getSnapshot() {
@@ -46,6 +55,12 @@ export default function EditorialPracticalVerdict({
     () => settingsLoaded ? parseLocalFamilySettings(settingsSnapshot) : null,
     [settingsLoaded, settingsSnapshot],
   );
+  const [form, setForm] = useState<LocalFamilySettings>(DEFAULT_FORM);
+  const [savedNotice, setSavedNotice] = useState("");
+
+  useEffect(() => {
+    if (settings) setForm(settings);
+  }, [settings]);
 
   const generalVerdict = useMemo(
     () => decidePracticalEditorialVerdict({ review, publicationQualityPassed }),
@@ -63,14 +78,27 @@ export default function EditorialPracticalVerdict({
   );
   const verdict = familyVerdict ?? generalVerdict;
   const determiningLabels = verdict.determiningCategories.map(getAsymmetricCategoryLabelAr);
+  const attentionLabels = verdict.attentionCategories.map(getAsymmetricCategoryLabelAr);
   const knownLabels = verdict.knownPresentCategories.map(getAsymmetricCategoryLabelAr);
   const unknownLabels = verdict.unknownCategories.map(getAsymmetricCategoryLabelAr);
   const referenceOnlyLabels = verdict.referenceOnlyCategories.map(getAsymmetricCategoryLabelAr);
 
+  function saveSettings() {
+    window.localStorage.setItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY, serializeLocalFamilySettings(form));
+    window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
+    setSavedNotice("تم حفظ إعدادات الأسرة على هذا الجهاز وتحديث الحكم.");
+  }
+
+  function clearSettings() {
+    window.localStorage.removeItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
+    window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
+    setSavedNotice("تم حذف إعدادات الأسرة المحلية. لن نفترض عمرًا أو حدودًا من عندنا.");
+  }
+
   return (
     <section className="editorial-uncertain" aria-labelledby="practical-verdict-title">
       <div>
-        <span>{familyVerdict ? "الحكم وفق حدود أسرتك" : "حكم عملي على مستوى العمل"}</span>
+        <span>{familyVerdict ? "الحكم وفق حدود أسرتك" : "التحليل جاهز للحكم العملي"}</span>
         <h2 id="practical-verdict-title">
           {EDITORIAL_PRACTICAL_OUTCOME_LABELS_AR[verdict.outcome]}
         </h2>
@@ -97,16 +125,62 @@ export default function EditorialPracticalVerdict({
           </p>
           {determiningLabels.length > 0 ? (
             <p><strong>سبب المنع:</strong> وجود محتوى موثّق في {determiningLabels.join("، ")} بينما حد الأسرة لهذا المحور صفر.</p>
+          ) : attentionLabels.length > 0 ? (
+            <p><strong>يحتاج انتباه بسبب:</strong> {attentionLabels.join("، ")}. لا نملك شدة رقمية كافية لإثبات أن هذه النقاط داخل حد الأسرة، لذلك لا نقول «ينفع» بلا دليل ولا نرجع إلى «الحكم غير مكتمل».</p>
           ) : (
-            <p>لم نجد في الوقائع المؤهلة ما يثبت تجاوز حد صفري اخترته؛ لذلك لا نختلق شدة رقمية لإنتاج منع غير موثّق.</p>
+            <p>لم نجد في الوقائع أو المحاور غير المحسومة ما يمكن أن يتجاوز حدود الأسرة الحالية ضمن ما نستطيع إثباته من دون اختراع شدة.</p>
           )}
         </div>
       ) : (
         <div aria-live="polite">
-          <p><strong>الحكم العام:</strong> {EDITORIAL_PRACTICAL_OUTCOME_LABELS_AR[generalVerdict.outcome]}</p>
-          <p>لا توجد إعدادات أسرة محفوظة على هذا الجهاز، لذلك هذا حكم عام على مستوى العمل وليس حكمًا لعمر طفل بعينه.</p>
+          <p><strong>الأدلة جاهزة، والناقص هو إعداد الأسرة فقط.</strong> لن نفترض عمر طفل من عندنا.</p>
         </div>
       )}
+
+      {settingsLoaded ? (
+        <fieldset className="editorial-family-settings">
+          <legend>{settings ? "تعديل إعدادات الأسرة" : "حدد إعدادات الأسرة لإصدار الحكم"}</legend>
+          <label>
+            عمر الطفل
+            <select
+              aria-label="عمر الطفل"
+              value={form.childAge}
+              onChange={(event) => setForm((current) => ({ ...current, childAge: Number(event.target.value) }))}
+            >
+              {Array.from({ length: 15 }, (_, index) => index + 3).map((age) => (
+                <option key={age} value={age}>{age} سنة</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            حد الخوف
+            <select
+              aria-label="حد الخوف"
+              value={form.fearLimit}
+              onChange={(event) => setForm((current) => ({ ...current, fearLimit: Number(event.target.value) as 0 | 1 | 2 | 3 }))}
+            >
+              <option value={0}>صفر — لا أقبل وجوده</option>
+              <option value={1}>منخفض</option>
+              <option value={2}>متوسط</option>
+              <option value={3}>مرتفع</option>
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.avoidBullying}
+              onChange={(event) => setForm((current) => ({ ...current, avoidBullying: event.target.checked }))}
+            />
+            تجنب التنمر بالكامل
+          </label>
+          <div className="editorial-family-settings__actions">
+            <button type="button" onClick={saveSettings}>احفظ وحدث الحكم</button>
+            {settings ? <button type="button" onClick={clearSettings}>احذف الإعدادات</button> : null}
+          </div>
+          <p>تُحفظ هذه القيم محليًا على جهازك فقط. لا نرسل عمر الطفل أو تفضيلات الأسرة إلى حساب أو ملف شخصي.</p>
+          <p aria-live="polite">{savedNotice}</p>
+        </fieldset>
+      ) : null}
 
       <div>
         <p><strong>المحتوى الذي ثبت وجوده في التحليل:</strong></p>
@@ -117,7 +191,7 @@ export default function EditorialPracticalVerdict({
         <div>
           <p><strong>محاور ما زالت غير محسومة:</strong></p>
           <ul>{unknownLabels.map((label) => <li key={label}>{label}</li>)}</ul>
-          <p>وجودها كمحاور غير محسومة يقلل قوة الحكم، لكنه لا يمسح الحكم العملي كله في عمل ناضج وله تحليل متعدد المصادر.</p>
+          <p>تظل غير محسومة فعلًا. وجودها قد يجعل الحكم «يحتاج انتباهك»، لكنه لا يعيد الفيلم تلقائيًا إلى «المعلومات غير كافية» بعد نضج التحليل.</p>
         </div>
       ) : null}
 
@@ -132,7 +206,7 @@ export default function EditorialPracticalVerdict({
       <div>
         <p><strong>ليه الحكم ده مختلف عن «مراجعة نسخة محددة»؟</strong></p>
         <p>
-          الحكم العملي يجيب سؤال «ينفع أشاهده ولا لأ؟» من corpus تحريري ناضج ومتعدد المصادر.
+          الحكم العملي يجاوب قرار الأسرة من corpus تحريري ناضج ومتعدد المصادر.
           أما ختم «ضمن حدودك» عالي الثقة لنسخة محددة فيظل محتاج هوية نسخة وتغطية كاملة وشدة موثقة عند الحاجة.
         </p>
       </div>
