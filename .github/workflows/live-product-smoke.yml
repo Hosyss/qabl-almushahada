@@ -33,10 +33,10 @@ jobs:
           grep -F 'تحليلات منشورة حديثًا' "$RUNNER_TEMP/home.html" > /dev/null
           grep -F 'تحليل تحريري جزئي — الحكم غير مكتمل' "$RUNNER_TEMP/home.html" > /dev/null
           grep -F 'عرض كل التحليلات' "$RUNNER_TEMP/home.html" > /dev/null
-          for id in barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1 et-1982-editorial-batch-v1; do
+          for id in alice-in-wonderland-2010-editorial-c2-v1 the-hunger-games-2012-editorial-c2-v1 spider-man-no-way-home-2021-editorial-c2-v1 barbie-2023-editorial-c1-v1; do
             grep -F "editorialId=$id" "$RUNNER_TEMP/home.html" > /dev/null
           done
-          for hidden in cars-2006-editorial-pilot-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1; do
+          for hidden in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1; do
             if grep -Fq "editorialId=$hidden" "$RUNNER_TEMP/home.html"; then
               echo "Homepage exceeded the latest-four editorial limit: $hidden" >&2
               exit 1
@@ -80,7 +80,7 @@ jobs:
           grep -F 'هل تقصد؟' "$RUNNER_TEMP/harry-search.html" > /dev/null
           grep -F '/title/Q102438' "$RUNNER_TEMP/harry-search.html" > /dev/null
 
-      - name: Verify seven editorial paths in Arabic and English
+      - name: Verify ten editorial paths in Arabic and English
         shell: bash
         run: |
           set -euo pipefail
@@ -119,6 +119,9 @@ jobs:
           barbie	باربي	Barbie	Q55436290	barbie-2023-editorial-c1-v1
           jurassic	الحديقة الجوارسية	Jurassic Park	Q167726	jurassic-park-1993-editorial-c1-v1
           totoro	جاري توتورو	My Neighbor Totoro	Q39571	my-neighbor-totoro-1988-editorial-c1-v1
+          alice	أليس في بلاد العجائب	Alice in Wonderland	Q174385	alice-in-wonderland-2010-editorial-c2-v1
+          hunger	مباريات الجوع	The Hunger Games	Q212965	the-hunger-games-2012-editorial-c2-v1
+          spider	الرجل العنكبوت: لا طريق للوطن	Spider-Man: No Way Home	Q68934496	spider-man-no-way-home-2021-editorial-c2-v1
           EOF
 
           while IFS=$'\t' read -r slug ar en qid id; do
@@ -154,7 +157,7 @@ jobs:
             done
           done < "$RUNNER_TEMP/editorials.tsv"
 
-      - name: Verify title directory pagination and exactly seven editorial titles
+      - name: Verify title directory pagination and exactly ten editorial titles
         shell: bash
         run: |
           set -euo pipefail
@@ -171,7 +174,7 @@ jobs:
           import re, sys
           html = open(sys.argv[1], encoding='utf-8').read()
           actual = set(re.findall(r'href="/title/(Q\d+)"', html))
-          expected = {'Q182153','Q11621','Q102438','Q13619743','Q55436290','Q167726','Q39571'}
+          expected = {'Q182153','Q11621','Q102438','Q13619743','Q55436290','Q167726','Q39571','Q174385','Q212965','Q68934496'}
           if actual != expected:
               raise SystemExit(f'Editorial directory mismatch. expected={sorted(expected)} actual={sorted(actual)}')
           PY
@@ -184,20 +187,20 @@ jobs:
           grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/invalid-review.html" > /dev/null
           grep -F 'noindex' "$RUNNER_TEMP/invalid-review.html" > /dev/null
           grep -F '/search' "$RUNNER_TEMP/invalid-review.html" > /dev/null
-          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1; do
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1 alice-in-wonderland-2010-editorial-c2-v1 the-hunger-games-2012-editorial-c2-v1 spider-man-no-way-home-2021-editorial-c2-v1; do
             curl --fail --silent --show-error --location --get --data-urlencode "editorialId=$id" --data-urlencode 'publicationId=invalid-publication' "$WORKER_URL/review" > "$RUNNER_TEMP/mixed.html"
             grep -F 'المراجعة غير متاحة حاليًا' "$RUNNER_TEMP/mixed.html" > /dev/null
           done
 
-      - name: Verify indexable sitemap contract for seven rich publications
+      - name: Verify indexable sitemap contract for ten rich publications
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location "$WORKER_URL/sitemap.xml" > "$RUNNER_TEMP/sitemap.xml"
-          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1; do
+          for id in cars-2006-editorial-pilot-v1 et-1982-editorial-batch-v1 harry-potter-philosophers-stone-2001-editorial-batch-v1 minions-2015-editorial-batch-v1 barbie-2023-editorial-c1-v1 jurassic-park-1993-editorial-c1-v1 my-neighbor-totoro-1988-editorial-c1-v1 alice-in-wonderland-2010-editorial-c2-v1 the-hunger-games-2012-editorial-c2-v1 spider-man-no-way-home-2021-editorial-c2-v1; do
             grep -F "editorialId=$id" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
-          for qid in Q182153 Q11621 Q102438 Q13619743 Q55436290 Q167726 Q39571; do
+          for qid in Q182153 Q11621 Q102438 Q13619743 Q55436290 Q167726 Q39571 Q174385 Q212965 Q68934496; do
             grep -F "/title/$qid" "$RUNNER_TEMP/sitemap.xml" > /dev/null
           done
 
@@ -207,6 +210,6 @@ jobs:
           echo '### Live product smoke succeeded' >> "$GITHUB_STEP_SUMMARY"
           echo '- Homepage exposes exactly the latest four real partial editorial analyses plus the all-analyses link' >> "$GITHUB_STEP_SUMMARY"
           echo '- HarryPotter stays conservative and leads to the correct bilingual 2001 title through did-you-mean' >> "$GITHUB_STEP_SUMMARY"
-          echo '- All seven titles pass Arabic and English search -> title -> editorial analysis with safe visible presentation' >> "$GITHUB_STEP_SUMMARY"
-          echo '- /titles editorial filter exposes exactly seven current-head titles' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Invalid/mixed review locators fail closed and sitemap contains all seven rich title/review routes' >> "$GITHUB_STEP_SUMMARY"
+          echo '- All ten titles pass Arabic and English search -> title -> editorial analysis with safe visible presentation' >> "$GITHUB_STEP_SUMMARY"
+          echo '- /titles editorial filter exposes exactly ten current-head titles' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Invalid/mixed review locators fail closed and sitemap contains all ten rich title/review routes' >> "$GITHUB_STEP_SUMMARY"
