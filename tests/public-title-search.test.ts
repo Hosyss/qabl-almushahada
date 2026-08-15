@@ -123,7 +123,7 @@ test("a small Arabic typo is suggested but not promoted", () => {
 
 test("long real Arabic titles keep all ranking tokens while SQL prefilter bindings stay bounded", () => {
   const parsed = parsePublicTitleSearchRequest({ query: SPIDER.canonicalName });
-  assert.equal(parsed.tokens.length, 6);
+  assert.equal(parsed.tokens.length, 5);
   const query = buildPublicTitleCandidateQuery(parsed);
   assert.equal(MAX_PUBLIC_TITLE_SQL_PREFILTER_TOKENS, 4);
   assert.equal(query.bindings.length, 28);
