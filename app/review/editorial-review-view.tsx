@@ -64,7 +64,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
       <header className="review-header">
         <Link className="review-brand" href="/" aria-label="قبل المشاهدة — الرئيسية">
           <ReviewLogo />
-          <span><strong>قبل المشاهدة</strong><small>قرار أهدى لكل بيت</small></span>
+          <span><strong>قبل المشاهدة</strong><small>قرار أهدأ لكل أسرة</small></span>
         </Link>
         <Link className="review-back" href="/search">الرجوع للبحث <span aria-hidden="true">←</span></Link>
       </header>
@@ -81,8 +81,8 @@ export default async function EditorialReviewView({ review }: { review: Editoria
           <p>فيلم · {review.releaseYear}</p>
         </div>
         <div className="review-verification">
-          <span className="review-verification__icon" aria-hidden="true">✓</span>
-          <span><small>حالة القرار</small><strong>التحليل جاهز لحكم الأسرة — والمجهول يظل ظاهرًا</strong></span>
+          <span className="review-verification__icon" aria-hidden="true">•</span>
+          <span><small>حالة القرار</small><strong>حالة الحكم العملي موضحة أدناه — والمحاور غير المحسومة تظل ظاهرة</strong></span>
         </div>
       </section>
 
@@ -94,7 +94,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
             <p>{review.analysisAr.replaceAll("Harry", "هاري")}</p>
             <p className="editorial-type-note">
               هذا تحليل للعمل من مراجع معلنة، وليس ادعاءً بأن فريقنا شاهد نسخة محددة بمنصة ولغة ومدة وبصمة محتوى.
-              الحكم العملي أدناه يجيب قرار الأسرة بعد تحديد العمر والحدود، بينما ختم النسخة المحددة يظل مسارًا أعلى مستقلًا.
+              الحكم العملي أدناه يساعد الأسرة على اتخاذ القرار بعد تحديد العمر والإعدادات المتاحة، بينما ختم النسخة المحددة يظل مسارًا أعلى مستقلًا.
             </p>
           </div>
           <EditorialSummaryDialog
@@ -193,7 +193,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
               أو درجاتها أو بنيتها، ولا ندّعي مشاهدة نسخة محددة.
             </p>
             <p>
-              الحكم العملي يستخدم corpus تحريري ناضج ومتعدد المصادر ليعطي الأسرة نتيجة واضحة: ينفع، يحتاج انتباه، أو لا ننصح به وفق حدودها.
+              الحكم العملي يستخدم مجموعة أدلة تحريرية ناضجة ومتعددة المصادر ليعطي الأسرة نتيجة واضحة: يمكن مشاهدته، يحتاج إلى انتباه، أو لا ننصح به وفق الإعدادات الحالية.
               المراجعة الموثقة لنسخة محددة تظل مستوى ثقة أعلى يرتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين.
             </p>
             <p><strong>نطاق هذا التحليل:</strong> {review.scopeAr.replaceAll("Harry", "هاري")}</p>
@@ -227,7 +227,7 @@ export default async function EditorialReviewView({ review }: { review: Editoria
 
       <section className="review-end">
         <span aria-hidden="true">✦</span>
-        <div><small>نهاية التحليل</small><h2>قرار الأسرة واضح، والوقائع والمجهول ظاهرون من غير إخفاء.</h2></div>
+        <div><small>نهاية التحليل</small><h2>حالة الحكم واضحة، والوقائع والمحاور غير المحسومة ظاهرة من غير إخفاء.</h2></div>
         <Link href="/search">ابحث عن عنوان آخر <span aria-hidden="true">←</span></Link>
       </section>
     </main>

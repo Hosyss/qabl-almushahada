@@ -216,16 +216,16 @@ export function buildPracticalEditorialVerdictSummaryAr(
   verdict: EditorialPracticalVerdict,
 ): string {
   if (verdict.outcome === "not_recommended") {
-    return "وجدنا محتوى موثّقًا في محور اخترت له حدًا صفرًا؛ لذلك يتجاوز حدود أسرتك من غير اختراع درجة شدة.";
+    return "وجدنا محتوى موثّقًا في محور حدّه الحالي صفر ضمن إعدادات الأسرة؛ لذلك يتجاوز الإعدادات الحالية من غير اختراع درجة شدة. قد يكون هذا الحد اختيارًا صريحًا أو ناتجًا عن الإعدادات الافتراضية المرتبطة بالعمر.";
   }
   if (verdict.outcome === "watch") {
     return "كل ما يمكن أن يؤثر في الحكم الحالي يقع داخل حدود يمكن إثباتها من غير اختراع شدة؛ لذلك ينفع للمشاهدة وفق إعدادات الأسرة الحالية.";
   }
   if (verdict.outcome === "needs_attention") {
-    return "الفيلم ناضج وله تحليل متعدد المصادر، لكن بعض الوقائع أو المحاور لا نملك لها شدة رقمية تكفي لإثبات أنها داخل حد أسرتك. الحكم العملي هنا: راجع النقاط الموضحة قبل المشاهدة.";
+    return "العمل ناضج وله تحليل متعدد المصادر، لكن بعض الوقائع أو المحاور لا نملك لها شدة رقمية تكفي لإثبات أنها داخل الحد الحالي. الحكم العملي هنا: راجع النقاط الموضحة قبل المشاهدة.";
   }
   if (verdict.outcome === "watch_with_guidance") {
-    return "الأدلة كافية لإصدار حكم عملي، لكن الملاءمة تعتمد على عمر الطفل وحدود الأسرة. اختر الإعدادات مرة واحدة ليظهر الحكم بدل رسالة «المعلومات غير كافية».";
+    return "الأدلة كافية لإصدار حكم عملي، لكن النتيجة تعتمد على عمر الطفل والإعدادات الحالية. بعض الحدود تُشتق افتراضيًا من العمر، وتظل المحاور غير المحسومة معلنة كما هي.";
   }
   if (verdict.reasonCode === "work_not_old_enough") {
     return "لم نثبت بعد مرور 90 يومًا على الإصدار، لذلك لا نصدر حكمًا عمليًا مبكرًا.";
@@ -239,7 +239,7 @@ export function buildPracticalEditorialVerdictSummaryAr(
 export function buildPracticalEditorialReviewDescription(
   review: Pick<EditorialReviewPublication, "titleLabel" | "releaseYear" | "uncertainCategories">,
 ): string {
-  return `${review.titleLabel} (${review.releaseYear}) — تحليل عربي متعدد المصادر يقدّم حكمًا عمليًا وفق عمر الطفل وحدود الأسرة، ويعرض الوقائع و${review.uncertainCategories.length} من 10 محاور غير محسومة بوضوح من غير تحويلها إلى «لا يوجد».`;
+  return `${review.titleLabel} (${review.releaseYear}) — تحليل عربي متعدد المصادر يوضح الوقائع والمصادر وما لم يُحسم بعد، ويبيّن حالة الحكم العملي وفق عمر الطفل وإعدادات الأسرة عند اجتياز شروط الجاهزية. يظل ${review.uncertainCategories.length} من 10 محاور غير محسوم من غير تحويله إلى «لا يوجد».`;
 }
 
 function unique<T>(items: readonly T[]): T[] {

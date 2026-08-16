@@ -155,9 +155,9 @@ jobs:
             const { context, page } = await openEditorial(id, viewports.desktop);
             const state = await basicPageSafety(page, `all-ten-${id}`);
             hard(state.body.includes('حدد عمر الطفل لإصدار الحكم'), `${id}: did not ask for family profile`);
-            hard(state.body.includes('التحليل جاهز لحكم الأسرة'), `${id}: did not expose mature-analysis readiness`);
+            hard(state.body.includes('التحليل جاهز للحكم العملي'), `${id}: did not expose mature-analysis readiness`);
             hard(state.body.includes('المحاور غير المحسومة'), `${id}: unresolved axes not visible`);
-            hard(state.articleDescriptions.some((description) => description.includes('حكمًا عمليًا وفق عمر الطفل وحدود الأسرة')), `${id}: JSON-LD description did not adopt practical verdict contract`);
+            hard(state.articleDescriptions.some((description) => description.includes('حالة الحكم العملي وفق عمر الطفل وإعدادات الأسرة')), `${id}: JSON-LD description did not adopt practical verdict contract`);
             report.allTen.push({ id, asksFamilyProfile: true, oldIncompleteAbsent: true, cls: state.cls });
             await context.close();
           }
@@ -166,7 +166,7 @@ jobs:
             const { context, page, requests } = await openEditorial('et-1982-editorial-batch-v1', viewport);
             let state = await basicPageSafety(page, `${mode}-et-no-settings`);
             hard(state.body.includes('حدد عمر الطفل لإصدار الحكم'), `${mode}: E.T. no-settings label missing`);
-            hard(state.body.includes('الأدلة جاهزة، والناقص هو إعداد الأسرة فقط'), `${mode}: evidence-ready copy missing`);
+            hard(state.body.includes('الأدلة جاهزة، والمتبقي هو إعداد الأسرة فقط'), `${mode}: evidence-ready copy missing`);
             await page.screenshot({ path: `qa-artifacts/screenshots/${mode}-et-no-settings.png`, fullPage: true });
 
             const dialogButton = page.getByRole('button', { name: /اقرأ التحليل كاملًا/u });
@@ -185,8 +185,8 @@ jobs:
             hard(!(await dialog.evaluate((el) => el.open)), `${mode}: Escape failed`);
             hard(await dialogButton.evaluate((el) => document.activeElement === el), `${mode}: focus did not return to opener`);
 
-            await page.getByLabel('عمر الطفل').selectOption('8');
-            await page.getByLabel('حد الخوف').selectOption('1');
+            await page.getByLabel('عمر الطفل', { exact: true }).selectOption('8');
+            await page.getByLabel('حد الخوف', { exact: true }).selectOption('1');
             const bullying = page.getByRole('checkbox', { name: /تجنب التنمر بالكامل/u });
             if (await bullying.isChecked()) await bullying.uncheck();
             await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
@@ -197,8 +197,8 @@ jobs:
             hard(state.body.includes('المحاور غير المحسومة'), `${mode}: E.T. age 8 hid unknown axes`);
             await page.screenshot({ path: `qa-artifacts/screenshots/${mode}-et-age8.png`, fullPage: true });
 
-            await page.getByLabel('عمر الطفل').selectOption('16');
-            await page.getByLabel('حد الخوف').selectOption('3');
+            await page.getByLabel('عمر الطفل', { exact: true }).selectOption('16');
+            await page.getByLabel('حد الخوف', { exact: true }).selectOption('3');
             if (await bullying.isChecked()) await bullying.uncheck();
             await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
             await page.waitForTimeout(100);
@@ -222,8 +222,8 @@ jobs:
             ['the-hunger-games-2012-editorial-c2-v1', '10'],
           ]) {
             const { context, page } = await openEditorial(id, viewports.desktop);
-            await page.getByLabel('عمر الطفل').selectOption(age);
-            await page.getByLabel('حد الخوف').selectOption('2');
+            await page.getByLabel('عمر الطفل', { exact: true }).selectOption(age);
+            await page.getByLabel('حد الخوف', { exact: true }).selectOption('2');
             const bullying = page.getByRole('checkbox', { name: /تجنب التنمر بالكامل/u });
             if (await bullying.isChecked()) await bullying.uncheck();
             await page.getByRole('button', { name: /احفظ وحدث الحكم/u }).click();
