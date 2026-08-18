@@ -1,8 +1,8 @@
 name: P4-01 accessibility QA temporary
 
 on:
-  push:
-    branches: [agent/p4-01-accessibility]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -142,9 +142,9 @@ jobs:
 
             const brandCaption = page.locator('.brand__text small').first();
             if (await brandCaption.count()) {
-              const fg = await brandCaption.evaluate((element) => getComputedStyle(element).color);
-              const bg = await effectiveBackground(brandCaption);
-              hard(contrast(fg, bg) >= 4.5, `${label}: brand caption contrast ${contrast(fg, bg).toFixed(2)}`);
+              const brandFg = await brandCaption.evaluate((element) => getComputedStyle(element).color);
+              const brandBg = await effectiveBackground(brandCaption);
+              hard(contrast(brandFg, brandBg) >= 4.5, `${label}: brand caption contrast ${contrast(brandFg, brandBg).toFixed(2)}`);
             }
 
             const search = page.getByRole('combobox', { name: 'اسم الفيلم أو المسلسل' });
