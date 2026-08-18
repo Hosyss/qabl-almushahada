@@ -1,5 +1,4 @@
 # Temporary dev/build tooling remediation probe; remove before clean head.
-# Server-side trigger for corrected compatible candidate.
 name: Dev tooling security remediation probe
 
 on:
@@ -38,40 +37,16 @@ jobs:
           }
           NODE
 
-      - name: Record npm metadata for constrained candidates
+      - name: Apply compatible non-major security candidate as one graph
         run: |
-          {
-            echo '=== @cloudflare/vite-plugin@1.53.0 ==='
-            npm view @cloudflare/vite-plugin@1.53.0 version peerDependencies dependencies --json || true
-            echo '=== wrangler@4.124.0 ==='
-            npm view wrangler@4.124.0 version dependencies --json || true
-            echo '=== vite@8.2.1 ==='
-            npm view vite@8.2.1 version peerDependencies --json || true
-            echo '=== react@19.2.8 / react-dom@19.2.8 / react-server-dom-webpack@19.2.8 ==='
-            npm view react@19.2.8 version --json || true
-            npm view react-dom@19.2.8 version peerDependencies --json || true
-            npm view react-server-dom-webpack@19.2.8 version peerDependencies --json || true
-            echo '=== drizzle-kit dist-tags/current deps ==='
-            npm view drizzle-kit dist-tags --json || true
-            npm view drizzle-kit@0.31.10 dependencies --json || true
-            echo '=== vinext dist-tags/current deps ==='
-            npm view vinext dist-tags --json || true
-            npm view vinext@0.0.50 dependencies peerDependencies --json || true
-            echo '=== image-size dist-tags ==='
-            npm view image-size dist-tags --json || true
-          } > candidate-metadata.txt 2>&1
-          cat candidate-metadata.txt
-
-      - name: Apply compatible non-major security candidate only
-        run: |
-          npm install --package-lock-only --ignore-scripts --save-dev --save-exact \
-            @cloudflare/vite-plugin@1.53.0 \
-            wrangler@4.124.0 \
-            vite@8.2.1 \
-            react-server-dom-webpack@19.2.8
-          npm install --package-lock-only --ignore-scripts --save-exact \
-            react@19.2.8 \
-            react-dom@19.2.8
+          npm pkg set \
+            dependencies.react=19.2.8 \
+            dependencies.react-dom=19.2.8 \
+            devDependencies.react-server-dom-webpack=19.2.8 \
+            devDependencies.@cloudflare/vite-plugin=1.53.0 \
+            devDependencies.wrangler=4.124.0 \
+            devDependencies.vite=8.2.1
+          npm install --package-lock-only --ignore-scripts
 
       - name: Install exact candidate graph
         run: npm ci
@@ -92,7 +67,7 @@ jobs:
           }
           NODE
 
-      - name: Record residual vulnerability names and direct package graph
+      - name: Record residual vulnerability names and package graph
         run: |
           node --input-type=module <<'NODE' > candidate-residual.txt
           import { readFileSync } from 'node:fs';
@@ -135,6 +110,5 @@ jobs:
             audit-baseline-prod.json
             audit-candidate-full.json
             audit-candidate-prod.json
-            candidate-metadata.txt
             candidate-residual.txt
           if-no-files-found: warn
