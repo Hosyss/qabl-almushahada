@@ -21,8 +21,8 @@ export default async function Home() {
     <main className="quality-home">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <header className="quality-home__header">
-        <Link className="quality-home__brand" href="/">قبل المشاهدة</Link>
-        <nav aria-label="التنقل الرئيسي"><Link href="/titles">دليل العناوين</Link><Link href="/review-policy">كيف نراجع؟</Link><Link href="/corrections">التصحيح والبلاغات</Link></nav>
+        <Link prefetch={false} className="quality-home__brand" href="/">قبل المشاهدة</Link>
+        <nav aria-label="التنقل الرئيسي"><Link prefetch={false} href="/titles">دليل العناوين</Link><Link prefetch={false} href="/review-policy">كيف نراجع؟</Link><Link prefetch={false} href="/corrections">التصحيح والبلاغات</Link></nav>
       </header>
       <section className="quality-home__hero" aria-labelledby="home-title">
         <div className="quality-home__hero-copy">
@@ -47,13 +47,13 @@ export default async function Home() {
                   <span className="quality-home__status">تحليل متعدد المصادر — راجع حالة الحكم</span>
                   <h3>{presentation.titleAr}</h3><p className="quality-home__english" dir="ltr">{presentation.titleEn}</p><p className="quality-home__year">{review.releaseYear}</p>
                   <p>حدّد عمر الطفل والإعدادات المتاحة داخل صفحة التحليل للحصول على نتيجة عملية، مع توضيح الحدود الافتراضية المرتبطة بالعمر.</p>
-                  <div className="quality-home__card-actions">{titleHref ? <Link href={titleHref}>صفحة العمل</Link> : null}<Link href={buildPublicEditorialReviewHref(review.id)}>اقرأ التحليل والحكم</Link></div>
+                  <div className="quality-home__card-actions">{titleHref ? <Link prefetch={false} href={titleHref}>صفحة العمل</Link> : null}<Link prefetch={false} href={buildPublicEditorialReviewHref(review.id)}>اقرأ التحليل والحكم</Link></div>
                 </div>
               </article>
             );
           })}
         </div>
-        <Link className="quality-home__policy-link" href="/titles?editorialStatus=editorial">عرض كل التحليلات</Link>
+        <Link prefetch={false} className="quality-home__policy-link" href="/titles?editorialStatus=editorial">عرض كل التحليلات</Link>
       </section>
       <section className="quality-home__types" aria-labelledby="types-title">
         <div className="quality-home__section-head"><div><span>مستويان للثقة ضمن المسار نفسه</span><h2 id="types-title">ما الفرق بين الحكم العملي وختم النسخة المحددة؟</h2></div></div>
@@ -61,14 +61,14 @@ export default async function Home() {
           <article><strong>حكم عملي للأسرة</strong><p>يعتمد على تحليل تحريري ناضج ومتعدد المصادر وإعدادات محلية: يحدد المستخدم عمر الطفل وحد الخوف وتفضيل تجنب التنمر، بينما تُشتق بقية الحدود من إعدادات افتراضية مرتبطة بالعمر. لا يحوّل المحور غير المحسوم إلى «غير موجود»، ولا يخترع درجة شدة.</p></article>
           <article><strong>مراجعة موثقة لنسخة محددة</strong><p>ترتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين واعتماد وتدقيق. هذه درجة ثقة أعلى عندما نحتاج إلى إثبات دقيق أن الحكم يخص نسخة بعينها.</p></article>
         </div>
-        <Link className="quality-home__policy-link" href="/review-policy">اقرأ سياسة المراجعة كاملة</Link>
+        <Link prefetch={false} className="quality-home__policy-link" href="/review-policy">اقرأ سياسة المراجعة كاملة</Link>
       </section>
       <section className="quality-home__principles" aria-label="قواعد الثقة">
         <article><strong>المجهول لا يتحول إلى آمن</strong><p>صمت المصدر لا يتحول إلى «غير موجود». إذا كان المحور غير المحسوم قد يؤثر في النتيجة، تصبح الحالة «يحتاج انتباهك» بدل حكم إيجابي بلا دليل.</p></article>
         <article><strong>المصدر ظاهر</strong><p>نوضح المرجع المرتبط، تاريخ الوصول، وما الذي يدعمه، من غير نسخ مراجعاته أو درجاته.</p></article>
         <article><strong>لا «غير مكتمل» كإجابة دائمة</strong><p>العمل الناضج متعدد المصادر ينتقل إلى حكم عملي للأسرة؛ عدم اكتمال ختم النسخة المحددة لا يلغي وظيفة المنصة الأساسية.</p></article>
       </section>
-      <footer className="quality-home__footer"><strong>© قبل المشاهدة</strong><div><Link href="/privacy">الخصوصية</Link><Link href="/corrections">التصحيح</Link><Link href="/titles">الدليل</Link></div></footer>
+      <footer className="quality-home__footer"><strong>© قبل المشاهدة</strong><div><Link prefetch={false} href="/privacy">الخصوصية</Link><Link prefetch={false} href="/corrections">التصحيح</Link><Link prefetch={false} href="/titles">الدليل</Link></div></footer>
     </main>
   );
 }
