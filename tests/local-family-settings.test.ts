@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -137,4 +138,21 @@ test("a write quota failure switches to session memory without losing the select
     mode: "session",
     raw,
   });
+});
+
+test("practical verdict UI honors the published session fallback and uses formal Arabic", () => {
+  const component = readFileSync(new URL("../app/review/editorial-practical-verdict.tsx", import.meta.url), "utf8");
+  const verdict = readFileSync(new URL("../lib/editorial-practical-verdict.ts", import.meta.url), "utf8");
+
+  for (const token of [
+    "readFamilySettingsStoreSnapshot",
+    "writeFamilySettingsStore",
+    "clearFamilySettingsStore",
+    "التخزين المحلي غير متاح",
+    "لهذه الجلسة فقط",
+  ]) {
+    assert.ok(component.includes(token), `Missing family-settings fallback contract: ${token}`);
+  }
+  assert.match(verdict, /watch: "يمكن مشاهدته وفق حدود أسرتك"/u);
+  assert.doesNotMatch(`${component}\n${verdict}`, /ينفع للمشاهدة/u);
 });
