@@ -1,0 +1,53 @@
+name: Public report real-path readiness temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-real-path-without-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify HMAC-backed path reaches target lookup without creating an intake
+        shell: bash
+        env:
+          ORIGIN: https://qabl-almushahada.buildtools.workers.dev
+        run: |
+          set -euo pipefail
+          response="$RUNNER_TEMP/report-readiness.json"
+          status="$(curl --silent --show-error --location \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            --output "$response" --write-out '%{http_code}' \
+            --request POST "$ORIGIN/api/reports" \
+            --header "Origin: $ORIGIN" \
+            --header 'Content-Type: application/json' \
+            --data '{"targetKind":"editorial_publication","targetId":"qa-missing-public-report-target-2026-08-18","reason":"source_issue","message":"فحص جاهزية آمن لمسار البلاغ الحقيقي باستخدام هدف غير موجود، من دون إنشاء بلاغ إنتاجي."}')"
+
+          echo "HTTP $status"
+          cat "$response"
+
+          if [[ "$status" == "503" ]]; then
+            echo 'Real report path is fail-closed because PUBLIC_REPORT_HMAC_SECRET is missing or unavailable.' >&2
+            exit 1
+          fi
+
+          if [[ "$status" != "404" ]]; then
+            echo "Expected application-level 404 for the deliberately missing target, got HTTP $status." >&2
+            exit 1
+          fi
+
+          node --input-type=module - "$response" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const [, , file] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          if (payload?.accepted !== false) throw new Error('Expected accepted=false for missing target');
+          if (payload?.message !== 'المحتوى لم يعد متاحًا بهذه الحالة.') {
+            throw new Error(`Unexpected application response: ${JSON.stringify(payload)}`);
+          }
+          NODE
+
+          echo 'Real public-report path reached the current-target lookup after HMAC/client processing and made no D1 insert because the target does not exist.'
