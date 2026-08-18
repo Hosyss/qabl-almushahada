@@ -1,0 +1,182 @@
+name: Public report UI browser QA temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install and prepare isolated D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name":"qabl-public-report-ui-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-08-12",
+            "compatibility_flags":["nodejs_compat"],
+            "vars":{"PUBLIC_REPORT_HMAC_SECRET":"local-qa-public-report-secret-2026-08-18-0123456789abcdef"},
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
+          }
+          JSON
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
+          done
+
+          node --input-type=module <<'NODE' > /tmp/report-ui-seed.sql
+          import { createHash } from 'node:crypto';
+          import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
+          const fixtures = await loadEditorialBootstrapFixtures();
+          if (fixtures.length !== 10) throw new Error(`Expected exactly 10 editorial fixtures, found ${fixtures.length}`);
+          const q = value => `'${String(value).replaceAll("'", "''")}'`;
+          for (const { review, presentation } of fixtures) {
+            const qid = review.titleId.replace(/^wd:/u, '');
+            const aliases = review.titleId === 'wd:Q102438' ? ["Harry Potter and the Sorcerer's Stone"] : [];
+            console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
+            const hash = createHash('sha256').update(`report-ui-qa:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-18T00:00:00Z',${q(hash)},'manual');`);
+          }
+          NODE
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/report-ui-seed.sql >/dev/null
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
+
+      - name: Start isolated preview
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
+        run: |
+          (npm run dev:local -- --host 127.0.0.1 --port 4173 >/tmp/public-report-ui-server.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/public-report-ui-server.log
+          exit 1
+
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+
+      - name: Run Chrome public-report UI QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          node <<'NODE'
+          import { chromium } from 'playwright-core';
+
+          const baseURL = 'http://127.0.0.1:4173';
+          const editorialId = 'et-1982-editorial-batch-v1';
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ar-EG' });
+          const page = await context.newPage();
+          const capturedBodies = [];
+
+          await page.route('**/api/reports', async route => {
+            const request = route.request();
+            if (request.method() === 'POST') {
+              capturedBodies.push(JSON.parse(request.postData() || '{}'));
+              await route.continue({
+                headers: { ...request.headers(), 'cf-connecting-ip': '203.0.113.77' },
+              });
+              return;
+            }
+            await route.continue();
+          });
+
+          const hard = (condition, message) => { if (!condition) throw new Error(message); };
+          const noOverflow = async label => {
+            const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth }));
+            hard(dimensions.scrollWidth <= dimensions.innerWidth + 1, `${label}: horizontal overflow ${dimensions.scrollWidth}/${dimensions.innerWidth}`);
+          };
+
+          const response = await page.goto(`${baseURL}/review?editorialId=${encodeURIComponent(editorialId)}`, { waitUntil: 'networkidle' });
+          hard(response?.ok(), `editorial review HTTP ${response?.status()}`);
+          await noOverflow('editorial-before-form');
+
+          const reportPanel = page.getByText('الإبلاغ عن مشكلة في هذه المراجعة', { exact: true });
+          hard(await reportPanel.count() === 1, 'public report disclosure is missing or duplicated');
+          await reportPanel.click();
+
+          hard(await page.locator('[name="targetKind"], [name="targetId"]').count() === 0, 'server-owned report target leaked into editable controls');
+          hard(await page.locator('input[name="website"]').getAttribute('tabindex') === '-1', 'honeypot became keyboard focusable');
+          const reason = page.getByLabel('سبب البلاغ', { exact: true });
+          hard(await reason.locator('option').count() === 6, 'report reason list must contain exactly six choices');
+          const message = page.getByLabel('ما الذي يحتاج إلى مراجعة؟', { exact: true });
+
+          await reason.selectOption('source_issue');
+          await message.fill('يوجد مرجع مرتبط بهذه المراجعة يحتاج إلى تدقيق في وصفه قبل الاعتماد على المعلومة المنشورة.');
+          await page.getByRole('button', { name: 'إرسال البلاغ للمراجعة' }).click();
+          const success = page.getByText('تم استلام البلاغ', { exact: true });
+          await success.waitFor({ state: 'visible' });
+          const referenceText = await page.locator('text=مرجع المتابعة:').locator('..').innerText();
+          hard(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/iu.test(referenceText), `missing UUID reference: ${referenceText}`);
+          hard(capturedBodies.length === 1, `expected one first report request, got ${capturedBodies.length}`);
+          hard(capturedBodies[0].targetKind === 'editorial_publication', `wrong targetKind: ${capturedBodies[0].targetKind}`);
+          hard(capturedBodies[0].targetId === editorialId, `wrong targetId: ${capturedBodies[0].targetId}`);
+          hard(capturedBodies[0].website === '', 'honeypot should be empty for a real user submission');
+          await page.screenshot({ path: '/tmp/public-report-success.png', fullPage: true });
+
+          await reason.selectOption('incorrect_content');
+          await message.fill('هذا بلاغ ثانٍ على الهدف نفسه لاختبار منع التكرار خلال النافذة الزمنية من دون إنشاء سجل ثانٍ.');
+          await page.getByRole('button', { name: 'إرسال البلاغ للمراجعة' }).click();
+          await page.getByText('تعذر إرسال البلاغ', { exact: true }).waitFor({ state: 'visible' });
+          const pageText = await page.locator('body').innerText();
+          hard(pageText.includes('تم استلام عدد كافٍ من البلاغات حاليًا'), 'duplicate/rate-limit message missing');
+          hard(capturedBodies.length === 2, `expected two attempted requests, got ${capturedBodies.length}`);
+          await noOverflow('editorial-after-report');
+          await page.screenshot({ path: '/tmp/public-report-duplicate.png', fullPage: true });
+
+          const invalid = await page.goto(`${baseURL}/review?editorialId=missing-report-ui-target`, { waitUntil: 'networkidle' });
+          hard(invalid?.ok(), `invalid review HTTP ${invalid?.status()}`);
+          hard(await page.getByText('المراجعة غير متاحة حاليًا.', { exact: true }).count() === 1, 'invalid review fail-closed state missing');
+          hard(await page.getByText('الإبلاغ عن مشكلة في هذه المراجعة', { exact: true }).count() === 0, 'invalid review exposed report form');
+
+          console.log(JSON.stringify({
+            browser: await browser.version(),
+            reportTarget: capturedBodies[0],
+            firstSubmission: 'accepted-with-uuid',
+            duplicateSubmission: 'rate-limited',
+            invalidReviewFormCount: 0,
+            mobileOverflow: false,
+            failures: [],
+          }, null, 2));
+          await browser.close();
+          NODE
+
+      - name: Verify one local intake row only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc \
+            --command "SELECT COUNT(*) AS count FROM public_report_intakes;" --json > /tmp/public-report-count.json
+          node --input-type=module - /tmp/public-report-count.json <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const payload = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const text = JSON.stringify(payload);
+          if (!/\"count\":1(?:[,}])/u.test(text)) throw new Error(`Expected exactly one local intake row: ${text}`);
+          console.log('Verified exactly one local public_report_intakes row after duplicate submission attempt.');
+          NODE
+
+      - name: Upload temporary screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-report-ui-browser-qa
+          path: |
+            /tmp/public-report-success.png
+            /tmp/public-report-duplicate.png
+          if-no-files-found: error
