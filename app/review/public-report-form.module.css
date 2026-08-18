@@ -1,0 +1,152 @@
+.section {
+  width: min(1120px, calc(100% - 32px));
+  margin: 28px auto 40px;
+}
+
+.panel {
+  border: 1px solid rgba(24, 51, 45, 0.16);
+  border-radius: 18px;
+  background: #fffdf8;
+  overflow: clip;
+}
+
+.panel > summary {
+  cursor: pointer;
+  padding: 18px 20px;
+  font-weight: 800;
+  color: #18332d;
+}
+
+.panel > summary:hover {
+  background: #f7f2e8;
+}
+
+.content {
+  border-top: 1px solid rgba(24, 51, 45, 0.12);
+  padding: 20px;
+}
+
+.intro,
+.privacy {
+  margin: 0;
+  color: #445650;
+  line-height: 1.8;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field label {
+  font-weight: 800;
+  color: #18332d;
+}
+
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid #899792;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #14231f;
+  font: inherit;
+  padding: 11px 12px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+
+.field small {
+  color: #52665e;
+  line-height: 1.6;
+}
+
+.honeypot {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.privacy {
+  font-size: 0.92rem;
+}
+
+.submit {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  background: #18332d;
+  color: #ffffff;
+  padding: 11px 18px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.success,
+.error {
+  margin-top: 18px;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.success {
+  border: 1px solid #6e8c78;
+  background: #f0f7f2;
+  color: #18332d;
+}
+
+.error {
+  border: 1px solid #ad6a58;
+  background: #fff4ef;
+  color: #642c20;
+}
+
+.success strong,
+.error strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.success p,
+.error p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.reference {
+  margin-top: 8px !important;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .section {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .panel > summary,
+  .content {
+    padding-inline: 16px;
+  }
+
+  .submit {
+    width: 100%;
+  }
+}

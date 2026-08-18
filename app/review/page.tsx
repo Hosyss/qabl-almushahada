@@ -12,6 +12,7 @@ import { buildPublicReviewHref } from "@/lib/public-review";
 
 import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
+import PublicReportForm from "./public-report-form";
 import ReviewClient from "./review-client";
 
 type ReviewSearchParams = { bundleId?: string | string[]; publicationId?: string | string[]; editorialId?: string | string[] };
@@ -65,14 +66,29 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   if ([bundleId, publicationId, editorialId].filter(Boolean).length !== 1) return <ReviewUnavailable />;
   if (bundleId) {
     const review = await loadHumanReviewFailClosed(bundleId);
-    return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
+    return review ? (
+      <>
+        <ReviewClient review={review} />
+        <PublicReportForm targetKind="human_review" targetId={review.bundleId} />
+      </>
+    ) : <ReviewUnavailable />;
   }
   if (publicationId) {
     const review = await loadEvidenceReviewFailClosed(publicationId);
-    return review ? <EvidenceReviewClient review={review} /> : <ReviewUnavailable />;
+    return review ? (
+      <>
+        <EvidenceReviewClient review={review} />
+        <PublicReportForm targetKind="evidence_publication" targetId={review.publicationId} />
+      </>
+    ) : <ReviewUnavailable />;
   }
   const persisted = await loadEditorialReviewFailClosed(editorialId);
-  return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
+  return persisted ? (
+    <>
+      <EditorialReviewView review={persisted.review} />
+      <PublicReportForm targetKind="editorial_publication" targetId={persisted.review.id} />
+    </>
+  ) : <ReviewUnavailable />;
 }
 
 function buildArticleMetadata({
