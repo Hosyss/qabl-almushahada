@@ -3,7 +3,8 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
-import { buildEditorialReviewDescription, buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
+import { buildPracticalEditorialReviewDescription } from "@/lib/editorial-practical-verdict";
+import { buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
 import { loadEditorialPublicationById } from "@/lib/public-editorial-read";
 
 import EditorialReviewView from "./editorial-review-view";
@@ -30,7 +31,7 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
   if (!persisted) return UNAVAILABLE_METADATA;
   const { review, presentation } = persisted;
   const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
-  const description = buildEditorialReviewDescription(review);
+  const description = buildPracticalEditorialReviewDescription(review);
   const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
   return {
     title,

@@ -53,6 +53,20 @@
 .editorial-uncertain ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 .editorial-uncertain li { padding: 7px 11px; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: #40584f; font-size: 15px; font-weight: 850; }
 
+.editorial-family-settings { margin-top: 20px; padding: 18px; border: 1px solid rgba(24,77,64,.16); border-radius: 16px; background: #fff; display: grid; gap: 14px; }
+.editorial-family-settings legend { padding: 0 8px; color: var(--forest); font-size: 18px; font-weight: 900; }
+.editorial-family-settings label { display: grid; gap: 7px; color: #304a42; font-size: 16px; font-weight: 800; }
+.editorial-family-settings label:has(input[type="checkbox"]) { grid-template-columns: auto 1fr; align-items: center; }
+.editorial-family-settings select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: #fffdf8; color: var(--ink); font: inherit; }
+.editorial-family-settings input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--forest); }
+.editorial-family-settings select:focus-visible,
+.editorial-family-settings input:focus-visible,
+.editorial-family-settings button:focus-visible { outline: 3px solid rgba(200,111,80,.38); outline-offset: 3px; }
+.editorial-family-settings__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.editorial-family-settings button { min-height: 46px; border: 1px solid var(--forest); border-radius: 12px; padding: 0 16px; background: var(--forest); color: #fff; font: inherit; font-size: 15px; font-weight: 900; cursor: pointer; }
+.editorial-family-settings button + button { background: #fff; color: var(--forest); }
+.editorial-family-settings p { margin: 0; font-size: 14px !important; color: #52675f !important; }
+
 .editorial-source-cards { display: grid; gap: 12px; }
 .editorial-source-cards article { scroll-margin-top: 20px; }
 .editorial-source-cards p { font-size: 16px !important; line-height: 1.9 !important; }
@@ -95,4 +109,7 @@
   .editorial-summary-dialog { width: calc(100vw - 18px); max-height: 92vh; }
   .editorial-summary-dialog__body { max-height: 65vh; padding: 18px; }
   .editorial-summary-dialog__body p, .editorial-summary-dialog__body li { font-size: 17px; }
+  .editorial-family-settings { padding: 15px; }
+  .editorial-family-settings__actions { display: grid; grid-template-columns: 1fr; }
+  .editorial-family-settings button { width: 100%; }
 }

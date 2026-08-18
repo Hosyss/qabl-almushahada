@@ -25,10 +25,12 @@ test("homepage has no generic /review CTA and reads real editorial publications 
   assert.match(home, /عرض كل التحليلات/u);
   assert.doesNotMatch(home, /editorial-review-registry|listEditorialReviewPublications/u);
   assert.match(home, /تحليلات منشورة حديثًا/u);
-  assert.match(home, /تحليل تحريري جزئي — الحكم غير مكتمل/u);
+  assert.match(home, /تحليل متعدد المصادر — راجع حالة الحكم/u);
+  assert.match(home, /لا «غير مكتمل» كإجابة دائمة/u);
   assert.match(home, /"@type": "WebSite"/u);
   assert.match(home, /"@type": "Organization"/u);
   assert.doesNotMatch(home, /SearchAction/u);
+  assert.doesNotMatch(home, /تاخد|إيه|مش منتجان|دي درجة|ما بيتحولش|لو المجهول|\bunknown\b|\bnone\b|\bSeverity\b/u);
 
   const publications = await frozenEditorialPublications();
   assert.equal(publications.length, 10);
@@ -82,16 +84,26 @@ test("title pages read editorial state from D1 and catalog SQL contains no fixed
   assert.doesNotMatch(catalogQuery, /cars-2006|et-1982|minions-2015|harry-potter-philosophers|wd:Q\d+/u);
 });
 
-test("partial editorial UI does not expose engine internals or pretend to be a verified-version review", async () => {
+test("practical editorial UI stays source-safe and does not pretend to be a verified-version review", async () => {
   const view = await source("app/review/editorial-review-view.tsx");
-  assert.match(view, /تحليل تحريري جزئي/u);
-  assert.match(view, /المعلومات غير كافية لإصدار حكم نهائي/u);
+  const practical = await source("app/review/editorial-practical-verdict.tsx");
+  assert.match(view, /تحليل تحريري متعدد المصادر/u);
+  assert.match(view, /حكم عملي على مستوى العمل/u);
+  assert.match(view, /حالة الحكم العملي موضحة أدناه/u);
   assert.match(view, /مدعومة بمصدرين مستقلين على الأقل/u);
-  assert.match(view, /محاور لم نستطع حسمها/u);
+  assert.match(view, /المحاور غير المحسومة/u);
   assert.match(view, /<details/u);
   assert.doesNotMatch(view, /insufficient_data|decisionEligible|P4-03/u);
   assert.doesNotMatch(view, /المصادر المؤهلة|اتفاق مصدرين مستقلين\+/u);
   assert.doesNotMatch(view, /المصادر الحالية لا تكفي لحسم هذا المحور/u);
+  assert.match(practical, /LOCAL_FAMILY_SETTINGS_STORAGE_KEY/u);
+  assert.match(practical, /serializeLocalFamilySettings/u);
+  assert.match(practical, /إعدادات الأسرة لا تكفي لإصدار الحكم الآن/u);
+  assert.match(practical, /بقية حدود المحاور تُشتق حاليًا من إعدادات افتراضية مرتبطة بالعمر/u);
+  assert.match(practical, /لا نرسل عمر الطفل أو تفضيلات الأسرة/u);
+  assert.match(practical, /لا يحوّل المحاور غير المحسومة إلى «لا يوجد»/u);
+  assert.match(practical, /لا نستخدمها وحدها لإثبات تجاوز حد أسري/u);
+  assert.doesNotMatch(practical, /ليه الحكم ده|corpus|محتاج هوية|لو وُجد/u);
   assert.match(view, /if \(count === 1\) return "واقعة واحدة"/u);
   assert.match(view, /if \(count === 2\) return "واقعتان"/u);
   assert.match(view, /count >= 3 && count <= 10/u);
@@ -120,11 +132,16 @@ test("sitemap uses current D1 editorial heads rather than the TypeScript registr
   assert.doesNotMatch(sitemap, /listPublicCatalogTitles|listPublicCatalogDirectory/u);
 });
 
-test("review policy clearly separates partial editorial analysis from verified version review", async () => {
+test("review policy separates practical family verdict from verified exact-version review", async () => {
   const policy = await source("app/review-policy/page.tsx");
-  assert.match(policy, /تحليل تحريري جزئي للعمل/u);
-  assert.match(policy, /مراجعة موثقة لنسخة محددة/u);
-  assert.match(policy, /لا يدّعي أن فريقنا شاهد/u);
+  assert.match(policy, /حكم عملي للأسرة على مستوى العمل/u);
+  assert.match(policy, /المراجعة الموثقة لنسخة محددة/u);
+  assert.match(policy, /90 يوم/u);
+  assert.match(policy, /لا نفترض عمر طفل/u);
+  assert.match(policy, /درجة شدة رقمية/u);
+  assert.match(policy, /تظل غير محسومة ولا تتحول إلى «لا يوجد»/u);
+  assert.match(policy, /حدودًا تحريرية افتراضية مرتبطة بالعمر/u);
+  assert.doesNotMatch(policy, /\bcorroborated\b|\bSeverity\b|\bunknown\b|\bnone\b/u);
 });
 
 test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
