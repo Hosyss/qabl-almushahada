@@ -75,33 +75,30 @@ export async function dismissPublicReportIntake(input: {
   const expectedRevision = normalizeRevision(input.expectedRevision);
   const now = new Date().toISOString();
   const auditId = crypto.randomUUID();
-  const results = await requireD1().batch([
-    requireD1()
-      .prepare(
-        `UPDATE public_report_intakes
-         SET status = 'dismissed',
-             triaged_by_user_id = ?,
-             triage_note = ?,
-             triaged_at = ?,
-             revision = revision + 1
-         WHERE id = ?
-           AND revision = ?
-           AND status = 'received'`,
-      )
-      .bind(actor.userId, note, now, intakeId, expectedRevision),
-    requireD1()
-      .prepare(
-        `INSERT INTO internal_audit_events
-           (id, actor_user_id, event_type, entity_type, entity_id, payload_json, created_at)
-         SELECT ?, ?, 'public_report_intake_dismissed', 'public_report_intake', i.id,
-                json_object('targetKind', i.target_kind, 'targetPublicId', i.target_public_id,
-                            'reportReason', i.report_reason, 'revision', i.revision), ?
-         FROM public_report_intakes i
-         WHERE i.id = ?
-           AND i.status = 'dismissed'
-           AND i.revision = ?`,
-      )
-      .bind(auditId, actor.userId, now, intakeId, expectedRevision + 1),
+  const db = requireD1();
+  const results = await db.batch([
+    db.prepare(
+      `UPDATE public_report_intakes
+       SET status = 'dismissed',
+           triaged_by_user_id = ?,
+           triage_note = ?,
+           triaged_at = ?,
+           revision = revision + 1
+       WHERE id = ?
+         AND revision = ?
+         AND status = 'received'`,
+    ).bind(actor.userId, note, now, intakeId, expectedRevision),
+    db.prepare(
+      `INSERT INTO internal_audit_events
+         (id, actor_user_id, event_type, entity_type, entity_id, payload_json, created_at)
+       SELECT ?, ?, 'public_report_intake_dismissed', 'public_report_intake', i.id,
+              json_object('targetKind', i.target_kind, 'targetPublicId', i.target_public_id,
+                          'reportReason', i.report_reason, 'revision', i.revision), ?
+       FROM public_report_intakes i
+       WHERE i.id = ?
+         AND i.status = 'dismissed'
+         AND i.revision = ?`,
+    ).bind(auditId, actor.userId, now, intakeId, expectedRevision + 1),
   ]);
   assertExactChanges(results, 2);
   return { intakeId, status: "dismissed" as const, revision: expectedRevision + 1 };
@@ -133,7 +130,7 @@ export async function promotePublicReportIntake(input: {
     message: intake.message,
   });
   if (!reportPlan.allowed) {
-    throw new ReviewWorkflowError("INVALID_INPUT", reportPlan.errorsAr.join(" "));
+    throw new ReviewWorkflowError("INVALID_DRAFT", reportPlan.errorsAr.join(" "));
   }
 
   const db = requireD1();
@@ -321,14 +318,14 @@ async function requireEditorialTriageActor(sessionEmail: string): Promise<{ user
 function normalizeId(value: string): string {
   const id = typeof value === "string" ? value.trim() : "";
   if (!id || id.length > 180 || /[\u0000-\u001F\u007F]/u.test(id)) {
-    throw new ReviewWorkflowError("INVALID_INPUT", "معرّف البلاغ غير صالح.");
+    throw new ReviewWorkflowError("INVALID_DRAFT", "معرّف البلاغ غير صالح.");
   }
   return id;
 }
 
 function normalizeRevision(value: number): number {
   if (!Number.isInteger(value) || value < 0) {
-    throw new ReviewWorkflowError("INVALID_INPUT", "revision البلاغ غير صالح.");
+    throw new ReviewWorkflowError("INVALID_DRAFT", "revision البلاغ غير صالح.");
   }
   return value;
 }
@@ -336,7 +333,7 @@ function normalizeRevision(value: number): number {
 function normalizeNote(value: string): string {
   const note = typeof value === "string" ? value.trim() : "";
   if (note.length < 10 || note.length > 2000) {
-    throw new ReviewWorkflowError("INVALID_INPUT", "ملاحظة الحسم يجب أن تكون بين 10 و2000 حرف.");
+    throw new ReviewWorkflowError("INVALID_DRAFT", "ملاحظة الحسم يجب أن تكون بين 10 و2000 حرف.");
   }
   return note;
 }
