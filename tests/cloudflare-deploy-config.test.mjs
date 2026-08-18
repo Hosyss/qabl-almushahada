@@ -6,6 +6,7 @@ import {
   buildCloudflareProductionConfig,
   CLOUDFLARE_COMPATIBILITY_DATE,
 } from "../scripts/prepare-cloudflare-deploy.mjs";
+import { withSecurityHeaders } from "../worker/security-headers.ts";
 
 const BASE_ENV = {
   CF_D1_DATABASE_ID: "123e4567-e89b-42d3-a456-426614174000",
@@ -99,16 +100,48 @@ test("API tokens and account credentials are never copied into Worker config", (
   assert.equal(serialized.includes("account-id"), false);
 });
 
-test("Worker adds low-risk security headers without introducing a broad script CSP", async () => {
-  const workerSource = await readFile(new URL("../worker/index.ts", import.meta.url), "utf8");
+test("HTML responses receive clickjacking, MIME and referrer protections without losing response semantics", async () => {
+  const response = withSecurityHeaders(new Response("<main>ok</main>", {
+    status: 201,
+    statusText: "Created",
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=60",
+      "X-Powered-By": "vinext",
+    },
+  }));
 
-  assert.match(workerSource, /"X-Content-Type-Options": "nosniff"/u);
-  assert.match(workerSource, /"Referrer-Policy": "strict-origin-when-cross-origin"/u);
-  assert.match(workerSource, /"Content-Security-Policy": "frame-ancestors 'none'"/u);
-  assert.match(workerSource, /"X-Frame-Options": "DENY"/u);
-  assert.match(workerSource, /headers\.delete\("X-Powered-By"\)/u);
-  assert.match(workerSource, /contentType\.toLowerCase\(\)\.includes\("text\/html"\)/u);
+  assert.equal(response.status, 201);
+  assert.equal(response.statusText, "Created");
+  assert.equal(response.headers.get("Cache-Control"), "public, max-age=60");
+  assert.equal(response.headers.get("X-Powered-By"), null);
+  assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(response.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin");
+  assert.equal(response.headers.get("Content-Security-Policy"), "frame-ancestors 'none'");
+  assert.equal(response.headers.get("X-Frame-Options"), "DENY");
+  assert.equal(await response.text(), "<main>ok</main>");
+});
+
+test("non-HTML responses get base protections but no document-only framing policy", async () => {
+  const response = withSecurityHeaders(new Response('{"ok":true}', {
+    status: 200,
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  }));
+
+  assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(response.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin");
+  assert.equal(response.headers.get("Content-Security-Policy"), null);
+  assert.equal(response.headers.get("X-Frame-Options"), null);
+  assert.equal(await response.json().then((value) => value.ok), true);
+});
+
+test("Worker routes both application and optimized-image responses through security wrapper without broad script CSP", async () => {
+  const [workerSource, helperSource] = await Promise.all([
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../worker/security-headers.ts", import.meta.url), "utf8"),
+  ]);
+
   assert.match(workerSource, /return withSecurityHeaders\(await handler\.fetch\(request, env, ctx\)\)/u);
   assert.match(workerSource, /return withSecurityHeaders\(response\)/u);
-  assert.doesNotMatch(workerSource, /default-src|script-src|style-src|unsafe-inline|unsafe-eval/u);
+  assert.doesNotMatch(helperSource, /default-src|script-src|style-src|unsafe-inline|unsafe-eval/u);
 });
