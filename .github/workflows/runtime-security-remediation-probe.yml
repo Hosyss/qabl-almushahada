@@ -1,4 +1,5 @@
 # Temporary one-shot probe; remove after it commits a verified candidate.
+# Git-data push trigger: 2026-08-18.
 name: Runtime security remediation probe
 
 on:
