@@ -56,7 +56,7 @@ trap cleanup EXIT
 
 cat > "${validation_config}" <<JSON
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
+  "\$schema": "./node_modules/wrangler/config-schema.json",
   "name": "qabl-artifact-validation",
   "main": "dist/server/index.js",
   "compatibility_date": "${compatibility_date}",
