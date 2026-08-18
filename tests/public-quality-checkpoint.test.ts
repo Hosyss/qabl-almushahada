@@ -137,3 +137,26 @@ test("Kids-In-Mind frozen source references stay link-only and never claim repub
     assert.match(item.usageNoteAr, /لا ننقل|من غير نقل/u);
   }
 });
+
+test("public indexing policy keeps crawlable pages canonical and utility routes out of the index", async () => {
+  const rootLayout = await source("app/layout.tsx");
+  const searchLayout = await source("app/search/layout.tsx");
+  const internalLayout = await source("app/internal/layout.tsx");
+  const robots = await source("app/robots.txt/route.ts");
+  const sitemap = await source("app/sitemap.xml/route.ts");
+  const reviewPolicy = await source("app/review-policy/page.tsx");
+  const corrections = await source("app/corrections/page.tsx");
+  const privacy = await source("app/privacy/page.tsx");
+
+  assert.match(rootLayout, /metadataBase: new URL\(PUBLIC_SITE_ORIGIN\)/u);
+  assert.doesNotMatch(rootLayout, /codex-preview|chatgpt|openai/iu);
+  assert.match(searchLayout, /alternates: \{ canonical: "\/search" \}/u);
+  assert.match(searchLayout, /robots: \{ index: false, follow: true \}/u);
+  assert.match(internalLayout, /robots: \{ index: false, follow: false \}/u);
+  assert.match(robots, /Disallow: \/internal/u);
+  assert.match(robots, /Disallow: \/api\//u);
+  assert.doesNotMatch(sitemap, /\/search|\/internal|\/api\//u);
+  assert.match(reviewPolicy, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/review-policy`/u);
+  assert.match(corrections, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/corrections`/u);
+  assert.match(privacy, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/privacy`/u);
+});
