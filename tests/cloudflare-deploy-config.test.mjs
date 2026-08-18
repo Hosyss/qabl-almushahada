@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildCloudflareProductionConfig,
   CLOUDFLARE_COMPATIBILITY_DATE,
+  REQUIRED_PRODUCTION_SECRETS,
 } from "../scripts/prepare-cloudflare-deploy.mjs";
 
 const BASE_ENV = {
@@ -41,6 +42,8 @@ test("production config binds real D1, static assets, Images, Workers AI and cur
       migrations_dir: "../../drizzle",
     },
   ]);
+  assert.deepEqual(REQUIRED_PRODUCTION_SECRETS, ["PUBLIC_REPORT_HMAC_SECRET"]);
+  assert.deepEqual(config.secrets, { required: ["PUBLIC_REPORT_HMAC_SECRET"] });
   assert.equal("vars" in config, false, "Internal auth must remain fail-closed until Access is configured.");
 });
 
@@ -87,13 +90,16 @@ test("bootstrap admin cannot be configured without Cloudflare Access", () => {
   );
 });
 
-test("API tokens and account credentials are never copied into Worker config", () => {
+test("API tokens, account credentials and secret values are never copied into Worker config", () => {
   const config = buildCloudflareProductionConfig({
     ...ACCESS_ENV,
     CLOUDFLARE_API_TOKEN: "top-secret-token",
     CLOUDFLARE_ACCOUNT_ID: "account-id",
+    PUBLIC_REPORT_HMAC_SECRET: "must-never-be-serialized",
   });
   const serialized = JSON.stringify(config);
   assert.equal(serialized.includes("top-secret-token"), false);
   assert.equal(serialized.includes("account-id"), false);
+  assert.equal(serialized.includes("must-never-be-serialized"), false);
+  assert.match(serialized, /PUBLIC_REPORT_HMAC_SECRET/u);
 });
