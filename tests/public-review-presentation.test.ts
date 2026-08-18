@@ -120,13 +120,17 @@ test("Article structured data rejects off-site canonicals and malformed dates", 
   }));
 });
 
-test("review route renders JSON-LD only through valid review branches and does not misuse approval time as modification time", async () => {
-  const pageSource = await readFile(new URL("../app/review/page.tsx", import.meta.url), "utf8");
+test("human and evidence review routes add Article JSON-LD without duplicating editorial markup", async () => {
+  const [pageSource, editorialSource] = await Promise.all([
+    readFile(new URL("../app/review/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/review/editorial-review-view.tsx", import.meta.url), "utf8"),
+  ]);
 
   assert.match(pageSource, /<PublicArticleJsonLd descriptor=\{describeHumanReview\(review\)\} \/>/u);
   assert.match(pageSource, /<PublicArticleJsonLd descriptor=\{describeEvidenceReview\(review\)\} \/>/u);
-  assert.match(pageSource, /<PublicArticleJsonLd descriptor=\{describeEditorialReview\(persisted\)\} \/>/u);
+  assert.doesNotMatch(pageSource, /<PublicArticleJsonLd descriptor=\{describeEditorialReview\(persisted\)\} \/>/u);
   assert.match(pageSource, /type="application\/ld\+json"/u);
+  assert.match(editorialSource, /type="application\/ld\+json"/u);
   assert.doesNotMatch(pageSource, /modifiedTime:\s*review\.approvedAt/u);
   assert.doesNotMatch(pageSource, /reviewRating|aggregateRating/u);
 });
