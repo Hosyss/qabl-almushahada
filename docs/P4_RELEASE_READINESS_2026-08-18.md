@@ -156,3 +156,21 @@
 6. لا يتم تركيب AdSense أو تغيير الدومين إلا بقرار منفصل وبيانات حقيقية.
 
 حتى ذلك الحين: **Production يبقى كما هو، وDraft PRs هي مساحة العمل والمراجعة فقط.**
+
+## 11) Live Production baseline المثبت قبل أي Merge
+
+تم تشغيل فحص read-only مستقل على Production الحالي في run `32101692072`. الفحص استخدم `curl` فقط ولم يكتب إلى D1 أو يغيّر Worker.
+
+النتيجة:
+
+- الصفحة الرئيسية تعرض بالضبط أحدث **4** تحليلات: Alice in Wonderland، Barbie، Spider-Man: No Way Home، The Hunger Games.
+- الـsitemap يحتوي **10** editorial review IDs بالضبط.
+- فلتر `/titles?editorialStatus=editorial` يعرض **10** title QIDs بالضبط.
+- `robots.txt` يمنع `/internal` حاليًا.
+- `robots.txt` **لا يمنع `/api/` حاليًا** — يعالجه #74.
+- `/search` **لا يحمل `noindex` حاليًا** — يعالجه #74.
+- `/search` **لا يحمل canonical حاليًا** — يعالجه #74.
+- الـpublic homepage head ما زال يحتوي `codex-preview` — يزيله #74.
+- الفحص انتهى `success` ولم يجد انحرافًا في عدد المحتوى المنشور.
+
+هذا يثبت أن #74 يغلق فروقًا موجودة على Production الحالي، وليس مجرد hardening نظري.
