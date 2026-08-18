@@ -9,6 +9,7 @@ export function PolicyLinks() {
     <nav className={styles.bar} aria-label="روابط الشفافية والسياسات">
       <span>الشفافية</span>
       <div>
+        <Link href="/about">عن الموقع</Link>
         {PUBLIC_POLICY_NAV.map((item) => (
           <Link href={item.href} key={item.href}>{item.label}</Link>
         ))}

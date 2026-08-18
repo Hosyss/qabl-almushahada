@@ -7,6 +7,7 @@ export async function GET() {
   const urls = [
     `<url><loc>${PUBLIC_SITE_ORIGIN}/</loc></url>`,
     `<url><loc>${PUBLIC_SITE_ORIGIN}/titles</loc></url>`,
+    `<url><loc>${PUBLIC_SITE_ORIGIN}/about</loc></url>`,
     `<url><loc>${PUBLIC_SITE_ORIGIN}/review-policy</loc></url>`,
     `<url><loc>${PUBLIC_SITE_ORIGIN}/corrections</loc></url>`,
     `<url><loc>${PUBLIC_SITE_ORIGIN}/privacy</loc></url>`,
