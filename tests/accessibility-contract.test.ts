@@ -31,6 +31,11 @@ test("global keyboard focus uses a dual-tone ring and remains forced-colors comp
   assert.ok(contrastRatio(outer, "#ffffff") >= 3, `Outer focus ring is too weak on light surfaces: ${outer}`);
 });
 
+test("search text input cannot suppress its focus indicator after the base outline reset", () => {
+  assert.match(searchCss, /\.input:focus,\.input:focus-visible\{[^}]*outline:2px solid var\(--a11y-focus-inner\)/u);
+  assert.match(searchCss, /\.input:focus,\.input:focus-visible\{[^}]*0 0 0 6px var\(--a11y-focus-outer\)/u);
+});
+
 test("reduced-motion users do not receive smooth scrolling or long transitions", () => {
   assert.match(accessibilityCss, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(accessibilityCss, /scroll-behavior:\s*auto !important/);
