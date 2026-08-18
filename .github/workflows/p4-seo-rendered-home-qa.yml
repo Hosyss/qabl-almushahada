@@ -11,19 +11,55 @@ permissions:
 jobs:
   rendered-metadata:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22.13.0'
           cache: npm
-      - run: npm ci
+      - name: Install and prepare local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name":"qabl-p4-seo-home-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-05-22",
+            "compatibility_flags":["nodejs_compat"],
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
+          }
+          JSON
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
+          done
+          node --input-type=module <<'NODE' > /tmp/seo-home-seed.sql
+          import { createHash } from 'node:crypto';
+          import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
+          const fixtures = await loadEditorialBootstrapFixtures();
+          if (fixtures.length !== 10) throw new Error(`Expected exactly 10 fixtures, found ${fixtures.length}`);
+          const q = value => `'${String(value).replaceAll("'", "''")}'`;
+          for (const { review, presentation } of fixtures) {
+            const qid = review.titleId.replace(/^wd:/u, '');
+            const aliases = review.titleId === 'wd:Q102438' ? ["Harry Potter and the Sorcerer's Stone"] : [];
+            console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
+            const hash = createHash('sha256').update(`seo-home-qa:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-18T00:00:00Z',${q(hash)},'manual');`);
+          }
+          NODE
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/seo-home-seed.sql >/dev/null
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
       - name: Start local app
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
         run: |
           (npm run dev:local -- --host 127.0.0.1 --port 4173 >/tmp/seo-home-qa-server.log 2>&1 &)
           for i in $(seq 1 60); do
-            curl --fail --silent http://127.0.0.1:4173/search >/dev/null && exit 0
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
             sleep 1
           done
           cat /tmp/seo-home-qa-server.log
