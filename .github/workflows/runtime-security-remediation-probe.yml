@@ -1,4 +1,5 @@
 # Temporary verification probe; remove before clean remediation head.
+# Server-side observable trigger.
 name: Runtime security remediation probe
 
 on:
