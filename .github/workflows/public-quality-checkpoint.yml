@@ -15,4 +15,4 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
-      - run: node --experimental-strip-types --test tests/public-quality-checkpoint.test.ts
+      - run: node --experimental-strip-types --test tests/public-quality-checkpoint.test.ts tests/seo-indexing-contract.test.ts

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -6,6 +7,14 @@ import {
   parseLocalFamilySettings,
   serializeLocalFamilySettings,
 } from "../lib/local-family-settings.ts";
+import {
+  clearFamilySettingsStore,
+  createFamilySettingsSessionFallback,
+  decodeFamilySettingsStoreSnapshot,
+  readFamilySettingsStoreSnapshot,
+  writeFamilySettingsStore,
+  type FamilySettingsStorageLike,
+} from "../lib/local-family-settings-store.ts";
 
 test("local family settings round-trip only the approved non-identifying fields", () => {
   const serialized = serializeLocalFamilySettings({
@@ -68,4 +77,82 @@ test("stored family settings fail safely when malformed, stale, or outside UI bo
     () => serializeLocalFamilySettings({ childAge: 9, fearLimit: 4, avoidBullying: true }),
     /fearLimit/,
   );
+});
+
+test("family settings store uses persistent local storage when available", () => {
+  const values = new Map<string, string>();
+  const storage: FamilySettingsStorageLike = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value); },
+    removeItem: (key) => { values.delete(key); },
+  };
+  const fallback = createFamilySettingsSessionFallback();
+  const raw = serializeLocalFamilySettings({ childAge: 10, fearLimit: 1, avoidBullying: false });
+
+  assert.equal(writeFamilySettingsStore(() => storage, fallback, raw), "local");
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(() => storage, fallback)), {
+    mode: "local",
+    raw,
+  });
+  assert.equal(clearFamilySettingsStore(() => storage, fallback), "local");
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(() => storage, fallback)), {
+    mode: "local",
+    raw: null,
+  });
+});
+
+test("family settings store falls back to session memory when local storage is unavailable", () => {
+  const unavailable = (): FamilySettingsStorageLike => {
+    throw new DOMException("Blocked", "SecurityError");
+  };
+  const fallback = createFamilySettingsSessionFallback();
+  const raw = serializeLocalFamilySettings({ childAge: 8, fearLimit: 0, avoidBullying: true });
+
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(unavailable, fallback)), {
+    mode: "session",
+    raw: null,
+  });
+  assert.equal(writeFamilySettingsStore(unavailable, fallback, raw), "session");
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(unavailable, fallback)), {
+    mode: "session",
+    raw,
+  });
+  assert.equal(clearFamilySettingsStore(unavailable, fallback), "session");
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(unavailable, fallback)), {
+    mode: "session",
+    raw: null,
+  });
+});
+
+test("a write quota failure switches to session memory without losing the selected settings", () => {
+  const storage: FamilySettingsStorageLike = {
+    getItem: () => null,
+    setItem: () => { throw new DOMException("Full", "QuotaExceededError"); },
+    removeItem: () => undefined,
+  };
+  const fallback = createFamilySettingsSessionFallback();
+  const raw = serializeLocalFamilySettings({ childAge: 13, fearLimit: 2, avoidBullying: false });
+
+  assert.equal(writeFamilySettingsStore(() => storage, fallback, raw), "session");
+  assert.deepEqual(decodeFamilySettingsStoreSnapshot(readFamilySettingsStoreSnapshot(() => storage, fallback)), {
+    mode: "session",
+    raw,
+  });
+});
+
+test("practical verdict UI honors the published session fallback and uses formal Arabic", () => {
+  const component = readFileSync(new URL("../app/review/editorial-practical-verdict.tsx", import.meta.url), "utf8");
+  const verdict = readFileSync(new URL("../lib/editorial-practical-verdict.ts", import.meta.url), "utf8");
+
+  for (const token of [
+    "readFamilySettingsStoreSnapshot",
+    "writeFamilySettingsStore",
+    "clearFamilySettingsStore",
+    "التخزين المحلي غير متاح",
+    "لهذه الجلسة فقط",
+  ]) {
+    assert.ok(component.includes(token), `Missing family-settings fallback contract: ${token}`);
+  }
+  assert.match(verdict, /watch: "يمكن مشاهدته وفق حدود أسرتك"/u);
+  assert.doesNotMatch(`${component}\n${verdict}`, /ينفع للمشاهدة/u);
 });

@@ -12,6 +12,7 @@ export default function TitleArtwork({
   priority = false,
   showDisclosure = false,
   fallback = false,
+  decorative = false,
 }: {
   titleId: string;
   className?: string;
@@ -19,6 +20,7 @@ export default function TitleArtwork({
   priority?: boolean;
   showDisclosure?: boolean;
   fallback?: boolean;
+  decorative?: boolean;
 }) {
   const artwork = getTitleArtwork(titleId);
   if (!artwork && !fallback) return null;
@@ -30,14 +32,18 @@ export default function TitleArtwork({
         <Image
           className={styles.image}
           src={artwork.src}
-          alt={artwork.altAr}
+          alt={decorative ? "" : artwork.altAr}
           width={720}
           height={960}
           sizes={sizes}
           priority={priority}
           unoptimized
         />
-      ) : <span className={styles.fallback}>لا يوجد غلاف توضيحي متاح بعد</span>}
+      ) : (
+        <span className={styles.fallback} aria-hidden={decorative ? true : undefined}>
+          لا يوجد غلاف توضيحي متاح بعد
+        </span>
+      )}
       {artwork && showDisclosure ? <figcaption className={styles.label}>{TITLE_ARTWORK_DISCLOSURE_AR}</figcaption> : null}
     </figure>
   );

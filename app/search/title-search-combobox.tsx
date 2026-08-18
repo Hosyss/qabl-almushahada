@@ -14,7 +14,9 @@ export default function TitleSearchCombobox({ initialQuery = "", hiddenFields = 
   const [active, setActive] = useState(-1);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState("");
+  const inputId = useId();
   const listId = useId();
+  const headingId = useId();
   const statusId = useId();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -95,19 +97,22 @@ export default function TitleSearchCombobox({ initialQuery = "", hiddenFields = 
     setStatus("اكتب حرفين على الأقل للبحث.");
   }
 
+  const suggestionHeading = mode === "did_you_mean" ? "هل تقصد؟" : "اقتراحات من العناوين الموجودة";
+
   return <form className={styles.form} action="/search" method="get" role="search" onSubmit={onSubmit}>
     {Object.entries(hiddenFields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
     <div className={styles.wrap}>
-      <input className={styles.input} name="q" type="search" value={query} maxLength={80} autoComplete="off" spellCheck={false}
+      <label className={styles.srOnly} htmlFor={inputId}>اسم الفيلم أو المسلسل</label>
+      <input id={inputId} className={styles.input} name="q" type="search" value={query} maxLength={80} autoComplete="off" spellCheck={false}
         placeholder="اكتب اسم الفيلم بالعربي أو الإنجليزي" role="combobox" aria-autocomplete="list" aria-expanded={open}
         aria-controls={listId} aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined} aria-describedby={statusId}
         onChange={onQueryChange} onFocus={() => items.length > 0 && setOpen(true)} onKeyDown={onKeyDown} />
       {open && items.length > 0 ? <div className={styles.popup}>
-        <div className={styles.heading}>{mode === "did_you_mean" ? "هل تقصد؟" : "اقتراحات من العناوين الموجودة"}</div>
-        <div id={listId} className={styles.list} role="listbox">
+        <div id={headingId} className={styles.heading}>{suggestionHeading}</div>
+        <div id={listId} className={styles.list} role="listbox" aria-labelledby={headingId}>
           {items.map((item, index) => <a key={item.id} id={`${listId}-${index}`} href={item.href} role="option" aria-selected={index === active}
-            className={`${styles.option}${index === active ? ` ${styles.active}` : ""}`} onMouseEnter={() => setActive(index)} onMouseDown={(event) => event.preventDefault()}>
-            <TitleArtwork titleId={item.id} className={styles.artwork} sizes="48px" fallback />
+            tabIndex={-1} className={`${styles.option}${index === active ? ` ${styles.active}` : ""}`} onMouseEnter={() => setActive(index)} onMouseDown={(event) => event.preventDefault()}>
+            <TitleArtwork titleId={item.id} className={styles.artwork} sizes="48px" fallback decorative />
             <span className={styles.optionCopy}><strong>{item.arabicName}</strong><span dir="ltr">{item.englishName}</span><small>({item.releaseYear})</small></span>
           </a>)}
         </div>

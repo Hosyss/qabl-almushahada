@@ -3,8 +3,12 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
-import { buildEditorialReviewDescription, buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
+import { buildPracticalEditorialReviewDescription } from "@/lib/editorial-practical-verdict";
+import { buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
+import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 import { loadEditorialPublicationById } from "@/lib/public-editorial-read";
+import { buildPublicEvidenceReviewHref } from "@/lib/public-evidence-review";
+import { buildPublicReviewHref } from "@/lib/public-review";
 
 import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
@@ -25,24 +29,32 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
   const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
   if ([bundleId, publicationId, editorialId].filter(Boolean).length !== 1) return UNAVAILABLE_METADATA;
-  if (!editorialId) return {};
+
+  if (bundleId) {
+    const review = await loadHumanReviewFailClosed(bundleId);
+    if (!review) return UNAVAILABLE_METADATA;
+    const title = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة | قبل المشاهدة`;
+    const description = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة لنسخة محددة بعد اجتياز بوابات النشر والاعتماد في «قبل المشاهدة».`;
+    const canonical = `${PUBLIC_SITE_ORIGIN}${buildPublicReviewHref(review.bundleId)}`;
+    return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt, modifiedTime: review.approvedAt });
+  }
+
+  if (publicationId) {
+    const review = await loadEvidenceReviewFailClosed(publicationId);
+    if (!review) return UNAVAILABLE_METADATA;
+    const title = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة | قبل المشاهدة`;
+    const description = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة لنسخة محددة، مع توضيح أن المشاهدة البشرية للنسخة غير مؤكدة.`;
+    const canonical = `${PUBLIC_SITE_ORIGIN}${buildPublicEvidenceReviewHref(review.publicationId)}`;
+    return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt });
+  }
+
   const persisted = await loadEditorialReviewFailClosed(editorialId);
   if (!persisted) return UNAVAILABLE_METADATA;
   const { review, presentation } = persisted;
   const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
-  const description = buildEditorialReviewDescription(review);
+  const description = buildPracticalEditorialReviewDescription(review);
   const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
-  return {
-    title,
-    description,
-    alternates: { canonical },
-    robots: { index: true, follow: true },
-    openGraph: {
-      title, description, type: "article", url: canonical, locale: "ar_EG",
-      publishedTime: review.publishedAt, modifiedTime: presentation.updatedAt, authors: ["قبل المشاهدة"],
-    },
-    twitter: { card: "summary", title, description },
-  };
+  return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt, modifiedTime: presentation.updatedAt });
 }
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
@@ -61,6 +73,38 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   }
   const persisted = await loadEditorialReviewFailClosed(editorialId);
   return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
+}
+
+function buildArticleMetadata({
+  title,
+  description,
+  canonical,
+  publishedTime,
+  modifiedTime,
+}: {
+  title: string;
+  description: string;
+  canonical: string;
+  publishedTime: string;
+  modifiedTime?: string;
+}): Metadata {
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    robots: { index: true, follow: true },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: canonical,
+      locale: "ar_EG",
+      publishedTime,
+      ...(modifiedTime ? { modifiedTime } : {}),
+      authors: ["قبل المشاهدة"],
+    },
+    twitter: { card: "summary", title, description },
+  };
 }
 
 async function loadHumanReviewFailClosed(bundleId: string) {
