@@ -16,10 +16,22 @@ import {
   serializeLocalFamilySettings,
   type LocalFamilySettings,
 } from "@/lib/local-family-settings";
+import {
+  clearFamilySettingsStore,
+  createFamilySettingsSessionFallback,
+  decodeFamilySettingsStoreSnapshot,
+  readFamilySettingsStoreSnapshot,
+  writeFamilySettingsStore,
+} from "@/lib/local-family-settings-store";
 
 const SETTINGS_LOADING_SNAPSHOT = "__qabl_family_settings_loading__";
 const SETTINGS_CHANGED_EVENT = "qabl-family-settings-changed";
 const DEFAULT_FORM: LocalFamilySettings = { childAge: 12, fearLimit: 2, avoidBullying: true };
+const sessionFallback = createFamilySettingsSessionFallback();
+
+function storageProvider() {
+  return window.localStorage;
+}
 
 function subscribe(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
@@ -35,7 +47,7 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot() {
-  return window.localStorage.getItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
+  return readFamilySettingsStoreSnapshot(storageProvider, sessionFallback);
 }
 
 function getServerSnapshot() {
@@ -51,9 +63,15 @@ export default function EditorialPracticalVerdict({
 }) {
   const settingsSnapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const settingsLoaded = settingsSnapshot !== SETTINGS_LOADING_SNAPSHOT;
-  const settings = useMemo(
-    () => settingsLoaded ? parseLocalFamilySettings(settingsSnapshot) : null,
+  const storeSnapshot = useMemo(
+    () => settingsLoaded
+      ? decodeFamilySettingsStoreSnapshot(settingsSnapshot)
+      : { mode: "local" as const, raw: null },
     [settingsLoaded, settingsSnapshot],
+  );
+  const settings = useMemo(
+    () => settingsLoaded ? parseLocalFamilySettings(storeSnapshot.raw) : null,
+    [settingsLoaded, storeSnapshot.raw],
   );
   const [draft, setDraft] = useState<LocalFamilySettings | null>(null);
   const [savedNotice, setSavedNotice] = useState("");
@@ -86,9 +104,21 @@ export default function EditorialPracticalVerdict({
   }
 
   function saveSettings() {
-    window.localStorage.setItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY, serializeLocalFamilySettings(form));
+    const mode = writeFamilySettingsStore(
+      storageProvider,
+      sessionFallback,
+      serializeLocalFamilySettings(form),
+    );
     setDraft(null);
     window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
+    if (mode === "session") {
+      setSavedNotice(
+        practicalReady
+          ? "التخزين المحلي غير متاح؛ احتفظنا بالإعدادات لهذه الجلسة فقط وحدّثنا الحكم."
+          : "التخزين المحلي غير متاح؛ احتفظنا بالإعدادات لهذه الجلسة فقط. سيظل الحكم غير جاهز حتى يجتاز التحليل شروط الجاهزية.",
+      );
+      return;
+    }
     setSavedNotice(
       practicalReady
         ? "تم حفظ إعدادات الأسرة على هذا الجهاز وتحديث الحكم."
@@ -97,10 +127,14 @@ export default function EditorialPracticalVerdict({
   }
 
   function clearSettings() {
-    window.localStorage.removeItem(LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
+    const mode = clearFamilySettingsStore(storageProvider, sessionFallback);
     setDraft(null);
     window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
-    setSavedNotice("تم حذف إعدادات الأسرة المحلية. لن نفترض عمرًا أو حدودًا من عندنا.");
+    setSavedNotice(
+      mode === "session"
+        ? "حذفنا إعدادات هذه الجلسة، لكن المتصفح منع الوصول إلى التخزين المحلي. يمكنك مسح بيانات الموقع من إعدادات المتصفح إذا أردت التأكد من حذف أي نسخة أقدم."
+        : "تم حذف إعدادات الأسرة المحلية. لن نفترض عمرًا أو حدودًا من عندنا.",
+    );
   }
 
   return (
@@ -119,7 +153,7 @@ export default function EditorialPracticalVerdict({
         <p>{buildPracticalEditorialVerdictSummaryAr(verdict)}</p>
         {practicalReady ? (
           <p>
-            النتائج الممكنة بعد تحديد إعدادات الأسرة: «ينفع للمشاهدة وفق حدود أسرتك»، «يحتاج انتباهك قبل المشاهدة»،
+            النتائج الممكنة بعد تحديد إعدادات الأسرة: «يمكن مشاهدته وفق حدود أسرتك»، «يحتاج انتباهك قبل المشاهدة»،
             أو «لا أنصح به وفق حدود أسرتك».
           </p>
         ) : (
@@ -152,7 +186,7 @@ export default function EditorialPracticalVerdict({
           {determiningLabels.length > 0 ? (
             <p><strong>سبب المنع:</strong> وجود محتوى موثّق في {determiningLabels.join("، ")} بينما الحد الحالي لهذا المحور صفر ضمن إعدادات الأسرة.</p>
           ) : attentionLabels.length > 0 ? (
-            <p><strong>يحتاج انتباه بسبب:</strong> {attentionLabels.join("، ")}. لا نملك شدة رقمية كافية لإثبات أن هذه النقاط داخل الحد الحالي، لذلك لا نعرض حكمًا إيجابيًا بلا دليل ولا نعيد الحالة إلى «الحكم غير مكتمل».</p>
+            <p><strong>يحتاج إلى انتباه بسبب:</strong> {attentionLabels.join("، ")}. لا نملك شدة رقمية كافية لإثبات أن هذه النقاط داخل الحد الحالي، لذلك لا نعرض حكمًا إيجابيًا بلا دليل ولا نعيد الحالة إلى «الحكم غير مكتمل».</p>
           ) : (
             <p>لم نجد في الوقائع أو المحاور غير المحسومة ما يمكن أن يتجاوز الحدود الحالية ضمن ما نستطيع إثباته من دون اختراع شدة.</p>
           )}
@@ -210,7 +244,11 @@ export default function EditorialPracticalVerdict({
             {settings ? <button type="button" onClick={clearSettings}>احذف الإعدادات</button> : null}
           </div>
           <p><strong>{ARAB_FAMILY_POLICY_LABEL_AR}:</strong> عمر الطفل وحد الخوف وتجنب التنمر هي القيم التي تضبطها هنا. بقية حدود المحاور تُشتق حاليًا من إعدادات افتراضية مرتبطة بالعمر، وليست اختيارات يدوية منك.</p>
-          <p>تُحفظ هذه القيم محليًا على جهازك فقط. لا نرسل عمر الطفل أو تفضيلات الأسرة إلى حساب أو ملف شخصي.</p>
+          <p>
+            {storeSnapshot.mode === "session"
+              ? "التخزين المحلي غير متاح حاليًا؛ تبقى هذه القيم في ذاكرة الصفحة لهذه الجلسة فقط ولا نرسلها إلى حساب أو ملف شخصي."
+              : "تُحفظ هذه القيم محليًا على جهازك فقط. لا نرسل عمر الطفل أو تفضيلات الأسرة إلى حساب أو ملف شخصي."}
+          </p>
           <p aria-live="polite">{savedNotice}</p>
         </fieldset>
       ) : null}
