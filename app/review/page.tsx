@@ -13,6 +13,7 @@ import { buildPublicReviewHref } from "@/lib/public-review";
 
 import EditorialReviewView from "./editorial-review-view";
 import EvidenceReviewClient from "./evidence-review-client";
+import PublicReportForm from "./public-report-form";
 import ReviewClient from "./review-client";
 
 type ReviewSearchParams = { bundleId?: string | string[]; publicationId?: string | string[]; editorialId?: string | string[] };
@@ -71,6 +72,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       <>
         <PublicArticleJsonLd descriptor={describeHumanReview(review)} />
         <ReviewClient review={review} />
+        <PublicReportForm targetKind="human_review" targetId={review.bundleId} />
       </>
     );
   }
@@ -82,12 +84,18 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       <>
         <PublicArticleJsonLd descriptor={describeEvidenceReview(review)} />
         <EvidenceReviewClient review={review} />
+        <PublicReportForm targetKind="evidence_publication" targetId={review.publicationId} />
       </>
     );
   }
 
   const persisted = await loadEditorialReviewFailClosed(editorialId);
-  return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
+  return persisted ? (
+    <>
+      <EditorialReviewView review={persisted.review} />
+      <PublicReportForm targetKind="editorial_publication" targetId={persisted.review.id} />
+    </>
+  ) : <ReviewUnavailable />;
 }
 
 function describeHumanReview(review: HumanReview): PublicArticleDescriptor {

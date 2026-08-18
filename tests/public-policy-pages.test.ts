@@ -47,10 +47,13 @@ test("public review policy stays synchronized with the live audit and risk const
   assert.match(reviewText, new RegExp(`تتابع وميض.*${HIGH_SENSITIVITY_FLAG_THRESHOLDS.flashing_sequence}`));
 });
 
-test("privacy policy mirrors the exact local family-settings storage contract", () => {
+test("privacy policy mirrors local family settings and public-report anti-abuse storage", () => {
   assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.familySettingsStorageKey, LOCAL_FAMILY_SETTINGS_STORAGE_KEY);
   assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.familySettingsSentToD1, false);
   assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.publicAccountRequired, false);
+  assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.publicReportAccountRequired, false);
+  assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.publicReportRawIpStored, false);
+  assert.equal(PUBLIC_PRIVACY_POLICY_FACTS.publicReportClientKeyDerivation, "HMAC-SHA256");
 
   const stored = JSON.parse(
     serializeLocalFamilySettings({ childAge: 9, fearLimit: 2, avoidBullying: true }),
@@ -62,16 +65,27 @@ test("privacy policy mirrors the exact local family-settings storage contract", 
   assert.deepEqual(Object.keys(stored).sort(), expectedStoredKeys);
   assert.equal("childName" in stored, false);
   assert.equal("dateOfBirth" in stored, false);
+
+  const privacyText = JSON.stringify(PUBLIC_POLICY_PAGES.privacy.sections);
+  assert.match(privacyText, /HMAC-SHA256/u);
+  assert.match(privacyText, /لا يُخزن عنوان IP الخام/u);
+  assert.match(privacyText, /لا تُرسل إعدادات عمر الطفل أو تفضيلات الأسرة مع البلاغ/u);
 });
 
-test("correction policy remains fail-closed and does not pretend public intake is wired", () => {
+test("correction policy exposes intake without treating every report as a material stop", () => {
   assert.deepEqual(PUBLIC_CORRECTION_POLICY_FACTS.blockingReportStatuses, ["open", "investigating"]);
   assert.deepEqual(PUBLIC_CORRECTION_POLICY_FACTS.resolutions, [
     "no_issue",
     "correction_required",
     "different_version",
   ]);
-  assert.equal(PUBLIC_CORRECTION_POLICY_FACTS.publicReportIntakeAvailable, false);
+  assert.equal(PUBLIC_CORRECTION_POLICY_FACTS.publicReportIntakeAvailable, true);
+  assert.equal(PUBLIC_CORRECTION_POLICY_FACTS.publicReportChangesPublishedDecisionAutomatically, false);
   assert.equal(PUBLIC_CORRECTION_POLICY_FACTS.historicalRevisionsMutable, false);
-  assert.match(PUBLIC_POLICY_PAGES.corrections.notice ?? "", /لم تُوصل تقنيًا بعد/);
+
+  const correctionText = JSON.stringify(PUBLIC_POLICY_PAGES.corrections);
+  assert.match(correctionText, /تبدأ بمرحلة فرز بشرية/u);
+  assert.match(correctionText, /لا يغير الحكم المنشور تلقائيًا/u);
+  assert.match(correctionText, /التحليل التحريري أو مراجعة الأدلة.*لا تُسقط المحتوى تلقائيًا/u);
+  assert.doesNotMatch(correctionText, /لم تُوصل تقنيًا بعد/u);
 });
