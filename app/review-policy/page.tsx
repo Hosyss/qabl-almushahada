@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
+import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 import { PUBLIC_POLICY_PAGES, type PublicPolicyPage as PublicPolicyPageData } from "@/lib/public-policy-pages";
 import { PublicPolicyPage } from "../policy-page";
 
 export const metadata: Metadata = {
   title: "سياسة المراجعة | قبل المشاهدة",
   description: "الفرق بين التحليل التحريري الجزئي والمراجعة الموثقة لنسخة محددة، وبوابات الاستقلال والتدقيق قبل أي حكم أسري.",
+  alternates: { canonical: `${PUBLIC_SITE_ORIGIN}/review-policy` },
 };
 
 const base = PUBLIC_POLICY_PAGES.review;
