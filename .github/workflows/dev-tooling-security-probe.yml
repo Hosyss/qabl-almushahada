@@ -1,5 +1,4 @@
 # Temporary dev/build tooling remediation probe; remove before clean head.
-# Server-side trigger for one-graph peer resolution.
 name: Dev tooling security remediation probe
 
 on:
@@ -12,6 +11,10 @@ permissions:
 
 jobs:
   probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [safe, vinext, drizzle-rc, combined]
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR head
@@ -26,19 +29,7 @@ jobs:
       - name: Install baseline graph
         run: npm ci
 
-      - name: Measure baseline full and production audits
-        run: |
-          npm audit --json > audit-baseline-full.json || true
-          npm audit --omit=dev --json > audit-baseline-prod.json || true
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          for (const file of ['audit-baseline-full.json', 'audit-baseline-prod.json']) {
-            const audit = JSON.parse(readFileSync(file, 'utf8'));
-            console.log(file, audit.metadata?.vulnerabilities ?? {});
-          }
-          NODE
-
-      - name: Apply compatible non-major security candidate as one graph
+      - name: Apply proven non-major candidate
         run: |
           npm pkg set \
             dependencies.react=19.2.8 \
@@ -49,42 +40,82 @@ jobs:
             devDependencies.vite=8.2.1
           npm install --package-lock-only --ignore-scripts
 
+      - name: Refresh audit-fixable transitives within declared ranges
+        run: npm update @babel/core brace-expansion fast-uri js-yaml --package-lock-only --ignore-scripts
+
+      - name: Record prerelease candidate metadata
+        if: matrix.variant != 'safe'
+        run: |
+          {
+            echo '=== vinext@1.0.0-beta.6 ==='
+            npm view vinext@1.0.0-beta.6 version engines dependencies peerDependencies --json || true
+            echo '=== drizzle-kit@1.0.0-rc.4 ==='
+            npm view drizzle-kit@1.0.0-rc.4 version engines dependencies peerDependencies --json || true
+          } > prerelease-metadata.txt 2>&1
+          cat prerelease-metadata.txt
+
+      - name: Apply isolated prerelease candidate
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          case "$VARIANT" in
+            safe)
+              ;;
+            vinext)
+              npm pkg set devDependencies.vinext=1.0.0-beta.6
+              ;;
+            drizzle-rc)
+              npm pkg set devDependencies.drizzle-kit=1.0.0-rc.4
+              ;;
+            combined)
+              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.drizzle-kit=1.0.0-rc.4
+              ;;
+            *) exit 64 ;;
+          esac
+          npm install --package-lock-only --ignore-scripts
+
       - name: Install exact candidate graph
         run: npm ci
 
-      - name: Measure candidate audits
+      - name: Measure full and production audits
         run: |
-          npm audit --json > audit-candidate-full.json || true
-          npm audit --omit=dev --json > audit-candidate-prod.json || true
+          npm audit --json > audit-full.json || true
+          npm audit --omit=dev --json > audit-prod.json || true
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
-          const full = JSON.parse(readFileSync('audit-candidate-full.json', 'utf8'));
-          const prod = JSON.parse(readFileSync('audit-candidate-prod.json', 'utf8'));
-          console.log('Candidate full audit:', full.metadata?.vulnerabilities ?? {});
-          console.log('Candidate production audit:', prod.metadata?.vulnerabilities ?? {});
-          if ((prod.metadata?.vulnerabilities?.total ?? 0) !== 0) {
-            console.error('Production graph regressed.');
-            process.exit(1);
-          }
+          const full = JSON.parse(readFileSync('audit-full.json', 'utf8'));
+          const prod = JSON.parse(readFileSync('audit-prod.json', 'utf8'));
+          console.log('Full audit:', full.metadata?.vulnerabilities ?? {});
+          console.log('Production audit:', prod.metadata?.vulnerabilities ?? {});
+          if ((prod.metadata?.vulnerabilities?.total ?? 0) !== 0) process.exit(1);
           NODE
 
-      - name: Record residual vulnerability names and package graph
+      - name: Record residuals and exact versions
         run: |
-          node --input-type=module <<'NODE' > candidate-residual.txt
+          node --input-type=module <<'NODE' > residual.txt
           import { readFileSync } from 'node:fs';
-          const audit = JSON.parse(readFileSync('audit-candidate-full.json', 'utf8'));
+          const audit = JSON.parse(readFileSync('audit-full.json', 'utf8'));
           for (const [name, item] of Object.entries(audit.vulnerabilities ?? {})) {
             console.log(`${name}\t${item.severity}\tdirect=${item.isDirect}\trange=${item.range}\tfix=${JSON.stringify(item.fixAvailable)}`);
           }
           NODE
-          npm ls @cloudflare/vite-plugin wrangler vite react react-dom react-server-dom-webpack vinext image-size drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild --all >> candidate-residual.txt || true
-          cat candidate-residual.txt
+          npm ls @babel/core brace-expansion fast-uri js-yaml vinext image-size drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild --all >> residual.txt || true
+          cat residual.txt
 
       - name: Engine tests
         run: npm run test:engine
 
       - name: Migration verification
         run: npm run test:migrations
+
+      - name: Drizzle generation compatibility probe
+        if: matrix.variant == 'drizzle-rc' || matrix.variant == 'combined'
+        run: |
+          before="$(git status --porcelain -- drizzle drizzle.config.* 2>/dev/null || true)"
+          npm run db:generate
+          after="$(git status --porcelain -- drizzle drizzle.config.* 2>/dev/null || true)"
+          printf 'Before generation:\n%s\nAfter generation:\n%s\n' "$before" "$after"
+          test "$after" = "$before"
 
       - name: Lint
         run: npm run lint
@@ -103,13 +134,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dev-tooling-security-candidate-${{ github.run_id }}
+          name: dev-tooling-${{ matrix.variant }}-${{ github.run_id }}
           path: |
             package.json
             package-lock.json
-            audit-baseline-full.json
-            audit-baseline-prod.json
-            audit-candidate-full.json
-            audit-candidate-prod.json
-            candidate-residual.txt
+            audit-full.json
+            audit-prod.json
+            residual.txt
+            prerelease-metadata.txt
           if-no-files-found: warn
