@@ -38,7 +38,7 @@ jobs:
             devDependencies.@vitejs/plugin-rsc=0.5.34
           node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; const p=JSON.parse(readFileSync('package.json','utf8')); p.overrides={...(p.overrides??{}),'@esbuild-kit/core-utils':{esbuild:'0.25.12'}}; writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n');"
           npm install --package-lock-only --ignore-scripts
-          npm update @babel/core brace-expansion fast-uri js-yaml --package-lock-only --ignore-scripts
+          npm update @babel/core brace-expansion fast-uri js-yaml esbuild --package-lock-only --ignore-scripts
 
       - name: Install exact candidate graph
         run: npm ci
@@ -123,7 +123,6 @@ jobs:
           writeFileSync('css-integrity-report.json', `${JSON.stringify(report, null, 2)}\n`);
           console.log(JSON.stringify(report, null, 2));
 
-          // Diagnostic-only class-name coverage in this probe. Hard failure is reserved for objective asset/ref invariants.
           if (JSON.stringify(conflictKinds) !== JSON.stringify(expectedKinds)) {
             console.error('Unexpected CSS conflict set.');
             process.exit(1);
