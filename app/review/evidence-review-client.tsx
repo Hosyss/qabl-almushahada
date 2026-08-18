@@ -49,7 +49,7 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
       <header className="review-header">
         <Link className="review-brand" href="/" aria-label="قبل المشاهدة — الرئيسية">
           <ReviewLogo />
-          <span><strong>قبل المشاهدة</strong><small>قرار أهدى لكل بيت</small></span>
+          <span><strong>قبل المشاهدة</strong><small>قرار أهدأ لكل أسرة</small></span>
         </Link>
         <Link className="review-back" href="/search">الرجوع للبحث <span aria-hidden="true">←</span></Link>
       </header>
@@ -100,9 +100,9 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
 
           <section className="review-breakdown" aria-labelledby="breakdown-title">
             <div className="review-section-head">
-              <div><span>المحتوى بالتفصيل</span><h2 id="breakdown-title">إيه اللي تثبته الأدلة؟</h2></div>
+              <div><span>المحتوى بالتفصيل</span><h2 id="breakdown-title">ما الذي تثبته الأدلة؟</h2></div>
               <label className="spoiler-toggle">
-                <span><strong>من غير حرق</strong><small>نخفي الوقائع ذات السياق الكاشف</small></span>
+                <span><strong>من دون حرق</strong><small>نخفي الوقائع ذات السياق الكاشف</small></span>
                 <input type="checkbox" checked={spoilerFree} onChange={(event) => setSpoilerFree(event.target.checked)} />
                 <i aria-hidden="true"><b /></i>
               </label>
@@ -135,7 +135,7 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
                       <div className="review-category__facts" id={`evidence-category-${category.id}`}>
                         <div className="review-facts-label"><span>وقائع مرتبطة بالمصدر</span><small>لا نخترع توقيتًا غير موجود</small></div>
                         {category.facts.length === 0 ? (
-                          <div className="review-fact"><time>—</time><p>المصادر المقبولة تحسم هذا المحور كعدم وجود ضمن snapshot المنشورة.</p></div>
+                          <div className="review-fact"><time>—</time><p>تحسم المصادر المقبولة هذا المحور كعدم وجود ضمن لقطة الأدلة المنشورة.</p></div>
                         ) : category.facts.map((fact) => (
                           <EvidenceFactRow fact={fact} spoilerFree={spoilerFree} key={fact.id} />
                         ))}
@@ -149,18 +149,18 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
 
           <section className="review-logic" aria-labelledby="logic-title">
             <div className="review-section-head review-section-head--simple">
-              <div><span>النشر له بوابة مستقلة</span><h2 id="logic-title">إزاي المراجعة دي وصلت للنشر؟</h2></div>
+              <div><span>للنشر بوابة مستقلة</span><h2 id="logic-title">كيف وصلت هذه المراجعة إلى النشر؟</h2></div>
             </div>
             <div className="review-logic-steps">
-              <article><b>1</b><div><strong>مصادر مرخصة</strong><p>كل claim منشورة مرتبطة بمصدر analysis evidence محفوظ برخصته وعزوه ونسخته.</p></div></article>
-              <article><b>2</b><div><strong>Coverage وتعارض</strong><p>كل محور لازم يكون محسومًا صراحة، والتعارض أو عدم اليقين يمنع النشر بدل التخمين.</p></div></article>
-              <article><b>3</b><div><strong>Snapshot غير قابلة للمحو</strong><p>قاعدة البيانات نفسها تمنع تثبيت النسخة الحالية إن كانت الأدلة ناقصة أو غير صالحة.</p></div></article>
+              <article><b>1</b><div><strong>مصادر مرخصة</strong><p>كل واقعة منشورة مرتبطة بمصدر دليل محفوظ مع رخصته وعزوه ونسخته.</p></div></article>
+              <article><b>2</b><div><strong>تغطية وتعارض</strong><p>يجب أن يكون كل محور محسومًا صراحة، ويمنع التعارض أو عدم اليقين النشر بدل التخمين.</p></div></article>
+              <article><b>3</b><div><strong>لقطة نشر غير قابلة للمحو</strong><p>قاعدة البيانات تمنع تثبيت النسخة الحالية إذا كانت الأدلة ناقصة أو غير صالحة.</p></div></article>
             </div>
           </section>
 
           <section className="review-transparency">
             <span className="review-transparency__mark" aria-hidden="true">◎</span>
-            <div><strong>لا ندّعي مشاهدة بشرية لم تحدث.</strong><p>هذه مراجعة evidence-based. مسار المراجعة البشرية منفصل، ولا نستخدم reviewer وهميًا لتمرير بواباته.</p></div>
+            <div><strong>لا ندعي مشاهدة بشرية لم تحدث.</strong><p>هذه مراجعة مبنية على الأدلة. مسار المراجعة البشرية منفصل، ولا نستخدم هوية مراجع وهمية لتمرير بواباته.</p></div>
           </section>
 
           <section className="review-logic" aria-labelledby="sources-title">
@@ -173,13 +173,13 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
                   <b>{index + 1}</b>
                   <div>
                     <strong>{source.sourceKey === "wikipedia" ? "Wikipedia" : source.sourceKey}</strong>
-                    <p>{source.attributionText ?? "مصدر دليل مرخص محفوظ في snapshot المنشورة."}</p>
+                    <p>{source.attributionText ?? "مصدر دليل مرخص محفوظ في لقطة النشر الحالية."}</p>
                     <p>
                       <a href={source.sourceUrl} target="_blank" rel="noreferrer">فتح المصدر</a>
                       {" · "}
                       <a href={source.licenseUrl} target="_blank" rel="noreferrer">{source.sourceLicense}</a>
-                      {source.sourceRevision ? ` · revision ${source.sourceRevision}` : ""}
-                      {source.shareAlike ? " · ShareAlike" : ""}
+                      {source.sourceRevision ? ` · نسخة المصدر ${source.sourceRevision}` : ""}
+                      {source.shareAlike ? " · مشاركة بالمثل" : ""}
                     </p>
                   </div>
                 </article>
@@ -199,11 +199,11 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
           </section>
 
           <section className="why-card">
-            <span>الخلاصة في 20 ثانية</span><h3>إيه اللي نعرفه؟</h3>
+            <span>الخلاصة في 20 ثانية</span><h3>ما الذي نعرفه؟</h3>
             <ul>
-              <li><i aria-hidden="true">✓</i><span>{review.sourceCount} مصدر evidence مرخص داخل snapshot الحالية.</span></li>
+              <li><i aria-hidden="true">✓</i><span>{review.sourceCount} مصدر أدلة مرخص داخل لقطة النشر الحالية.</span></li>
               <li><i aria-hidden="true">!</i><span>أعلى محور: {highest?.labelAr ?? "لا توجد وقائع"} — {highestSeverity}/4.</span></li>
-              <li><i aria-hidden="true">✓</i><span>لا توجد هوية reviewer بشرية مصطنعة في هذا المسار.</span></li>
+              <li><i aria-hidden="true">✓</i><span>لا توجد هوية مراجع بشري مصطنعة في هذا المسار.</span></li>
             </ul>
           </section>
 
@@ -222,8 +222,8 @@ export default function EvidenceReviewClient({ review }: { review: PublicEvidenc
 
       <section className="review-end">
         <span aria-hidden="true">✦</span>
-        <div><small>نهاية المراجعة المبنية على الأدلة</small><h2>كل claim هنا مربوطة بدليل مرخص داخل snapshot الحالية.</h2></div>
-        <Link href="/search">ابحث عن عنوان تاني <span aria-hidden="true">←</span></Link>
+        <div><small>نهاية المراجعة المبنية على الأدلة</small><h2>كل واقعة هنا مرتبطة بدليل مرخص داخل لقطة النشر الحالية.</h2></div>
+        <Link href="/search">ابحث عن عنوان آخر <span aria-hidden="true">←</span></Link>
       </section>
     </main>
   );
@@ -247,7 +247,7 @@ function EvidenceFactRow({ fact, spoilerFree }: { fact: PublicEvidenceReviewFact
     <div className="review-fact">
       <time>{fact.startSecond === null ? "—" : formatFactTime(fact.startSecond)}</time>
       <p>
-        {summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من غير حرق»."} <small>({fact.sourceLocator})</small>
+        {summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من دون حرق»."} <small>({fact.sourceLocator})</small>
         {fact.flags.length > 0 && (
           <small> · {fact.flags.map((flag) => CONTENT_FLAG_LABELS_AR[flag]).join(" · ")}</small>
         )}

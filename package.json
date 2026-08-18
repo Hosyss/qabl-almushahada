@@ -13,7 +13,7 @@
     "build:local": "vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
-    "test:engine": "node --experimental-strip-types --test tests/review-engine.test.ts tests/internal-review-workflow.test.ts tests/internal-review-management.test.ts tests/internal-review-reactivation.test.ts tests/internal-auth.test.ts tests/cloudflare-deploy-config.test.mjs tests/cloudflare-migration-transport.test.mjs tests/editorial-persistence-cutover.test.mjs tests/editorial-c1-regression.test.ts tests/editorial-practical-verdict.test.ts tests/third-review-risk.test.ts tests/report-resolution.test.ts tests/random-audit-selection.test.ts tests/review-audit-outcome.test.ts tests/reviewer-calibration.test.ts tests/reference-calibration.test.ts tests/reference-calibration-hardening.test.ts tests/reviewer-safety-hold.test.ts tests/reviewer-safety-hold-management.test.ts tests/internal-quality-dashboard.test.ts tests/public-title-search.test.ts tests/public-title-search-ranking-regression.test.ts tests/public-search-result-state.test.ts tests/public-review.test.ts tests/public-review-presentation.test.ts tests/mobile-performance-contract.test.ts tests/accessibility-contract.test.ts tests/public-report-intake.test.ts tests/local-family-settings.test.ts tests/public-policy-pages.test.ts tests/content-source-policy.test.ts tests/editorial-review.test.ts tests/arab-family-policy.test.ts tests/source-provenance.test.ts tests/evidence-review.test.ts tests/wikipedia-evidence.test.ts tests/workers-ai-evidence-extractor.test.ts tests/evidence-publication.test.ts tests/public-evidence-review.test.ts tests/content-taxonomy.test.ts tests/wikidata-production-catalog.test.ts tests/wikidata-import-request.test.mjs tests/p4-03-c2a-asymmetric-decision.test.ts tests/title-artwork.test.ts",
+    "test:engine": "node --experimental-strip-types --test tests/review-engine.test.ts tests/internal-review-workflow.test.ts tests/internal-review-management.test.ts tests/internal-review-reactivation.test.ts tests/internal-auth.test.ts tests/cloudflare-deploy-config.test.mjs tests/cloudflare-migration-transport.test.mjs tests/editorial-persistence-cutover.test.mjs tests/editorial-c1-regression.test.ts tests/editorial-practical-verdict.test.ts tests/third-review-risk.test.ts tests/report-resolution.test.ts tests/random-audit-selection.test.ts tests/review-audit-outcome.test.ts tests/reviewer-calibration.test.ts tests/reference-calibration.test.ts tests/reference-calibration-hardening.test.ts tests/reviewer-safety-hold.test.ts tests/reviewer-safety-hold-management.test.ts tests/internal-quality-dashboard.test.ts tests/public-title-search.test.ts tests/public-title-search-ranking-regression.test.ts tests/public-search-result-state.test.ts tests/public-review.test.ts tests/public-review-presentation.test.ts tests/public-review-language.test.ts tests/mobile-performance-contract.test.ts tests/accessibility-contract.test.ts tests/public-report-intake.test.ts tests/public-report-ui.test.ts tests/local-family-settings.test.ts tests/public-policy-pages.test.ts tests/content-source-policy.test.ts tests/editorial-review.test.ts tests/arab-family-policy.test.ts tests/source-provenance.test.ts tests/evidence-review.test.ts tests/wikipedia-evidence.test.ts tests/workers-ai-evidence-extractor.test.ts tests/evidence-publication.test.ts tests/public-evidence-review.test.ts tests/content-taxonomy.test.ts tests/wikidata-production-catalog.test.ts tests/wikidata-import-request.test.mjs tests/p4-03-c2a-asymmetric-decision.test.ts tests/title-artwork.test.ts tests/validate-worker-entry.test.mjs",
     "test:migrations": "node scripts/verify-public-report-intake-migration.mjs && node scripts/verify-content-source-provenance.mjs && node --experimental-strip-types scripts/verify-wikidata-production-catalog.mts && node scripts/verify-wikipedia-analysis-source.mjs && node scripts/verify-evidence-publication.mjs && node scripts/verify-objective-content-taxonomy.mjs && node scripts/verify-workflow-transitions.mjs && node scripts/verify-report-resolution.mjs && node scripts/verify-random-audit-selection.mjs && node scripts/verify-review-audit-outcomes.mjs && node scripts/verify-reference-calibration.mjs && node scripts/verify-reference-calibration-hardening.mjs && node scripts/verify-reference-calibration-race-guards.mjs && node scripts/verify-reviewer-safety-holds.mjs && node scripts/verify-reviewer-safety-hold-thresholds.mjs && node scripts/verify-reviewer-safety-hold-trust-roles.mjs && node scripts/verify-reviewer-safety-hold-correction-order.mjs && node scripts/verify-internal-quality-dashboard.mjs && node --experimental-strip-types scripts/verify-public-title-search.mts && node --experimental-strip-types scripts/verify-public-review.mts",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
@@ -27,28 +27,33 @@
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
-    "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/vite-plugin": "1.53.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
+    "@vitejs/plugin-rsc": "0.5.34",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
-    "react-server-dom-webpack": "19.2.6",
+    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "vinext": "1.0.0-beta.6",
+    "vite": "8.2.1",
+    "wrangler": "4.124.0"
   },
   "type": "module",
-  "displayName": "قبل المشاهدة"
+  "displayName": "قبل المشاهدة",
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
+  }
 }
