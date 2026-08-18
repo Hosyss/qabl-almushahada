@@ -1,0 +1,60 @@
+name: Post-P4 hardening local runtime QA temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+
+      - name: Build Cloudflare artifact locally without deployment
+        env:
+          CF_D1_DATABASE_ID: 123e4567-e89b-42d3-a456-426614174000
+          CF_D1_DATABASE_NAME: qabl-almushahada-rehearsal
+          CF_WORKER_NAME: qabl-almushahada-rehearsal
+        run: npm run cloudflare:build
+
+      - name: Verify security wrapper behavior directly
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import { withSecurityHeaders } from './worker/security-headers.ts';
+          const html = withSecurityHeaders(new Response('<p>ok</p>', { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+          const api = withSecurityHeaders(new Response('{}', { headers: { 'content-type': 'application/json' } }));
+          if (html.headers.get('x-content-type-options') !== 'nosniff') throw new Error('HTML nosniff missing');
+          if (html.headers.get('referrer-policy') !== 'strict-origin-when-cross-origin') throw new Error('HTML referrer policy missing');
+          if (html.headers.get('content-security-policy') !== "frame-ancestors 'none'") throw new Error('HTML frame-ancestors missing');
+          if (html.headers.get('x-frame-options') !== 'DENY') throw new Error('HTML X-Frame-Options missing');
+          if (api.headers.get('x-content-type-options') !== 'nosniff') throw new Error('API nosniff missing');
+          if (api.headers.has('content-security-policy') || api.headers.has('x-frame-options')) throw new Error('Document-only framing headers leaked to JSON');
+          console.log('Security wrapper runtime contract passed.');
+          NODE
+
+      - name: Start local app and verify about/favicon render
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev:local -- --host 127.0.0.1 --port 4173 > "$RUNNER_TEMP/post-p4-vite.log" 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/about > "$RUNNER_TEMP/about.html"; then break; fi
+            sleep 1
+          done
+          grep -Fq 'كيف يساعدك' "$RUNNER_TEMP/about.html"
+          grep -Fq 'المجهول ليس' "$RUNNER_TEMP/about.html"
+          grep -Eq '<link[^>]+rel="canonical"[^>]+/about|<link[^>]+/about[^>]+rel="canonical"' "$RUNNER_TEMP/about.html"
+          curl --silent --fail http://127.0.0.1:4173/favicon.svg > "$RUNNER_TEMP/favicon.svg"
+          grep -Fq 'width="64" height="64"' "$RUNNER_TEMP/favicon.svg"
+          echo 'Combined local rendered smoke passed.'
