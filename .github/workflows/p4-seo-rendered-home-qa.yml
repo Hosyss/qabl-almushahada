@@ -3,6 +3,7 @@ name: P4 SEO rendered home QA temporary
 on:
   push:
     branches: [agent/seo-indexing-readiness]
+  pull_request:
 
 permissions:
   contents: read
