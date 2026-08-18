@@ -40,7 +40,7 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
       <header className="review-header">
         <Link className="review-brand" href="/" aria-label="قبل المشاهدة — الرئيسية">
           <ReviewLogo />
-          <span><strong>قبل المشاهدة</strong><small>قرار أهدى لكل بيت</small></span>
+          <span><strong>قبل المشاهدة</strong><small>قرار أهدأ لكل أسرة</small></span>
         </Link>
         <Link className="review-back" href="/search">الرجوع للبحث <span aria-hidden="true">←</span></Link>
       </header>
@@ -79,8 +79,8 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
             <div className="review-decision__mark" aria-hidden="true">⌁</div>
             <div>
               <span>ملخص المراجعة</span>
-              <h2 id="decision-title">وقائع موثقة للنسخة دي</h2>
-              <p>الصفحة تعرض ما سُجل واعتمد عن هذه النسخة فقط. لا نصدر حكمًا عامًا على الأسرة من غير حدودها.</p>
+              <h2 id="decision-title">وقائع موثقة لهذه النسخة</h2>
+              <p>تعرض الصفحة ما سُجل واعتمد عن هذه النسخة فقط. لا نصدر حكمًا عامًا على الأسرة من دون معرفة حدودها.</p>
             </div>
             <div className="review-age"><small>أعلى شدة</small><strong>{presentation.highestSeverity}/4</strong></div>
           </section>
@@ -95,10 +95,10 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
             <div className="review-section-head">
               <div>
                 <span>المحتوى بالتفصيل</span>
-                <h2 id="breakdown-title">إيه اللي موجود فعلًا؟</h2>
+                <h2 id="breakdown-title">ما الموجود فعلًا؟</h2>
               </div>
               <label className="spoiler-toggle">
-                <span><strong>من غير حرق</strong><small>نخفي الوقائع ذات السياق الكاشف</small></span>
+                <span><strong>من دون حرق</strong><small>نخفي الوقائع ذات السياق الكاشف</small></span>
                 <input type="checkbox" checked={spoilerFree} onChange={(event) => setSpoilerFree(event.target.checked)} />
                 <i aria-hidden="true"><b /></i>
               </label>
@@ -134,7 +134,7 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
                           return (
                             <div className="review-fact" key={fact.id}>
                               <time>{formatFactTime(fact.startSecond)}</time>
-                              <p>{summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من غير حرق»."}</p>
+                              <p>{summary ?? "تفاصيل هذه الواقعة مخفية في وضع «من دون حرق»."}</p>
                             </div>
                           );
                         })}
@@ -148,18 +148,18 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
 
           <section className="review-logic" aria-labelledby="logic-title">
             <div className="review-section-head review-section-head--simple">
-              <div><span>الاعتماد مش رقم غامض</span><h2 id="logic-title">إزاي البيانات وصلت للنشر؟</h2></div>
+              <div><span>الاعتماد ليس رقمًا غامضًا</span><h2 id="logic-title">كيف وصلت البيانات إلى النشر؟</h2></div>
             </div>
             <div className="review-logic-steps">
-              <article><b>1</b><div><strong>مراجعات مؤهلة</strong><p>دخل في التقييم {review.reviewerCount} مراجع مؤهل بعد بوابات الجودة والاستقلال المطلوبة.</p></div></article>
-              <article><b>2</b><div><strong>اعتماد تحريري</strong><p>آخر اعتماد حالي تم في {presentation.approvedDateLabel}، والصفحة لا تُفتح لو الاعتماد لم يعد جاريًا.</p></div></article>
-              <article><b>3</b><div><strong>عرض محافظ</strong><p>نعرض الوقائع والشدة المسجلة كما هي، ومن غير اختراع تفاصيل إضافية عند إخفاء الحرق.</p></div></article>
+              <article><b>1</b><div><strong>مراجعون مؤهلون</strong><p>شارك في التقييم {review.reviewerCount} مراجع مؤهل بعد اجتياز بوابات الجودة والاستقلال المطلوبة.</p></div></article>
+              <article><b>2</b><div><strong>اعتماد تحريري</strong><p>آخر اعتماد حالي تم في {presentation.approvedDateLabel}، والصفحة لا تُعرض كمراجعة موثقة إذا لم يعد الاعتماد جاريًا.</p></div></article>
+              <article><b>3</b><div><strong>عرض محافظ</strong><p>نعرض الوقائع والشدة المسجلة كما هي، من دون اختراع تفاصيل إضافية عند إخفاء الحرق.</p></div></article>
             </div>
           </section>
 
           <section className="review-transparency">
             <span className="review-transparency__mark" aria-hidden="true">◎</span>
-            <div><strong>لو المعلومة ما بقتش حالية، الصفحة تقفل.</strong><p>تغيير النسخة أو الاعتماد أو وجود بلاغ جوهري نشط يمنع عرض المراجعة بدل ما نكمّل ببيانات قديمة.</p></div>
+            <div><strong>إذا لم تعد المعلومة حالية، تتوقف الصفحة عن عرضها كموثقة.</strong><p>تغيير النسخة أو الاعتماد أو وجود بلاغ جوهري نشط يمنع عرض المراجعة بدل الاستمرار ببيانات قديمة.</p></div>
           </section>
         </div>
 
@@ -172,8 +172,8 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
             <div className="family-result-orb is-general">
               <span aria-hidden="true">○</span>
               <small>المراجعة الحالية</small>
-              <strong>وقائع بدون حكم شخصي</strong>
-              <p>بنحافظ على الفرق بين «ما هو موجود في النسخة» و«هل يناسب أسرتك» لحد ما تختار حدود الأسرة.</p>
+              <strong>وقائع من دون حكم شخصي</strong>
+              <p>نحافظ على الفرق بين «ما هو موجود في النسخة» و«هل يناسب أسرتك» إلى أن تختار حدود الأسرة.</p>
             </div>
 
             <Link href="/#family-profile">الذهاب لحدود الأسرة <span aria-hidden="true">←</span></Link>
@@ -181,9 +181,9 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
 
           <section className="why-card">
             <span>الخلاصة في 20 ثانية</span>
-            <h3>إيه اللي نعرفه؟</h3>
+            <h3>ما الذي نعرفه؟</h3>
             <ul>
-              <li><i aria-hidden="true">✓</i><span>{review.reviewerCount} مراجع مؤهل دخل في المراجعة المنشورة.</span></li>
+              <li><i aria-hidden="true">✓</i><span>{review.reviewerCount} مراجع مؤهل شارك في المراجعة المنشورة.</span></li>
               <li><i aria-hidden="true">!</i><span>أعلى محور حاليًا: {presentation.highestCategoryLabel} — {presentation.highestSeverity}/4.</span></li>
               <li><i aria-hidden="true">✓</i><span>لا يوجد بلاغ جوهري نشط وقت تحميل الصفحة.</span></li>
             </ul>
@@ -204,8 +204,8 @@ export default function ReviewClient({ review }: { review: PublicReviewView }) {
 
       <section className="review-end">
         <span aria-hidden="true">✦</span>
-        <div><small>نهاية المراجعة الموثقة</small><h2>البيانات دي مرتبطة بالنسخة دي تحديدًا.</h2></div>
-        <Link href="/search">ابحث عن عنوان تاني <span aria-hidden="true">←</span></Link>
+        <div><small>نهاية المراجعة الموثقة</small><h2>هذه البيانات مرتبطة بهذه النسخة تحديدًا.</h2></div>
+        <Link href="/search">ابحث عن عنوان آخر <span aria-hidden="true">←</span></Link>
       </section>
     </main>
   );
