@@ -1,5 +1,4 @@
 # Temporary verification probe; remove before clean remediation head.
-# Server-side observable trigger.
 name: Runtime security remediation probe
 
 on:
@@ -57,8 +56,35 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Production build
-        run: npm run build
+      - name: Build vinext artifact
+        run: npm run build:local
+
+      - name: Validate artifact structure without executing Worker-only imports in Node
+        run: |
+          test -f dist/server/index.js
+          test -f dist/.openai/hosting.json
+          node --check dist/server/index.js
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          JSON.parse(await readFile('dist/.openai/hosting.json', 'utf8'));
+          console.log('Hosting manifest JSON is valid.');
+          NODE
+          printf '%s\n' 'Generated Worker export/fetch diagnostics:'
+          grep -nE 'export|fetch' dist/server/index.js | tail -n 40 || true
+
+      - name: Validate generated Worker with Wrangler dry-run
+        run: |
+          cat > .wrangler-artifact-validation.jsonc <<'JSON'
+          {
+            "$schema": "./node_modules/wrangler/config-schema.json",
+            "name": "qabl-artifact-validation",
+            "main": "dist/server/index.js",
+            "compatibility_date": "2026-08-12",
+            "compatibility_flags": ["nodejs_compat"]
+          }
+          JSON
+          npm exec -- wrangler deploy --config .wrangler-artifact-validation.jsonc --dry-run --outdir .wrangler/artifact-validation
+          rm .wrangler-artifact-validation.jsonc
 
       - name: Cloudflare production-shape build rehearsal
         env:
@@ -77,4 +103,6 @@ jobs:
             package-lock.json
             runtime-audit.json
             runtime-dependency-graph.txt
+            dist/server/index.js
+            dist/.openai/hosting.json
           if-no-files-found: error
