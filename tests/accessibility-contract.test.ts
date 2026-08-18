@@ -17,11 +17,18 @@ test("root document keeps Arabic direction and exposes a keyboard skip target", 
   assert.match(layoutSource, /import "\.\/accessibility\.css"/);
 });
 
-test("global keyboard focus remains visible and forced-colors compatible", () => {
+test("global keyboard focus uses a dual-tone ring and remains forced-colors compatible", () => {
   assert.match(accessibilityCss, /:focus-visible/);
-  assert.match(accessibilityCss, /outline:\s*3px solid var\(--a11y-focus\)/);
+  assert.match(accessibilityCss, /outline:\s*2px solid var\(--a11y-focus-inner\)/);
+  assert.match(accessibilityCss, /box-shadow:\s*0 0 0 6px var\(--a11y-focus-outer\)/);
   assert.match(accessibilityCss, /@media \(forced-colors: active\)/);
   assert.match(accessibilityCss, /outline-color:\s*CanvasText/);
+  assert.match(accessibilityCss, /box-shadow:\s*none/);
+
+  const inner = extractColor(accessibilityCss, /--a11y-focus-inner:\s*(#[0-9a-f]{6})/i);
+  const outer = extractColor(accessibilityCss, /--a11y-focus-outer:\s*(#[0-9a-f]{6})/i);
+  assert.ok(contrastRatio(inner, "#18332d") >= 3, `Inner focus ring is too weak on dark surfaces: ${inner}`);
+  assert.ok(contrastRatio(outer, "#ffffff") >= 3, `Outer focus ring is too weak on light surfaces: ${outer}`);
 });
 
 test("reduced-motion users do not receive smooth scrolling or long transitions", () => {
