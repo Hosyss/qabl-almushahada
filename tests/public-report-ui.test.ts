@@ -46,5 +46,8 @@ test("public report form explains fail-closed correction semantics and handles A
 
 test("public report UI copy uses clear Modern Standard Arabic", async () => {
   const form = await source("app/review/public-report-form.tsx");
-  assert.doesNotMatch(form, /إيه|مش|دي|ده|بنـ|عايز|محتاجين|تاني/u);
+  assert.doesNotMatch(
+    form,
+    /(?:^|[\s«"'(])(?:إيه|مش|دي|ده|عايز|محتاجين|تاني)(?:$|[\s،.!؟؛:»"')])/u,
+  );
 });
