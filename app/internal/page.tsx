@@ -29,6 +29,8 @@ export default async function InternalDashboardPage() {
   const canViewQuality =
     data.actor.role === "admin" ||
     (data.actor.role === "editorial_reviewer" && data.actor.reviewer?.status === "active");
+  const canTriagePublicReports =
+    data.actor.role === "editorial_reviewer" && data.actor.reviewer?.status === "active";
 
   return (
     <>
@@ -37,6 +39,11 @@ export default async function InternalDashboardPage() {
           <Link className={shortcutStyles.link} href="/internal/quality">
             عرض لوحة الجودة والأدلة
           </Link>
+          {canTriagePublicReports && (
+            <Link className={shortcutStyles.link} href="/internal/reports">
+              مراجعة بلاغات الجمهور
+            </Link>
+          )}
         </nav>
       )}
       <InternalDashboardClient data={data} />
