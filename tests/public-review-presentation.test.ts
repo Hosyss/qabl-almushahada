@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { buildPublicArticleStructuredData } from "../lib/public-article-structured-data.ts";
+import { PUBLIC_SITE_ORIGIN } from "../lib/public-catalog.ts";
 import { createVerifiedDemoBundle } from "../lib/review-engine/index.ts";
 import {
   buildPublicReviewHref,
@@ -72,4 +75,62 @@ test("public review href carries the exact encoded bundle locator", () => {
 test("fact time formatting is deterministic", () => {
   assert.equal(formatFactTime(24), "00:24");
   assert.equal(formatFactTime(5538), "1:32:18");
+});
+
+test("public Article structured data contains only truthful article fields", () => {
+  const canonical = `${PUBLIC_SITE_ORIGIN}${buildPublicReviewHref("review-bundle-demo-024")}`;
+  const json = buildPublicArticleStructuredData({
+    headline: "مدينة الغيم (2024) — مراجعة موثقة",
+    description: "مراجعة موثقة لنسخة محددة.",
+    canonical,
+    datePublished: metadata().publishedAt,
+  });
+  const payload = JSON.parse(json) as Record<string, unknown>;
+
+  assert.equal(payload["@context"], "https://schema.org");
+  assert.equal(payload["@type"], "Article");
+  assert.equal(payload.headline, "مدينة الغيم (2024) — مراجعة موثقة");
+  assert.equal(payload.datePublished, metadata().publishedAt);
+  assert.equal("dateModified" in payload, false);
+  assert.equal("reviewRating" in payload, false);
+  assert.equal("aggregateRating" in payload, false);
+  assert.deepEqual(payload.author, {
+    "@type": "Organization",
+    name: "قبل المشاهدة",
+    url: PUBLIC_SITE_ORIGIN,
+  });
+  assert.deepEqual(payload.mainEntityOfPage, {
+    "@type": "WebPage",
+    "@id": canonical,
+  });
+});
+
+test("Article structured data rejects off-site canonicals and malformed dates", () => {
+  assert.throws(() => buildPublicArticleStructuredData({
+    headline: "عنوان",
+    description: "وصف",
+    canonical: "https://example.com/review?id=1",
+    datePublished: "2026-08-08T15:05:00.000Z",
+  }));
+  assert.throws(() => buildPublicArticleStructuredData({
+    headline: "عنوان",
+    description: "وصف",
+    canonical: `${PUBLIC_SITE_ORIGIN}/review?id=1`,
+    datePublished: "not-a-date",
+  }));
+});
+
+test("human and evidence review routes add Article JSON-LD without duplicating editorial markup", async () => {
+  const [pageSource, editorialSource] = await Promise.all([
+    readFile(new URL("../app/review/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/review/editorial-review-view.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(pageSource, /<PublicArticleJsonLd descriptor=\{describeHumanReview\(review\)\} \/>/u);
+  assert.match(pageSource, /<PublicArticleJsonLd descriptor=\{describeEvidenceReview\(review\)\} \/>/u);
+  assert.doesNotMatch(pageSource, /<PublicArticleJsonLd descriptor=\{describeEditorialReview\(persisted\)\} \/>/u);
+  assert.match(pageSource, /type="application\/ld\+json"/u);
+  assert.match(editorialSource, /type="application\/ld\+json"/u);
+  assert.doesNotMatch(pageSource, /modifiedTime:\s*review\.approvedAt/u);
+  assert.doesNotMatch(pageSource, /reviewRating|aggregateRating/u);
 });
