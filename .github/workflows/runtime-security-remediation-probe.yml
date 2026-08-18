@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/runtime-security-remediation-2026-08-18
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
