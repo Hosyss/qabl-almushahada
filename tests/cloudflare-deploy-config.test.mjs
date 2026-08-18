@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -96,4 +97,18 @@ test("API tokens and account credentials are never copied into Worker config", (
   const serialized = JSON.stringify(config);
   assert.equal(serialized.includes("top-secret-token"), false);
   assert.equal(serialized.includes("account-id"), false);
+});
+
+test("Worker adds low-risk security headers without introducing a broad script CSP", async () => {
+  const workerSource = await readFile(new URL("../worker/index.ts", import.meta.url), "utf8");
+
+  assert.match(workerSource, /"X-Content-Type-Options": "nosniff"/u);
+  assert.match(workerSource, /"Referrer-Policy": "strict-origin-when-cross-origin"/u);
+  assert.match(workerSource, /"Content-Security-Policy": "frame-ancestors 'none'"/u);
+  assert.match(workerSource, /"X-Frame-Options": "DENY"/u);
+  assert.match(workerSource, /headers\.delete\("X-Powered-By"\)/u);
+  assert.match(workerSource, /contentType\.toLowerCase\(\)\.includes\("text\/html"\)/u);
+  assert.match(workerSource, /return withSecurityHeaders\(await handler\.fetch\(request, env, ctx\)\)/u);
+  assert.match(workerSource, /return withSecurityHeaders\(response\)/u);
+  assert.doesNotMatch(workerSource, /default-src|script-src|style-src|unsafe-inline|unsafe-eval/u);
 });
