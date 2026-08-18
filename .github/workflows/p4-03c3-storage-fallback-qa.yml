@@ -3,6 +3,7 @@ name: P4-03C3 storage fallback QA temporary
 on:
   push:
     branches: [agent/practical-editorial-verdict]
+  pull_request:
 
 permissions:
   contents: read
