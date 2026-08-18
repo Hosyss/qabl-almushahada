@@ -22,7 +22,7 @@
     "content:wikidata:preview": "node --experimental-strip-types scripts/preview-wikidata-catalog.mts",
     "cloudflare:prepare": "node scripts/prepare-cloudflare-deploy.mjs",
     "cloudflare:build": "node scripts/cloudflare-build.mjs",
-    "cloudflare:migrate": "node scripts/cloudflare-migrate.mjs",
+    "cloudflare:migrate": "node scripts/cloudflare-migrate.mjs && node scripts/verify-public-report-remote-schema.mjs",
     "cloudflare:deploy": "npm run cloudflare:build && wrangler deploy"
   },
   "dependencies": {
