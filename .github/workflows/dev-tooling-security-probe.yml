@@ -1,0 +1,134 @@
+# Temporary dev/build tooling remediation probe; remove before clean head.
+name: Dev tooling security remediation probe
+
+on:
+  pull_request:
+    branches:
+      - agent/runtime-security-remediation-2026-08-18
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node 22.13
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install baseline graph
+        run: npm ci
+
+      - name: Measure baseline full and production audits
+        run: |
+          npm audit --json > audit-baseline-full.json || true
+          npm audit --omit=dev --json > audit-baseline-prod.json || true
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          for (const file of ['audit-baseline-full.json', 'audit-baseline-prod.json']) {
+            const audit = JSON.parse(readFileSync(file, 'utf8'));
+            console.log(file, audit.metadata?.vulnerabilities ?? {});
+          }
+          NODE
+
+      - name: Record npm metadata for constrained candidates
+        run: |
+          {
+            echo '=== @cloudflare/vite-plugin@1.53.0 ==='
+            npm view @cloudflare/vite-plugin@1.53.0 version peerDependencies dependencies --json || true
+            echo '=== wrangler@4.114.0 ==='
+            npm view wrangler@4.114.0 version dependencies --json || true
+            echo '=== vite@8.2.1 ==='
+            npm view vite@8.2.1 version peerDependencies --json || true
+            echo '=== react-server-dom-webpack@19.2.8 ==='
+            npm view react-server-dom-webpack@19.2.8 version peerDependencies --json || true
+            echo '=== drizzle-kit dist-tags/current deps ==='
+            npm view drizzle-kit dist-tags --json || true
+            npm view drizzle-kit@0.31.10 dependencies --json || true
+            echo '=== vinext dist-tags/current deps ==='
+            npm view vinext dist-tags --json || true
+            npm view vinext@0.0.50 dependencies peerDependencies --json || true
+            echo '=== image-size dist-tags ==='
+            npm view image-size dist-tags --json || true
+          } > candidate-metadata.txt 2>&1
+          cat candidate-metadata.txt
+
+      - name: Apply non-major security candidate only
+        run: |
+          npm install --package-lock-only --ignore-scripts --save-dev --save-exact \
+            @cloudflare/vite-plugin@1.53.0 \
+            wrangler@4.114.0 \
+            vite@8.2.1 \
+            react-server-dom-webpack@19.2.8
+
+      - name: Install exact candidate graph
+        run: npm ci
+
+      - name: Measure candidate audits
+        run: |
+          npm audit --json > audit-candidate-full.json || true
+          npm audit --omit=dev --json > audit-candidate-prod.json || true
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const full = JSON.parse(readFileSync('audit-candidate-full.json', 'utf8'));
+          const prod = JSON.parse(readFileSync('audit-candidate-prod.json', 'utf8'));
+          console.log('Candidate full audit:', full.metadata?.vulnerabilities ?? {});
+          console.log('Candidate production audit:', prod.metadata?.vulnerabilities ?? {});
+          if ((prod.metadata?.vulnerabilities?.total ?? 0) !== 0) {
+            console.error('Production graph regressed.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Record residual vulnerability names and direct package graph
+        run: |
+          node --input-type=module <<'NODE' > candidate-residual.txt
+          import { readFileSync } from 'node:fs';
+          const audit = JSON.parse(readFileSync('audit-candidate-full.json', 'utf8'));
+          for (const [name, item] of Object.entries(audit.vulnerabilities ?? {})) {
+            console.log(`${name}\t${item.severity}\tdirect=${item.isDirect}\trange=${item.range}\tfix=${JSON.stringify(item.fixAvailable)}`);
+          }
+          NODE
+          npm ls @cloudflare/vite-plugin wrangler vite react-server-dom-webpack vinext image-size drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild --all >> candidate-residual.txt || true
+          cat candidate-residual.txt
+
+      - name: Engine tests
+        run: npm run test:engine
+
+      - name: Migration verification
+        run: npm run test:migrations
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verified production build
+        run: npm run build
+
+      - name: Cloudflare production-shape build rehearsal
+        env:
+          CF_D1_DATABASE_ID: 11111111-1111-4111-8111-111111111111
+          CF_D1_DATABASE_NAME: qabl-dev-tooling-rehearsal
+          CF_WORKER_NAME: qabl-dev-tooling-rehearsal
+        run: npm run cloudflare:build
+
+      - name: Upload candidate and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dev-tooling-security-candidate-${{ github.run_id }}
+          path: |
+            package.json
+            package-lock.json
+            audit-baseline-full.json
+            audit-baseline-prod.json
+            audit-candidate-full.json
+            audit-candidate-prod.json
+            candidate-metadata.txt
+            candidate-residual.txt
+          if-no-files-found: warn
