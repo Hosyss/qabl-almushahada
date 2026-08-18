@@ -1,0 +1,70 @@
+:root {
+  --a11y-focus-inner: #ffffff;
+  --a11y-focus-outer: #7a2d17;
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: 10px;
+  inset-inline-start: 12px;
+  z-index: 9999;
+  max-width: calc(100vw - 24px);
+  padding: 10px 14px;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #18332d;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 24px));
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.content-root:focus {
+  outline: none;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  /* Dual-tone ring: the white inner edge survives dark surfaces, while the
+     dark outer edge survives light surfaces. Do not collapse this to one color. */
+  outline: 2px solid var(--a11y-focus-inner);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--a11y-focus-outer);
+}
+
+/* The small brand caption needs normal-text contrast, not decorative-text contrast. */
+.brand__text small {
+  color: #52665e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .skip-link {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+}

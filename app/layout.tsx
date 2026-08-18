@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./home-search-upgrade.css";
+import "./accessibility.css";
 import { PolicyLinks } from "./policy-links";
 
 export const metadata: Metadata = {
@@ -23,7 +24,12 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body>
-        {children}
+        <a className="skip-link" href="#main-content">
+          تخطي إلى المحتوى الرئيسي
+        </a>
+        <div id="main-content" className="content-root" tabIndex={-1}>
+          {children}
+        </div>
         <PolicyLinks />
       </body>
     </html>
