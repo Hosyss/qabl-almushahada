@@ -97,6 +97,20 @@ test("honeypot success uses an unpersisted UUID instead of a distinguishable nul
   assert.doesNotMatch(service, /intakeId: string \| null|intakeId: null/u);
 });
 
+test("public intake keeps same-origin, Cloudflare address, HMAC, and server snapshot guards", async () => {
+  const service = await readFile(new URL("../db/public-report-intake-service.ts", import.meta.url), "utf8");
+  assert.match(service, /origin && origin !== url\.origin/u);
+  assert.match(service, /sec-fetch-site/u);
+  assert.match(service, /fetchSite !== "same-origin" && fetchSite !== "none"/u);
+  assert.match(service, /cf-connecting-ip/u);
+  assert.doesNotMatch(service, /x-forwarded-for|x-real-ip/iu);
+  assert.match(service, /PUBLIC_REPORT_HMAC_SECRET/u);
+  assert.match(service, /secret\.length < 32/u);
+  assert.match(service, /CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY/u);
+  assert.match(service, /buildPublicEvidenceReviewGateQuery/u);
+  assert.match(service, /b\.current_approval_id = i\.target_snapshot_ref/u);
+});
+
 test("does not accept arrays or non-string honeypot values", () => {
   assert.equal(preparePublicReportIntake([]).accepted, false);
   assert.equal(preparePublicReportIntake({ ...validInput, website: 1 }).accepted, false);
