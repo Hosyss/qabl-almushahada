@@ -78,7 +78,6 @@ jobs:
           export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           node <<'NODE'
           import { chromium } from 'playwright-core';
-
           const baseURL = 'http://127.0.0.1:4173';
           const editorialId = 'et-1982-editorial-batch-v1';
           const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
@@ -105,11 +104,9 @@ jobs:
           const response = await page.goto(`${baseURL}/review?editorialId=${encodeURIComponent(editorialId)}`, { waitUntil: 'networkidle' });
           hard(response?.ok(), `editorial review HTTP ${response?.status()}`);
           await noOverflow('editorial-before-form');
-
           const reportPanel = page.getByText('الإبلاغ عن مشكلة في هذه المراجعة', { exact: true });
           hard(await reportPanel.count() === 1, 'public report disclosure is missing or duplicated');
           await reportPanel.click();
-
           hard(await page.locator('[name="targetKind"], [name="targetId"]').count() === 0, 'server-owned report target leaked into editable controls');
           hard(await page.locator('input[name="website"]').getAttribute('tabindex') === '-1', 'honeypot became keyboard focusable');
           const reason = page.getByLabel('سبب البلاغ', { exact: true });
@@ -119,8 +116,7 @@ jobs:
           await reason.selectOption('source_issue');
           await message.fill('يوجد مرجع مرتبط بهذه المراجعة يحتاج إلى تدقيق في وصفه قبل الاعتماد على المعلومة المنشورة.');
           await page.getByRole('button', { name: 'إرسال البلاغ للمراجعة' }).click();
-          const success = page.getByText('تم استلام البلاغ', { exact: true });
-          await success.waitFor({ state: 'visible' });
+          await page.getByText('تم استلام البلاغ', { exact: true }).waitFor({ state: 'visible' });
           const referenceText = await page.locator('text=مرجع المتابعة:').locator('..').innerText();
           hard(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/iu.test(referenceText), `missing UUID reference: ${referenceText}`);
           hard(capturedBodies.length === 1, `expected one first report request, got ${capturedBodies.length}`);
@@ -162,13 +158,12 @@ jobs:
           set -euo pipefail
           npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc \
             --command "SELECT COUNT(*) AS count FROM public_report_intakes;" --json > /tmp/public-report-count.json
-          node --input-type=module - /tmp/public-report-count.json <<'NODE'
-          import { readFileSync } from 'node:fs';
-          const payload = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-          const text = JSON.stringify(payload);
-          if (!/\"count\":1(?:[,}])/u.test(text)) throw new Error(`Expected exactly one local intake row: ${text}`);
-          console.log('Verified exactly one local public_report_intakes row after duplicate submission attempt.');
-          NODE
+          cat /tmp/public-report-count.json
+          if ! grep -Eq '"count"[[:space:]]*:[[:space:]]*1([,}])' /tmp/public-report-count.json; then
+            echo 'Expected exactly one local public_report_intakes row after duplicate submission attempt.' >&2
+            exit 1
+          fi
+          echo 'Verified exactly one local public_report_intakes row after duplicate submission attempt.'
 
       - name: Upload temporary screenshots
         uses: actions/upload-artifact@v4
