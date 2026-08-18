@@ -87,13 +87,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   }
 
   const persisted = await loadEditorialReviewFailClosed(editorialId);
-  if (!persisted) return <ReviewUnavailable />;
-  return (
-    <>
-      <PublicArticleJsonLd descriptor={describeEditorialReview(persisted)} />
-      <EditorialReviewView review={persisted.review} />
-    </>
-  );
+  return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
 }
 
 function describeHumanReview(review: HumanReview): PublicArticleDescriptor {
