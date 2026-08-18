@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buildPublicEditorialReviewHref } from "@/lib/editorial-review";
@@ -6,6 +7,10 @@ import { buildPublicCatalogTitleHref, PUBLIC_SITE_ORIGIN } from "@/lib/public-ca
 
 import TitleSearchCombobox from "./search/title-search-combobox";
 import TitleArtwork from "./title-artwork";
+
+export const metadata: Metadata = {
+  alternates: { canonical: `${PUBLIC_SITE_ORIGIN}/` },
+};
 
 export default async function Home() {
   const publications = await listEditorialPublications(4);
