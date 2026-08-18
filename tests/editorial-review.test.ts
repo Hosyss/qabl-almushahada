@@ -168,7 +168,7 @@ test("public routes stay D1-only, canonical, structured and fail closed", () => 
   const viewSource = readFileSync(new URL("../app/review/editorial-review-view.tsx", import.meta.url), "utf8");
   const sitemapSource = readFileSync(new URL("../app/sitemap.xml/route.ts", import.meta.url), "utf8");
   assert.match(routeSource, /export async function generateMetadata/u);
-  assert.match(routeSource, /alternates: \{ canonical \}/u);
+  assert.match(routeSource, /alternates: \{ canonical: descriptor\.canonical \}/u);
   assert.match(routeSource, /robots: \{ index: true, follow: true \}/u);
   assert.match(routeSource, /loadEditorialPublicationById/u);
   assert.match(routeSource, /if \(\[bundleId, publicationId, editorialId\]\.filter\(Boolean\)\.length !== 1\) return <ReviewUnavailable \/>/u);

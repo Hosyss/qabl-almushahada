@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { loadPublicEvidenceReview } from "@/db/public-evidence-review-service";
 import { loadPublicReview } from "@/db/public-review-service";
+import { buildPublicArticleStructuredData } from "@/lib/public-article-structured-data";
 import { buildPracticalEditorialReviewDescription } from "@/lib/editorial-practical-verdict";
 import { buildPublicEditorialReviewCanonicalUrl } from "@/lib/editorial-review";
 import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
@@ -16,6 +17,18 @@ import ReviewClient from "./review-client";
 
 type ReviewSearchParams = { bundleId?: string | string[]; publicationId?: string | string[]; editorialId?: string | string[] };
 type ReviewPageProps = { searchParams: Promise<ReviewSearchParams> };
+type HumanReview = NonNullable<Awaited<ReturnType<typeof loadPublicReview>>>;
+type EvidenceReview = NonNullable<Awaited<ReturnType<typeof loadPublicEvidenceReview>>>;
+type EditorialReview = NonNullable<Awaited<ReturnType<typeof loadEditorialPublicationById>>>;
+
+type PublicArticleDescriptor = Readonly<{
+  title: string;
+  headline: string;
+  description: string;
+  canonical: string;
+  publishedTime: string;
+  modifiedTime?: string;
+}>;
 
 const UNAVAILABLE_METADATA: Metadata = {
   title: "المراجعة غير متاحة | قبل المشاهدة",
@@ -32,29 +45,16 @@ export async function generateMetadata({ searchParams }: ReviewPageProps): Promi
 
   if (bundleId) {
     const review = await loadHumanReviewFailClosed(bundleId);
-    if (!review) return UNAVAILABLE_METADATA;
-    const title = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة | قبل المشاهدة`;
-    const description = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة لنسخة محددة بعد اجتياز بوابات النشر والاعتماد في «قبل المشاهدة».`;
-    const canonical = `${PUBLIC_SITE_ORIGIN}${buildPublicReviewHref(review.bundleId)}`;
-    return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt, modifiedTime: review.approvedAt });
+    return review ? buildArticleMetadata(describeHumanReview(review)) : UNAVAILABLE_METADATA;
   }
 
   if (publicationId) {
     const review = await loadEvidenceReviewFailClosed(publicationId);
-    if (!review) return UNAVAILABLE_METADATA;
-    const title = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة | قبل المشاهدة`;
-    const description = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة لنسخة محددة، مع توضيح أن المشاهدة البشرية للنسخة غير مؤكدة.`;
-    const canonical = `${PUBLIC_SITE_ORIGIN}${buildPublicEvidenceReviewHref(review.publicationId)}`;
-    return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt });
+    return review ? buildArticleMetadata(describeEvidenceReview(review)) : UNAVAILABLE_METADATA;
   }
 
   const persisted = await loadEditorialReviewFailClosed(editorialId);
-  if (!persisted) return UNAVAILABLE_METADATA;
-  const { review, presentation } = persisted;
-  const title = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear}) | قبل المشاهدة`;
-  const description = buildPracticalEditorialReviewDescription(review);
-  const canonical = buildPublicEditorialReviewCanonicalUrl(review.id);
-  return buildArticleMetadata({ title, description, canonical, publishedTime: review.publishedAt, modifiedTime: presentation.updatedAt });
+  return persisted ? buildArticleMetadata(describeEditorialReview(persisted)) : UNAVAILABLE_METADATA;
 }
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
@@ -63,47 +63,96 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   const publicationId = typeof params.publicationId === "string" ? params.publicationId.trim() : "";
   const editorialId = typeof params.editorialId === "string" ? params.editorialId.trim() : "";
   if ([bundleId, publicationId, editorialId].filter(Boolean).length !== 1) return <ReviewUnavailable />;
+
   if (bundleId) {
     const review = await loadHumanReviewFailClosed(bundleId);
-    return review ? <ReviewClient review={review} /> : <ReviewUnavailable />;
+    if (!review) return <ReviewUnavailable />;
+    return (
+      <>
+        <PublicArticleJsonLd descriptor={describeHumanReview(review)} />
+        <ReviewClient review={review} />
+      </>
+    );
   }
+
   if (publicationId) {
     const review = await loadEvidenceReviewFailClosed(publicationId);
-    return review ? <EvidenceReviewClient review={review} /> : <ReviewUnavailable />;
+    if (!review) return <ReviewUnavailable />;
+    return (
+      <>
+        <PublicArticleJsonLd descriptor={describeEvidenceReview(review)} />
+        <EvidenceReviewClient review={review} />
+      </>
+    );
   }
+
   const persisted = await loadEditorialReviewFailClosed(editorialId);
   return persisted ? <EditorialReviewView review={persisted.review} /> : <ReviewUnavailable />;
 }
 
-function buildArticleMetadata({
-  title,
-  description,
-  canonical,
-  publishedTime,
-  modifiedTime,
-}: {
-  title: string;
-  description: string;
-  canonical: string;
-  publishedTime: string;
-  modifiedTime?: string;
-}): Metadata {
+function describeHumanReview(review: HumanReview): PublicArticleDescriptor {
+  const headline = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة`;
   return {
-    title,
-    description,
-    alternates: { canonical },
+    title: `${headline} | قبل المشاهدة`,
+    headline,
+    description: `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة موثقة لنسخة محددة بعد اجتياز بوابات النشر والاعتماد في «قبل المشاهدة».`,
+    canonical: `${PUBLIC_SITE_ORIGIN}${buildPublicReviewHref(review.bundleId)}`,
+    publishedTime: review.publishedAt,
+  };
+}
+
+function describeEvidenceReview(review: EvidenceReview): PublicArticleDescriptor {
+  const headline = `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة`;
+  return {
+    title: `${headline} | قبل المشاهدة`,
+    headline,
+    description: `${review.title.canonicalName} (${review.title.releaseYear}) — مراجعة أدلة منشورة لنسخة محددة، مع توضيح أن المشاهدة البشرية للنسخة غير مؤكدة.`,
+    canonical: `${PUBLIC_SITE_ORIGIN}${buildPublicEvidenceReviewHref(review.publicationId)}`,
+    publishedTime: review.publishedAt,
+  };
+}
+
+function describeEditorialReview(persisted: EditorialReview): PublicArticleDescriptor {
+  const { review, presentation } = persisted;
+  const headline = `${presentation.titleAr} — ${presentation.titleEn} (${review.releaseYear})`;
+  return {
+    title: `${headline} | قبل المشاهدة`,
+    headline,
+    description: buildPracticalEditorialReviewDescription(review),
+    canonical: buildPublicEditorialReviewCanonicalUrl(review.id),
+    publishedTime: review.publishedAt,
+    modifiedTime: presentation.updatedAt,
+  };
+}
+
+function PublicArticleJsonLd({ descriptor }: { descriptor: PublicArticleDescriptor }) {
+  const structuredData = buildPublicArticleStructuredData({
+    headline: descriptor.headline,
+    description: descriptor.description,
+    canonical: descriptor.canonical,
+    datePublished: descriptor.publishedTime,
+    dateModified: descriptor.modifiedTime,
+  });
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />;
+}
+
+function buildArticleMetadata(descriptor: PublicArticleDescriptor): Metadata {
+  return {
+    title: descriptor.title,
+    description: descriptor.description,
+    alternates: { canonical: descriptor.canonical },
     robots: { index: true, follow: true },
     openGraph: {
-      title,
-      description,
+      title: descriptor.title,
+      description: descriptor.description,
       type: "article",
-      url: canonical,
+      url: descriptor.canonical,
       locale: "ar_EG",
-      publishedTime,
-      ...(modifiedTime ? { modifiedTime } : {}),
+      publishedTime: descriptor.publishedTime,
+      ...(descriptor.modifiedTime ? { modifiedTime: descriptor.modifiedTime } : {}),
       authors: ["قبل المشاهدة"],
     },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary", title: descriptor.title, description: descriptor.description },
   };
 }
 
