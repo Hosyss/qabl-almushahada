@@ -1,4 +1,4 @@
-import { PUBLIC_SITE_ORIGIN } from "./public-catalog.ts";
+import { PUBLIC_SITE_ORIGIN } from "./public-catalog";
 
 type PublicArticleStructuredDataInput = Readonly<{
   headline: string;
