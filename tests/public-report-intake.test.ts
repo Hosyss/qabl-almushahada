@@ -99,6 +99,7 @@ test("honeypot success uses an unpersisted UUID instead of a distinguishable nul
 
 test("public intake keeps same-origin, Cloudflare address, HMAC, and server snapshot guards", async () => {
   const service = await readFile(new URL("../db/public-report-intake-service.ts", import.meta.url), "utf8");
+  const triage = await readFile(new URL("../db/public-report-triage-service.ts", import.meta.url), "utf8");
   assert.match(service, /origin && origin !== url\.origin/u);
   assert.match(service, /sec-fetch-site/u);
   assert.match(service, /fetchSite !== "same-origin" && fetchSite !== "none"/u);
@@ -108,7 +109,9 @@ test("public intake keeps same-origin, Cloudflare address, HMAC, and server snap
   assert.match(service, /secret\.length < 32/u);
   assert.match(service, /CURRENT_EDITORIAL_BY_PUBLIC_ID_QUERY/u);
   assert.match(service, /buildPublicEvidenceReviewGateQuery/u);
-  assert.match(service, /b\.current_approval_id = i\.target_snapshot_ref/u);
+  assert.match(triage, /b\.current_approval_id = i\.target_snapshot_ref/u);
+  assert.match(triage, /b\.revision = i\.target_revision/u);
+  assert.match(triage, /b\.version_id = i\.target_version_id/u);
 });
 
 test("does not accept arrays or non-string honeypot values", () => {
