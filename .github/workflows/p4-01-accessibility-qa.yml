@@ -1,0 +1,239 @@
+name: P4-01 accessibility QA temporary
+
+on:
+  push:
+    branches: [agent/p4-01-accessibility]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p4-01-accessibility-qa
+  cancel-in-progress: true
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build:local
+
+      - name: Prepare isolated local D1
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .qa-wrangler.jsonc <<'JSON'
+          {
+            "name":"qabl-p4-01-local-qa",
+            "main":"worker/index.ts",
+            "compatibility_date":"2026-05-22",
+            "compatibility_flags":["nodejs_compat"],
+            "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
+          }
+          JSON
+          rm -rf .wrangler/state .wrangler/registry
+          for migration in drizzle/*.sql; do
+            npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file="$migration" >/dev/null
+          done
+          node --input-type=module <<'NODE' > /tmp/p4-01-qa-seed.sql
+          import { createHash } from 'node:crypto';
+          import { loadEditorialBootstrapFixtures } from './scripts/editorial-bootstrap-sql.mjs';
+          const fixtures = await loadEditorialBootstrapFixtures();
+          if (fixtures.length !== 10) throw new Error(`Expected exactly 10 fixtures, found ${fixtures.length}`);
+          const q = value => `'${String(value).replaceAll("'", "''")}'`;
+          for (const { review, presentation } of fixtures) {
+            const qid = review.titleId.replace(/^wd:/u, '');
+            const aliases = review.titleId === 'wd:Q102438' ? ["Harry Potter and the Sorcerer's Stone"] : [];
+            console.log(`INSERT INTO titles (id,canonical_name,original_name,kind,release_year,search_aliases_json) VALUES (${q(review.titleId)},${q(presentation.titleAr)},${q(presentation.titleEn)},${q(review.kind)},${review.releaseYear},${q(JSON.stringify(aliases))});`);
+            const hash = createHash('sha256').update(`local-p4-01-catalog:${qid}`).digest('hex');
+            console.log(`INSERT INTO title_catalog_sources (id,title_id,policy_snapshot_id,source_entity_id,source_url,retrieved_at,content_sha256,ingestion_mode) VALUES (${q(`qa-catalog-${qid}`)},${q(review.titleId)},'source-policy:wikidata:2026-08-13.1:catalog_metadata',${q(qid)},${q(`https://www.wikidata.org/wiki/${qid}`)},'2026-08-18T00:00:00Z',${q(hash)},'manual');`);
+          }
+          NODE
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/p4-01-qa-seed.sql >/dev/null
+          node scripts/editorial-bootstrap-sql.mjs --out /tmp/editorial-bootstrap.sql
+          npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc --file=/tmp/editorial-bootstrap.sql >/dev/null
+
+      - name: Start isolated preview
+        shell: bash
+        env:
+          CLOUDFLARE_VITE_WRANGLER_CONFIG_PATH: ${{ github.workspace }}/.qa-wrangler.jsonc
+        run: |
+          set -euo pipefail
+          (npm run dev:local -- --host 127.0.0.1 --port 4173 >/tmp/p4-01-server.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/p4-01-server.log
+          exit 1
+
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+
+      - name: Run Chrome accessibility QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p qa-artifacts/screenshots
+          cat > .qa-p4-01-playwright.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright-core';
+
+          const baseURL = 'http://127.0.0.1:4173';
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const report = { browser: await browser.version(), desktop: {}, mobile: {}, reducedMotion: {}, dialog: {}, failures: [] };
+          const hard = (condition, message) => { if (!condition) throw new Error(message); };
+
+          function channel(value) {
+            const c = value / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          }
+          function luminance(rgb) {
+            const values = rgb.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) ?? [];
+            if (values.length !== 3) throw new Error(`Unsupported color: ${rgb}`);
+            return 0.2126 * channel(values[0]) + 0.7152 * channel(values[1]) + 0.0722 * channel(values[2]);
+          }
+          function contrast(fg, bg) {
+            const a = luminance(fg); const b = luminance(bg);
+            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+          }
+          async function effectiveBackground(locator) {
+            return locator.evaluate((element) => {
+              let node = element;
+              while (node) {
+                const value = getComputedStyle(node).backgroundColor;
+                if (value && value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') return value;
+                node = node.parentElement;
+              }
+              return 'rgb(255, 255, 255)';
+            });
+          }
+
+          async function testHomepage(viewport, label) {
+            const context = await browser.newContext({ viewport, locale: 'ar-EG' });
+            const page = await context.newPage();
+            const response = await page.goto(baseURL, { waitUntil: 'networkidle' });
+            hard(response?.ok(), `${label}: homepage HTTP ${response?.status()}`);
+            const root = await page.evaluate(() => ({ lang: document.documentElement.lang, dir: document.documentElement.dir, scrollWidth: document.documentElement.scrollWidth, innerWidth }));
+            hard(root.lang === 'ar' && root.dir === 'rtl', `${label}: Arabic document contract failed`);
+            hard(root.scrollWidth <= root.innerWidth + 1, `${label}: horizontal overflow ${root.scrollWidth}/${root.innerWidth}`);
+
+            await page.keyboard.press('Tab');
+            const active = await page.evaluate(() => ({ className: document.activeElement?.className, text: document.activeElement?.textContent?.trim() }));
+            hard(String(active.className).includes('skip-link'), `${label}: first Tab did not reach skip link`);
+            hard(await page.locator('.skip-link').isVisible(), `${label}: focused skip link is not visible`);
+            const skipFocus = await page.locator('.skip-link').evaluate((element) => {
+              const style = getComputedStyle(element);
+              return { outlineStyle: style.outlineStyle, outlineWidth: parseFloat(style.outlineWidth), outlineColor: style.outlineColor };
+            });
+            hard(skipFocus.outlineStyle !== 'none' && skipFocus.outlineWidth >= 3, `${label}: skip focus indicator is not strong enough`);
+            await page.keyboard.press('Enter');
+            hard(await page.evaluate(() => document.activeElement?.id === 'main-content'), `${label}: skip link did not focus the content target`);
+
+            const brandCaption = page.locator('.brand__text small').first();
+            if (await brandCaption.count()) {
+              const fg = await brandCaption.evaluate((element) => getComputedStyle(element).color);
+              const bg = await effectiveBackground(brandCaption);
+              hard(contrast(fg, bg) >= 4.5, `${label}: brand caption contrast ${contrast(fg, bg).toFixed(2)}`);
+            }
+
+            const search = page.getByRole('combobox', { name: 'اسم الفيلم أو المسلسل' });
+            hard(await search.count() === 1, `${label}: labeled search combobox missing`);
+            await search.fill('Harry');
+            const listbox = page.getByRole('listbox');
+            await listbox.waitFor({ state: 'visible' });
+            const heading = page.locator('[role="listbox"]').locator('xpath=preceding-sibling::*[1]');
+            const fg = await heading.evaluate((element) => getComputedStyle(element).color);
+            const bg = await effectiveBackground(heading);
+            hard(contrast(fg, bg) >= 4.5, `${label}: suggestion heading contrast ${contrast(fg, bg).toFixed(2)}`);
+            hard(await listbox.getByRole('option').count() > 0, `${label}: no search options`);
+            hard(await listbox.getByRole('option').evaluateAll((nodes) => nodes.every((node) => node.tabIndex === -1)), `${label}: listbox options entered Tab order`);
+            hard(await listbox.locator('img').evaluateAll((nodes) => nodes.every((node) => node.getAttribute('alt') === '')), `${label}: repeated artwork is not decorative`);
+
+            await search.focus();
+            await page.keyboard.press('ArrowDown');
+            const keyboardState = await search.evaluate((element) => ({
+              activeDescendant: element.getAttribute('aria-activedescendant'),
+              isActive: document.activeElement === element,
+            }));
+            hard(keyboardState.isActive && Boolean(keyboardState.activeDescendant), `${label}: ArrowDown broke combobox focus model`);
+            await page.keyboard.press('Tab');
+            hard(await page.getByRole('button', { name: 'ابحث' }).evaluate((element) => document.activeElement === element), `${label}: Tab entered popup instead of search submit`);
+
+            await page.screenshot({ path: `qa-artifacts/screenshots/${label}-search.png`, fullPage: true });
+            const result = { skip: true, searchLabel: true, singleFocusModel: true, noOverflow: true, headingContrast: contrast(fg, bg) };
+            await context.close();
+            return result;
+          }
+
+          report.desktop = await testHomepage({ width: 1440, height: 1000 }, 'desktop');
+          report.mobile = await testHomepage({ width: 390, height: 844 }, 'mobile');
+
+          {
+            const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ar-EG', reducedMotion: 'reduce' });
+            const page = await context.newPage();
+            await page.goto(baseURL, { waitUntil: 'networkidle' });
+            const state = await page.evaluate(() => {
+              const nav = document.querySelector('.main-nav a');
+              const style = nav ? getComputedStyle(nav) : null;
+              const seconds = style?.transitionDuration.split(',').map((value) => {
+                const trimmed = value.trim();
+                return trimmed.endsWith('ms') ? parseFloat(trimmed) / 1000 : parseFloat(trimmed);
+              }) ?? [];
+              return { scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior, maxTransitionSeconds: Math.max(0, ...seconds) };
+            });
+            hard(state.scrollBehavior === 'auto', `reduced-motion: scroll behavior is ${state.scrollBehavior}`);
+            hard(state.maxTransitionSeconds <= 0.001, `reduced-motion: transition remains ${state.maxTransitionSeconds}s`);
+            report.reducedMotion = state;
+            await context.close();
+          }
+
+          {
+            const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: 'ar-EG' });
+            const page = await context.newPage();
+            const response = await page.goto(`${baseURL}/review?editorialId=et-1982-editorial-batch-v1`, { waitUntil: 'networkidle' });
+            hard(response?.ok(), `dialog: HTTP ${response?.status()}`);
+            const opener = page.getByRole('button', { name: /اقرأ التحليل كاملًا/u });
+            await opener.focus();
+            await page.keyboard.press('Enter');
+            const dialog = page.locator('dialog.editorial-summary-dialog');
+            hard(await dialog.evaluate((element) => element.open), 'dialog: did not open by keyboard');
+            for (let i = 0; i < 10; i += 1) {
+              await page.keyboard.press('Tab');
+              hard(await dialog.evaluate((element) => element.contains(document.activeElement)), `dialog: Tab escaped at ${i}`);
+            }
+            for (let i = 0; i < 10; i += 1) {
+              await page.keyboard.press('Shift+Tab');
+              hard(await dialog.evaluate((element) => element.contains(document.activeElement)), `dialog: Shift+Tab escaped at ${i}`);
+            }
+            await page.keyboard.press('Escape');
+            hard(!(await dialog.evaluate((element) => element.open)), 'dialog: Escape failed');
+            hard(await opener.evaluate((element) => document.activeElement === element), 'dialog: focus did not return to opener');
+            report.dialog = { keyboardOpen: true, focusTrap: true, escapeClose: true, focusReturn: true };
+            await context.close();
+          }
+
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report, null, 2));
+          console.log(JSON.stringify(report, null, 2));
+          await browser.close();
+          NODE
+          node .qa-p4-01-playwright.mjs
+
+      - name: Upload QA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-01-accessibility-qa-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
