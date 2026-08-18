@@ -160,3 +160,15 @@ test("public indexing policy keeps crawlable pages canonical and utility routes 
   assert.match(corrections, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/corrections`/u);
   assert.match(privacy, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/privacy`/u);
 });
+
+test("every public review locator has fail-closed canonical metadata", async () => {
+  const reviewPage = await source("app/review/page.tsx");
+  assert.doesNotMatch(reviewPage, /if \(!editorialId\) return \{\};/u);
+  assert.match(reviewPage, /if \(bundleId\)/u);
+  assert.match(reviewPage, /buildPublicReviewHref\(review\.bundleId\)/u);
+  assert.match(reviewPage, /if \(publicationId\)/u);
+  assert.match(reviewPage, /buildPublicEvidenceReviewHref\(review\.publicationId\)/u);
+  assert.match(reviewPage, /buildPublicEditorialReviewCanonicalUrl\(review\.id\)/u);
+  assert.match(reviewPage, /if \(!review\) return UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /robots: \{ index: true, follow: true \}/u);
+});
