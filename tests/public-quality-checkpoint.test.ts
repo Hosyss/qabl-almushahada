@@ -141,7 +141,7 @@ test("review policy separates practical family verdict from verified exact-versi
   assert.match(policy, /درجة شدة رقمية/u);
   assert.match(policy, /تظل غير محسومة ولا تتحول إلى «لا يوجد»/u);
   assert.match(policy, /حدودًا تحريرية افتراضية مرتبطة بالعمر/u);
-  assert.doesNotMatch(policy, /\bcorroborated\b|\bSeverity\b|\bunknown\b|\bnone\b/u);
+  assert.doesNotMatch(policy, /ينفع للمشاهدة|\bcorroborated\b|\bSeverity\b|\bunknown\b|\bnone\b/u);
 });
 
 test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
