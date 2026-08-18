@@ -27,7 +27,7 @@ jobs:
           {
             "name":"qabl-public-report-ui-qa",
             "main":"worker/index.ts",
-            "compatibility_date":"2026-08-12",
+            "compatibility_date":"2026-05-22",
             "compatibility_flags":["nodejs_compat"],
             "vars":{"PUBLIC_REPORT_HMAC_SECRET":"local-qa-public-report-secret-2026-08-18-0123456789abcdef"},
             "d1_databases":[{"binding":"DB","database_name":"site-creator-d1","database_id":"00000000-0000-4000-8000-000000000000"}]
@@ -90,9 +90,7 @@ jobs:
             const request = route.request();
             if (request.method() === 'POST') {
               capturedBodies.push(JSON.parse(request.postData() || '{}'));
-              await route.continue({
-                headers: { ...request.headers(), 'cf-connecting-ip': '203.0.113.77' },
-              });
+              await route.continue({ headers: { ...request.headers(), 'cf-connecting-ip': '203.0.113.77' } });
               return;
             }
             await route.continue();
