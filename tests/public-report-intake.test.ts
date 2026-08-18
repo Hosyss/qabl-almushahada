@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -84,6 +85,16 @@ test("marks the hidden website field as automated without invalidating the outwa
   const result = preparePublicReportIntake({ ...validInput, website: "https://spam.invalid" });
   assert.equal(result.accepted, true);
   if (result.accepted) assert.equal(result.automatedSubmission, true);
+});
+
+test("honeypot success uses an unpersisted UUID instead of a distinguishable null reference", async () => {
+  const service = await readFile(new URL("../db/public-report-intake-service.ts", import.meta.url), "utf8");
+  assert.match(service, /accepted: true; intakeId: string/u);
+  assert.match(
+    service,
+    /automatedSubmission\) return \{ accepted: true, intakeId: crypto\.randomUUID\(\) \}/u,
+  );
+  assert.doesNotMatch(service, /intakeId: string \| null|intakeId: null/u);
 });
 
 test("does not accept arrays or non-string honeypot values", () => {
