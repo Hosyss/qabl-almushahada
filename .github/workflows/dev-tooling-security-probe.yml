@@ -75,7 +75,8 @@ jobs:
           import path from 'node:path';
 
           const buildLog = readFileSync('build.log', 'utf8');
-          const conflictPaths = [...buildLog.matchAll(/The emitted file "([^"]+\.css)" overwrites a previously emitted file of the same name\./g)].map((m) => m[1]);
+          const conflictPattern = /The emitted file\s+"?([^"\s]+\.css)"?\s+overwrites a previously emitted file of the same name\./g;
+          const conflictPaths = [...buildLog.matchAll(conflictPattern)].map((m) => m[1]);
           const uniqueConflicts = [...new Set(conflictPaths)].sort();
           const expectedKinds = ['internal', 'title-artwork'];
           const conflictKinds = uniqueConflicts.map((p) => path.basename(p).split('.')[0]).sort();
@@ -108,7 +109,10 @@ jobs:
             if (clientPath) {
               try { css = readFileSync(clientPath, 'utf8'); exists = true; } catch {}
             }
-            const missingClassNames = sourceClasses.filter((name) => !css.includes(name));
+            const missingClassNames = sourceClasses.filter((name) => {
+              const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              return !new RegExp(`\\._${escaped}_[A-Za-z0-9_-]+`).test(css);
+            });
             const referencedBy = conflict ? textFiles.filter(([, text]) => text.includes(conflict)).map(([p]) => p) : [];
             reports.push({ kind, sourcePath, sourceClasses, conflict, clientPath, exists, missingClassNames, referencedBy });
           }
@@ -138,6 +142,10 @@ jobs:
             }
             if (item.referencedBy.length === 0) {
               console.error(`Final conflicted CSS asset for ${item.kind} is not referenced by the built output.`);
+              process.exit(1);
+            }
+            if (item.missingClassNames.length !== 0) {
+              console.error(`Final CSS asset for ${item.kind} is missing module classes: ${item.missingClassNames.join(', ')}`);
               process.exit(1);
             }
           }
