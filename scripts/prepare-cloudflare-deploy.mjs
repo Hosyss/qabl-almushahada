@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 export const CLOUDFLARE_PRODUCTION_CONFIG_PATH = ".wrangler/production/wrangler.jsonc";
 export const CLOUDFLARE_COMPATIBILITY_DATE = "2026-08-12";
-export const REQUIRED_PRODUCTION_SECRETS = ["PUBLIC_REPORT_HMAC_SECRET"] as const;
+export const REQUIRED_PRODUCTION_SECRETS = ["PUBLIC_REPORT_HMAC_SECRET"];
 
 export function buildCloudflareProductionConfig(env = process.env) {
   const databaseId = requireUuid(env.CF_D1_DATABASE_ID, "CF_D1_DATABASE_ID");
