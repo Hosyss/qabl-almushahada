@@ -3,6 +3,7 @@ name: P4-01 focus ring QA temporary
 on:
   push:
     branches: [agent/p4-01-accessibility]
+  pull_request:
 
 permissions:
   contents: read
