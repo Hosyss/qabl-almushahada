@@ -1,4 +1,4 @@
-# Temporary Drizzle generation-parity probe; remove before clean head.
+# Temporary vinext CSS/output parity probe; remove before clean head.
 name: Dev tooling security remediation probe
 
 on:
@@ -10,11 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  generation-parity:
+  css-parity:
     strategy:
       fail-fast: false
       matrix:
-        variant: [baseline-generation, override-generation]
+        variant: [vinext-baseline, vinext-beta]
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR head
@@ -29,7 +29,7 @@ jobs:
       - name: Install baseline graph
         run: npm ci
 
-      - name: Apply common hardened candidate
+      - name: Apply common hardened graph
         run: |
           npm pkg set \
             dependencies.react=19.2.8 \
@@ -37,37 +37,55 @@ jobs:
             devDependencies.react-server-dom-webpack=19.2.8 \
             devDependencies.@cloudflare/vite-plugin=1.53.0 \
             devDependencies.wrangler=4.124.0 \
-            devDependencies.vite=8.2.1 \
-            devDependencies.vinext=1.0.0-beta.6 \
-            devDependencies.@vitejs/plugin-rsc=0.5.34
+            devDependencies.vite=8.2.1
+          node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; const p=JSON.parse(readFileSync('package.json','utf8')); p.overrides={...(p.overrides??{}),'@esbuild-kit/core-utils':{esbuild:'0.25.12'}}; writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n');"
           npm install --package-lock-only --ignore-scripts
           npm update @babel/core brace-expansion fast-uri js-yaml --package-lock-only --ignore-scripts
 
-      - name: Apply scoped esbuild override only in override variant
-        if: matrix.variant == 'override-generation'
+      - name: Select vinext variant
+        env:
+          VARIANT: ${{ matrix.variant }}
         run: |
-          node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; const p=JSON.parse(readFileSync('package.json','utf8')); p.overrides={...(p.overrides??{}),'@esbuild-kit/core-utils':{esbuild:'0.25.12'}}; writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n');"
+          if [[ "$VARIANT" == "vinext-baseline" ]]; then
+            npm pkg set devDependencies.vinext=0.0.50 devDependencies.@vitejs/plugin-rsc=0.5.26
+          else
+            npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
+          fi
           npm install --package-lock-only --ignore-scripts
 
       - name: Install exact candidate graph
         run: npm ci
 
-      - name: Generate Drizzle migration output
+      - name: Build and capture warnings
         run: |
-          npm run db:generate
-          git status --porcelain -- drizzle drizzle.config.* > generation-status.txt || true
-          find drizzle -type f -print0 | sort -z | xargs -0 sha256sum > generation-sha256.txt
-          cat generation-status.txt
-          cat generation-sha256.txt
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+          grep -n 'FILE_NAME_CONFLICT\|unsupported by `configLoader' build.log > build-warning-focus.txt || true
+          cat build-warning-focus.txt
 
-      - name: Upload complete generated Drizzle tree
+      - name: Record final CSS bytes and references
+        run: |
+          find dist -type f -name '*.css' -print0 | sort -z | xargs -0 sha256sum > css-sha256.txt
+          find dist -type f -name '*.css' -printf '%P\t%s bytes\n' | sort > css-files.txt
+          grep -RahoE '_next/static/css/[A-Za-z0-9._-]+\.css' dist | sort -u > css-references.txt || true
+          wc -l css-sha256.txt css-references.txt
+          cat css-sha256.txt
+          cat css-references.txt
+
+      - name: Rendered HTML regression
+        run: node --test tests/rendered-html.test.mjs
+
+      - name: Upload exact build evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: drizzle-generation-${{ matrix.variant }}-${{ github.run_id }}
+          name: vinext-css-${{ matrix.variant }}-${{ github.run_id }}
           path: |
-            drizzle
-            generation-status.txt
-            generation-sha256.txt
+            build.log
+            build-warning-focus.txt
+            css-sha256.txt
+            css-files.txt
+            css-references.txt
+            dist
             package.json
             package-lock.json
           if-no-files-found: error
