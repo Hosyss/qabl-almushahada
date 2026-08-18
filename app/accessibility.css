@@ -1,5 +1,6 @@
 :root {
-  --a11y-focus: #7a2d17;
+  --a11y-focus-inner: #ffffff;
+  --a11y-focus-outer: #7a2d17;
 }
 
 .skip-link {
@@ -27,8 +28,11 @@
 }
 
 :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: 3px solid var(--a11y-focus);
-  outline-offset: 3px;
+  /* Dual-tone ring: the white inner edge survives dark surfaces, while the
+     dark outer edge survives light surfaces. Do not collapse this to one color. */
+  outline: 2px solid var(--a11y-focus-inner);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--a11y-focus-outer);
 }
 
 /* The small brand caption needs normal-text contrast, not decorative-text contrast. */
@@ -55,6 +59,7 @@
 @media (forced-colors: active) {
   :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
     outline-color: CanvasText;
+    box-shadow: none;
   }
 
   .skip-link {
