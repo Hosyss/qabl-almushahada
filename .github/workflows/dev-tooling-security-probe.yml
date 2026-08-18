@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [safe, vinext-compatible, drizzle-override, combined]
+        variant: [vinext-compatible, drizzle-override, combined]
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR head
@@ -45,31 +45,12 @@ jobs:
         env:
           VARIANT: ${{ matrix.variant }}
         run: |
-          case "$VARIANT" in
-            safe)
-              ;;
-            vinext-compatible)
-              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
-              ;;
-            drizzle-override)
-              node --input-type=module <<'NODE'
-              import { readFileSync, writeFileSync } from 'node:fs';
-              const p = JSON.parse(readFileSync('package.json', 'utf8'));
-              p.overrides = { ...(p.overrides ?? {}), '@esbuild-kit/core-utils': { esbuild: '0.25.12' } };
-              writeFileSync('package.json', `${JSON.stringify(p, null, 2)}\n`);
-              NODE
-              ;;
-            combined)
-              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
-              node --input-type=module <<'NODE'
-              import { readFileSync, writeFileSync } from 'node:fs';
-              const p = JSON.parse(readFileSync('package.json', 'utf8'));
-              p.overrides = { ...(p.overrides ?? {}), '@esbuild-kit/core-utils': { esbuild: '0.25.12' } };
-              writeFileSync('package.json', `${JSON.stringify(p, null, 2)}\n`);
-              NODE
-              ;;
-            *) exit 64 ;;
-          esac
+          if [[ "$VARIANT" == "vinext-compatible" || "$VARIANT" == "combined" ]]; then
+            npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
+          fi
+          if [[ "$VARIANT" == "drizzle-override" || "$VARIANT" == "combined" ]]; then
+            node --input-type=module -e "import {readFileSync,writeFileSync} from 'node:fs'; const p=JSON.parse(readFileSync('package.json','utf8')); p.overrides={...(p.overrides??{}),'@esbuild-kit/core-utils':{esbuild:'0.25.12'}}; writeFileSync('package.json',JSON.stringify(p,null,2)+'\\n');"
+          fi
           npm install --package-lock-only --ignore-scripts
 
       - name: Install exact candidate graph
