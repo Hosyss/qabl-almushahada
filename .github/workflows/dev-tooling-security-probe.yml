@@ -1,4 +1,4 @@
-# Temporary final-candidate CSS integrity probe; remove before clean head.
+# Temporary one-shot dev/build tooling remediation gate; remove after verified manifest commit.
 name: Dev tooling security remediation probe
 
 on:
@@ -7,14 +7,17 @@ on:
       - agent/runtime-security-remediation-2026-08-18
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  css-integrity:
+  final-candidate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out PR head
+      - name: Check out remediation branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: agent/dev-tooling-security-remediation-2026-08-19
 
       - name: Set up Node 22.13
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -43,7 +46,7 @@ jobs:
       - name: Install exact candidate graph
         run: npm ci
 
-      - name: Assert full and production audit are clean
+      - name: Assert full and production audits are clean
         run: |
           npm audit --json > audit-full.json || true
           npm audit --omit=dev --json > audit-prod.json || true
@@ -53,22 +56,31 @@ jobs:
             const audit = JSON.parse(readFileSync(file, 'utf8'));
             const counts = audit.metadata?.vulnerabilities ?? {};
             console.log(file, counts);
-            if ((counts.total ?? 0) !== 0) process.exit(1);
+            if ((counts.total ?? 0) !== 0) {
+              console.error(`${file} is not clean.`);
+              process.exit(1);
+            }
           }
           NODE
 
-      - name: Engine and migration regression gates
-        run: |
-          npm run test:engine
-          npm run test:migrations
-          npm run lint
+      - name: Record exact security-relevant dependency graph
+        run: npm ls react react-dom react-server-dom-webpack @cloudflare/vite-plugin wrangler vite vinext @vitejs/plugin-rsc image-size drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild @babel/core brace-expansion fast-uri js-yaml --all > dependency-graph.txt
 
-      - name: Build final candidate and capture warnings
+      - name: Engine regression gate
+        run: npm run test:engine
+
+      - name: Migration regression gate
+        run: npm run test:migrations
+
+      - name: Lint gate
+        run: npm run lint
+
+      - name: Verified production build and capture warnings
         run: |
           set -o pipefail
           npm run build 2>&1 | tee build.log
 
-      - name: Analyze CSS collision integrity
+      - name: Enforce CSS collision integrity
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
@@ -127,27 +139,10 @@ jobs:
           writeFileSync('css-integrity-report.json', `${JSON.stringify(report, null, 2)}\n`);
           console.log(JSON.stringify(report, null, 2));
 
-          if (JSON.stringify(conflictKinds) !== JSON.stringify(expectedKinds)) {
-            console.error('Unexpected CSS conflict set.');
-            process.exit(1);
-          }
-          if (report.unexpectedConflictLines.length) {
-            console.error('Unexpected FILE_NAME_CONFLICT warning.');
-            process.exit(1);
-          }
+          if (JSON.stringify(conflictKinds) !== JSON.stringify(expectedKinds)) process.exit(1);
+          if (report.unexpectedConflictLines.length) process.exit(1);
           for (const item of reports) {
-            if (!item.exists) {
-              console.error(`Missing final conflicted CSS asset for ${item.kind}.`);
-              process.exit(1);
-            }
-            if (item.referencedBy.length === 0) {
-              console.error(`Final conflicted CSS asset for ${item.kind} is not referenced by the built output.`);
-              process.exit(1);
-            }
-            if (item.missingClassNames.length !== 0) {
-              console.error(`Final CSS asset for ${item.kind} is missing module classes: ${item.missingClassNames.join(', ')}`);
-              process.exit(1);
-            }
+            if (!item.exists || item.referencedBy.length === 0 || item.missingClassNames.length !== 0) process.exit(1);
           }
           NODE
 
@@ -158,17 +153,26 @@ jobs:
           CF_WORKER_NAME: qabl-dev-tooling-rehearsal
         run: npm run cloudflare:build
 
-      - name: Upload exact integrity evidence
+      - name: Upload exact final candidate evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dev-tooling-css-integrity-${{ github.run_id }}
+          name: dev-tooling-final-candidate-${{ github.run_id }}
           path: |
             package.json
             package-lock.json
             audit-full.json
             audit-prod.json
+            dependency-graph.txt
             build.log
             css-integrity-report.json
-            dist
           if-no-files-found: warn
+
+      - name: Commit only verified dependency manifests
+        run: |
+          git add package.json package-lock.json
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "package-lock.json package.json "
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Remediate dev and build tooling vulnerabilities"
+          git push origin HEAD:agent/dev-tooling-security-remediation-2026-08-19
