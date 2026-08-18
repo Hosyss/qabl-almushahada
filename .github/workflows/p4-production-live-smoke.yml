@@ -1,0 +1,77 @@
+name: P4 production live smoke temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify deployed P4 production behavior
+        shell: bash
+        env:
+          ORIGIN: https://qabl-almushahada.buildtools.workers.dev
+        run: |
+          set -euo pipefail
+
+          curl_get() {
+            curl --fail --silent --show-error --location \
+              --retry 12 --retry-all-errors --retry-delay 5 "$@"
+          }
+
+          home="$RUNNER_TEMP/home.html"
+          search="$RUNNER_TEMP/search.html"
+          review="$RUNNER_TEMP/review.html"
+          robots="$RUNNER_TEMP/robots.txt"
+          report="$RUNNER_TEMP/report.json"
+
+          curl_get "$ORIGIN/" > "$home"
+          grep -Fq 'دليل عربي يساعدك على اتخاذ قرار قبل المشاهدة' "$home"
+          grep -Fq 'rel="canonical"' "$home"
+          grep -Fq "$ORIGIN/" "$home"
+
+          curl_get "$ORIGIN/search?q=barbie&kind=movie&age=8" > "$search"
+          grep -Fq 'noindex' "$search"
+          grep -Fq "$ORIGIN/search" "$search"
+
+          curl_get "$ORIGIN/robots.txt" > "$robots"
+          grep -Fq 'Disallow: /internal' "$robots"
+          grep -Fq 'Disallow: /api/' "$robots"
+
+          curl_get "$ORIGIN/review?editorialId=et-1982-editorial-batch-v1" > "$review"
+          grep -Fq 'حدد عمر الطفل لإصدار الحكم' "$review"
+          if grep -Fq 'ينفع للمشاهدة' "$review"; then
+            echo 'Colloquial practical-verdict copy leaked in production.' >&2
+            exit 1
+          fi
+
+          status="$(curl --silent --show-error --location \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            --output "$report" --write-out '%{http_code}' \
+            --request POST "$ORIGIN/api/reports" \
+            --header "Origin: $ORIGIN" \
+            --header 'Content-Type: application/json' \
+            --data '{"targetKind":"editorial_publication","targetId":"et-1982-editorial-batch-v1","reason":"missing_content","message":"فحص تلقائي غير مخزن لمسار honeypot بعد النشر.","website":"https://smoke.invalid"}')"
+
+          if [[ "$status" != "202" ]]; then
+            echo "Honeypot endpoint returned HTTP $status" >&2
+            cat "$report" >&2 || true
+            exit 1
+          fi
+
+          node --input-type=module - "$report" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const [, , file] = process.argv;
+          const payload = JSON.parse(readFileSync(file, 'utf8'));
+          if (payload?.accepted !== true) throw new Error('Honeypot outward success missing');
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(payload?.referenceId ?? '')) {
+            throw new Error(`Honeypot reference is not a UUID: ${payload?.referenceId}`);
+          }
+          NODE
+
+          echo 'Production live smoke passed: latest homepage/review copy, SEO indexing guards, robots rules, and non-persistent report honeypot are live.'
