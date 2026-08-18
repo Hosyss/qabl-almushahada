@@ -174,3 +174,16 @@
 - الفحص انتهى `success` ولم يجد انحرافًا في عدد المحتوى المنشور.
 
 هذا يثبت أن #74 يغلق فروقًا موجودة على Production الحالي، وليس مجرد hardening نظري.
+
+## 12) Production configuration prerequisite لـ #71
+
+قناة البلاغ العامة في #71 تعتمد على Worker secret اسمه `PUBLIC_REPORT_HMAC_SECRET` لاشتقاق HMAC-SHA256 من عنوان العميل بدل تخزين IP خام.
+
+قبل اعتبار القناة مفعلة للعامة:
+
+- يجب ضبط `PUBLIC_REPORT_HMAC_SECRET` كـCloudflare Worker secret خارج المستودع.
+- الحد الأدنى الذي يفرضه الكود هو **32 حرفًا**.
+- لا يوضع secret أو placeholder داخل Git أو docs أو `wrangler.jsonc`.
+- إذا كان السر غائبًا أو أقصر من الحد، تفشل عملية القبول مغلقًا وتعيد API حالة عدم توفر بدل تخزين بلاغ بمفتاح غير آمن.
+- D1 binding المطلوبة اسمها `DB` وتظل binding المشروع الحالية؛ migration `0027` تنشئ جدول intake عند الدمج/النشر المعتمد.
+- عدم وجود public UI button في #71 متعمد؛ لا نفتح واجهة البلاغ قبل مراجعة Work لعقد التصحيح editorial/evidence وتجهيز secret الحقيقي.
