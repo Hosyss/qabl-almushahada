@@ -186,6 +186,11 @@ test("every public review locator has fail-closed canonical metadata", async () 
   assert.match(reviewPage, /if \(publicationId\)/u);
   assert.match(reviewPage, /buildPublicEvidenceReviewHref\(review\.publicationId\)/u);
   assert.match(reviewPage, /buildPublicEditorialReviewCanonicalUrl\(review\.id\)/u);
-  assert.match(reviewPage, /if \(!review\) return UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /return review \? buildArticleMetadata\(describeHumanReview\(review\)\) : UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /return review \? buildArticleMetadata\(describeEvidenceReview\(review\)\) : UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /return persisted \? buildArticleMetadata\(describeEditorialReview\(persisted\)\) : UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /loadHumanReviewFailClosed/u);
+  assert.match(reviewPage, /loadEvidenceReviewFailClosed/u);
+  assert.match(reviewPage, /loadEditorialReviewFailClosed/u);
   assert.match(reviewPage, /robots: \{ index: true, follow: true \}/u);
 });
