@@ -1,3 +1,4 @@
+# Temporary probe; remove before clean remediation head.
 name: Runtime security remediation probe
 
 on:
