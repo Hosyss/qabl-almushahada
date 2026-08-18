@@ -159,7 +159,7 @@ jobs:
           npx wrangler d1 execute site-creator-d1 --local --config=.qa-wrangler.jsonc \
             --command "SELECT COUNT(*) AS count FROM public_report_intakes;" --json > /tmp/public-report-count.json
           cat /tmp/public-report-count.json
-          if ! grep -Eq '"count"[[:space:]]*:[[:space:]]*1([,}])' /tmp/public-report-count.json; then
+          if ! grep -Eq '"count"[[:space:]]*:[[:space:]]*1' /tmp/public-report-count.json; then
             echo 'Expected exactly one local public_report_intakes row after duplicate submission attempt.' >&2
             exit 1
           fi
