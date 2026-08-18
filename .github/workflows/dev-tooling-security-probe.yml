@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [safe, vinext, drizzle-rc, combined]
+        variant: [safe, vinext-compatible, drizzle-override, combined]
     runs-on: ubuntu-latest
     steps:
       - name: Check out PR head
@@ -39,36 +39,34 @@ jobs:
             devDependencies.wrangler=4.124.0 \
             devDependencies.vite=8.2.1
           npm install --package-lock-only --ignore-scripts
+          npm update @babel/core brace-expansion fast-uri js-yaml --package-lock-only --ignore-scripts
 
-      - name: Refresh audit-fixable transitives within declared ranges
-        run: npm update @babel/core brace-expansion fast-uri js-yaml --package-lock-only --ignore-scripts
-
-      - name: Record prerelease candidate metadata
-        if: matrix.variant != 'safe'
-        run: |
-          {
-            echo '=== vinext@1.0.0-beta.6 ==='
-            npm view vinext@1.0.0-beta.6 version engines dependencies peerDependencies --json || true
-            echo '=== drizzle-kit@1.0.0-rc.4 ==='
-            npm view drizzle-kit@1.0.0-rc.4 version engines dependencies peerDependencies --json || true
-          } > prerelease-metadata.txt 2>&1
-          cat prerelease-metadata.txt
-
-      - name: Apply isolated prerelease candidate
+      - name: Apply isolated residual candidate
         env:
           VARIANT: ${{ matrix.variant }}
         run: |
           case "$VARIANT" in
             safe)
               ;;
-            vinext)
-              npm pkg set devDependencies.vinext=1.0.0-beta.6
+            vinext-compatible)
+              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
               ;;
-            drizzle-rc)
-              npm pkg set devDependencies.drizzle-kit=1.0.0-rc.4
+            drizzle-override)
+              node --input-type=module <<'NODE'
+              import { readFileSync, writeFileSync } from 'node:fs';
+              const p = JSON.parse(readFileSync('package.json', 'utf8'));
+              p.overrides = { ...(p.overrides ?? {}), '@esbuild-kit/core-utils': { esbuild: '0.25.12' } };
+              writeFileSync('package.json', `${JSON.stringify(p, null, 2)}\n`);
+              NODE
               ;;
             combined)
-              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.drizzle-kit=1.0.0-rc.4
+              npm pkg set devDependencies.vinext=1.0.0-beta.6 devDependencies.@vitejs/plugin-rsc=0.5.34
+              node --input-type=module <<'NODE'
+              import { readFileSync, writeFileSync } from 'node:fs';
+              const p = JSON.parse(readFileSync('package.json', 'utf8'));
+              p.overrides = { ...(p.overrides ?? {}), '@esbuild-kit/core-utils': { esbuild: '0.25.12' } };
+              writeFileSync('package.json', `${JSON.stringify(p, null, 2)}\n`);
+              NODE
               ;;
             *) exit 64 ;;
           esac
@@ -87,7 +85,10 @@ jobs:
           const prod = JSON.parse(readFileSync('audit-prod.json', 'utf8'));
           console.log('Full audit:', full.metadata?.vulnerabilities ?? {});
           console.log('Production audit:', prod.metadata?.vulnerabilities ?? {});
-          if ((prod.metadata?.vulnerabilities?.total ?? 0) !== 0) process.exit(1);
+          if ((prod.metadata?.vulnerabilities?.total ?? 0) !== 0) {
+            console.error('Production dependency graph regressed.');
+            process.exit(1);
+          }
           NODE
 
       - name: Record residuals and exact versions
@@ -99,7 +100,7 @@ jobs:
             console.log(`${name}\t${item.severity}\tdirect=${item.isDirect}\trange=${item.range}\tfix=${JSON.stringify(item.fixAvailable)}`);
           }
           NODE
-          npm ls @babel/core brace-expansion fast-uri js-yaml vinext image-size drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild --all >> residual.txt || true
+          npm ls vinext image-size @vitejs/plugin-rsc drizzle-kit @esbuild-kit/esm-loader @esbuild-kit/core-utils esbuild --all >> residual.txt || true
           cat residual.txt
 
       - name: Engine tests
@@ -109,7 +110,7 @@ jobs:
         run: npm run test:migrations
 
       - name: Drizzle generation compatibility probe
-        if: matrix.variant == 'drizzle-rc' || matrix.variant == 'combined'
+        if: matrix.variant == 'drizzle-override' || matrix.variant == 'combined'
         run: |
           before="$(git status --porcelain -- drizzle drizzle.config.* 2>/dev/null || true)"
           npm run db:generate
@@ -141,5 +142,4 @@ jobs:
             audit-full.json
             audit-prod.json
             residual.txt
-            prerelease-metadata.txt
           if-no-files-found: warn
