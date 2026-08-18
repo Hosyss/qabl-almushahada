@@ -45,7 +45,7 @@ jobs:
           await page.keyboard.press('Tab');
           const skip = page.locator('.skip-link');
           if (!(await skip.evaluate((el) => document.activeElement === el))) throw new Error('skip link is not first keyboard target');
-          const skipStyle = await skip.evaluate((el) => ({ outline: getComputedStyle(el).outline, shadow: getComputedStyle(el).boxShadow, transform: getComputedStyle(el).transform }));
+          const skipStyle = await skip.evaluate((el) => ({ outline: getComputedStyle(el).outline, shadow: getComputedStyle(el).boxShadow }));
           if (!skipStyle.outline.includes('rgb(255, 255, 255)')) throw new Error(`white inner focus edge missing: ${skipStyle.outline}`);
           if (!skipStyle.shadow.includes('rgb(122, 45, 23)')) throw new Error(`dark outer focus edge missing: ${skipStyle.shadow}`);
           await page.keyboard.press('Enter');
@@ -53,14 +53,20 @@ jobs:
           const targetFocused = await page.evaluate(() => document.activeElement?.id === 'main-content' && location.hash === '#main-content');
           if (!targetFocused) throw new Error('skip link did not focus #main-content');
           const input = page.getByLabel('اسم الفيلم أو المسلسل', { exact: true });
-          await input.focus();
-          const inputStyle = await input.evaluate((el) => ({ outline: getComputedStyle(el).outline, shadow: getComputedStyle(el).boxShadow, transition: getComputedStyle(el).transitionDuration }));
-          if (!inputStyle.outline.includes('rgb(255, 255, 255)')) throw new Error('input inner focus edge missing');
-          if (!inputStyle.shadow.includes('rgb(122, 45, 23)')) throw new Error('input outer focus edge missing');
+          let inputReached = false;
+          for (let i = 0; i < 12; i += 1) {
+            await page.keyboard.press('Tab');
+            inputReached = await input.evaluate((el) => document.activeElement === el);
+            if (inputReached) break;
+          }
+          if (!inputReached) throw new Error('keyboard Tab order did not reach the search input');
+          const inputStyle = await input.evaluate((el) => ({ outline: getComputedStyle(el).outline, shadow: getComputedStyle(el).boxShadow }));
+          if (!inputStyle.outline.includes('rgb(255, 255, 255)')) throw new Error(`input inner focus edge missing: ${inputStyle.outline}`);
+          if (!inputStyle.shadow.includes('rgb(122, 45, 23)')) throw new Error(`input outer focus edge missing: ${inputStyle.shadow}`);
           const reduced = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
           if (!reduced) throw new Error('reduced-motion emulation not active');
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
           if (overflow) throw new Error('mobile horizontal overflow');
-          console.log(JSON.stringify({ browser: await browser.version(), skipLink: true, dualToneFocus: true, reducedMotion: true, mobileOverflow: false }));
+          console.log(JSON.stringify({ browser: await browser.version(), skipLink: true, keyboardReachedSearch: true, dualToneFocus: true, reducedMotion: true, mobileOverflow: false }));
           await browser.close();
           NODE
