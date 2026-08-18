@@ -7,6 +7,7 @@ import {
   getTitleArtwork,
   listTitleArtworkEntries,
   TITLE_ARTWORK_DISCLOSURE_AR,
+  type TitleArtworkProvenance,
 } from "../lib/title-artwork.ts";
 
 const EXPECTED_TITLE_IDS = new Set([
@@ -22,7 +23,7 @@ const EXPECTED_TITLE_IDS = new Set([
   "wd:Q68934496",
 ]);
 
-test("the ten published editorial titles have local original artwork", () => {
+test("the ten published editorial titles have local project-created illustration artwork", () => {
   const entries = listTitleArtworkEntries();
   assert.equal(entries.length, 10);
   assert.deepEqual(new Set(entries.map(([titleId]) => titleId)), EXPECTED_TITLE_IDS);
@@ -32,8 +33,23 @@ test("the ten published editorial titles have local original artwork", () => {
     assert.match(artwork.src, /^\/artwork\/[a-z0-9-]+\.webp$/u);
     assert.equal(artwork.src.startsWith("http"), false);
     assert.equal(artwork.altAr.trim().length > 20, true);
+    assert.equal(artwork.provenance.kind, "project_created_illustration");
     assert.equal(existsSync(path.resolve("public", artwork.src.slice(1))), true, `${titleId} asset is missing`);
   }
+});
+
+test("external artwork provenance cannot be represented without source, rights basis, and attribution", () => {
+  const external: TitleArtworkProvenance = {
+    kind: "external_rights_cleared",
+    sourceUrl: "https://example.test/source",
+    rightsBasis: "example-license-or-written-permission",
+    attribution: "Example attribution",
+  };
+
+  assert.equal(external.kind, "external_rights_cleared");
+  assert.match(external.sourceUrl, /^https:\/\//u);
+  assert.ok(external.rightsBasis.trim().length > 0);
+  assert.ok(external.attribution.trim().length > 0);
 });
 
 test("unknown catalog titles never inherit another movie artwork", () => {
