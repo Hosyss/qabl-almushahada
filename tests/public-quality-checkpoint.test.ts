@@ -141,7 +141,7 @@ test("review policy separates practical family verdict from verified exact-versi
   assert.match(policy, /درجة شدة رقمية/u);
   assert.match(policy, /تظل غير محسومة ولا تتحول إلى «لا يوجد»/u);
   assert.match(policy, /حدودًا تحريرية افتراضية مرتبطة بالعمر/u);
-  assert.doesNotMatch(policy, /\bcorroborated\b|\bSeverity\b|\bunknown\b|\bnone\b/u);
+  assert.doesNotMatch(policy, /ينفع للمشاهدة|\bcorroborated\b|\bSeverity\b|\bunknown\b|\bnone\b/u);
 });
 
 test("Kids-In-Mind frozen source references stay link-only and never claim republication permission", async () => {
@@ -153,4 +153,39 @@ test("Kids-In-Mind frozen source references stay link-only and never claim repub
     assert.match(item.rightsLabel, /لا .*ترخيص.*إعادة نشر/u);
     assert.match(item.usageNoteAr, /لا ننقل|من غير نقل/u);
   }
+});
+
+test("public indexing policy keeps crawlable pages canonical and utility routes out of the index", async () => {
+  const rootLayout = await source("app/layout.tsx");
+  const searchLayout = await source("app/search/layout.tsx");
+  const internalLayout = await source("app/internal/layout.tsx");
+  const robots = await source("app/robots.txt/route.ts");
+  const sitemap = await source("app/sitemap.xml/route.ts");
+  const reviewPolicy = await source("app/review-policy/page.tsx");
+  const corrections = await source("app/corrections/page.tsx");
+  const privacy = await source("app/privacy/page.tsx");
+
+  assert.match(rootLayout, /metadataBase: new URL\(PUBLIC_SITE_ORIGIN\)/u);
+  assert.doesNotMatch(rootLayout, /codex-preview|chatgpt|openai/iu);
+  assert.match(searchLayout, /alternates: \{ canonical: "\/search" \}/u);
+  assert.match(searchLayout, /robots: \{ index: false, follow: true \}/u);
+  assert.match(internalLayout, /robots: \{ index: false, follow: false \}/u);
+  assert.match(robots, /Disallow: \/internal/u);
+  assert.match(robots, /Disallow: \/api\//u);
+  assert.doesNotMatch(sitemap, /\/search|\/internal|\/api\//u);
+  assert.match(reviewPolicy, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/review-policy`/u);
+  assert.match(corrections, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/corrections`/u);
+  assert.match(privacy, /canonical: `\$\{PUBLIC_SITE_ORIGIN\}\/privacy`/u);
+});
+
+test("every public review locator has fail-closed canonical metadata", async () => {
+  const reviewPage = await source("app/review/page.tsx");
+  assert.doesNotMatch(reviewPage, /if \(!editorialId\) return \{\};/u);
+  assert.match(reviewPage, /if \(bundleId\)/u);
+  assert.match(reviewPage, /buildPublicReviewHref\(review\.bundleId\)/u);
+  assert.match(reviewPage, /if \(publicationId\)/u);
+  assert.match(reviewPage, /buildPublicEvidenceReviewHref\(review\.publicationId\)/u);
+  assert.match(reviewPage, /buildPublicEditorialReviewCanonicalUrl\(review\.id\)/u);
+  assert.match(reviewPage, /if \(!review\) return UNAVAILABLE_METADATA/u);
+  assert.match(reviewPage, /robots: \{ index: true, follow: true \}/u);
 });

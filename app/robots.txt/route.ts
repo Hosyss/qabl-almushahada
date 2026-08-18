@@ -1,7 +1,7 @@
 import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 
 export function GET() {
-  const body = `User-agent: *\nAllow: /\nDisallow: /internal\nSitemap: ${PUBLIC_SITE_ORIGIN}/sitemap.xml\n`;
+  const body = `User-agent: *\nAllow: /\nDisallow: /internal\nDisallow: /api/\nSitemap: ${PUBLIC_SITE_ORIGIN}/sitemap.xml\n`;
   return new Response(body, {
     status: 200,
     headers: {

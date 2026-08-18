@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
+import { PUBLIC_SITE_ORIGIN } from "@/lib/public-catalog";
 import { PUBLIC_POLICY_PAGES, type PublicPolicyPage as PublicPolicyPageData } from "@/lib/public-policy-pages";
 import { PublicPolicyPage } from "../policy-page";
 
 export const metadata: Metadata = {
   title: "سياسة المراجعة | قبل المشاهدة",
   description: "كيف يصدر قبل المشاهدة حكمًا عمليًا للأسرة، وما الفرق بينه وبين المراجعة عالية الثقة لنسخة محددة.",
+  alternates: { canonical: `${PUBLIC_SITE_ORIGIN}/review-policy` },
 };
 
 const base = PUBLIC_POLICY_PAGES.review;
@@ -18,7 +20,7 @@ const reviewPage: PublicPolicyPageData = {
       id: "content-types",
       title: "مستويان للحكم والثقة",
       paragraphs: [
-        "الحكم العملي على مستوى العمل يعتمد على تحليل تحريري ناضج ومتعدد المصادر وعلى إعدادات الأسرة المحلية. نتيجته تكون: ينفع للمشاهدة وفق الإعدادات الحالية، يحتاج انتباهك قبل المشاهدة، أو لا ننصح به وفق الإعدادات الحالية. لا يدّعي أن كل إصدار أو دبلجة أو نسخة ممتدة متطابقة.",
+        "الحكم العملي على مستوى العمل يعتمد على تحليل تحريري ناضج ومتعدد المصادر وعلى إعدادات الأسرة المحلية. نتيجته تكون: يمكن مشاهدته وفق الإعدادات الحالية، يحتاج انتباهك قبل المشاهدة، أو لا ننصح به وفق الإعدادات الحالية. لا يدّعي أن كل إصدار أو دبلجة أو نسخة ممتدة متطابقة.",
         "المراجعة الموثقة لنسخة محددة ترتبط بمنصة ولغة ومدة وبصمة محتوى ومراجعين مستقلين واعتماد وتدقيق. هذه درجة ثقة أعلى تسمح بإثبات أن الحكم يخص النسخة نفسها، وليست شرطًا لإعطاء الأسرة جوابًا عمليًا عن عمل ناضج ومعروف.",
       ],
     },
