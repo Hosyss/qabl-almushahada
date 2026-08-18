@@ -38,7 +38,7 @@ interface EditorialTargetRow {
 }
 
 export type PublicReportIntakeResult =
-  | { accepted: true; intakeId: string | null }
+  | { accepted: true; intakeId: string }
   | { accepted: false; reason: "invalid_input"; errorsAr: string[] }
   | { accepted: false; reason: "target_unavailable" | "rate_limited" | "request_not_allowed" };
 
@@ -54,7 +54,8 @@ export async function submitPublicReportIntake(input: {
   if (!preparation.accepted) return preparation;
 
   // Honeypot submissions receive the same outward success shape but never touch D1.
-  if (preparation.automatedSubmission) return { accepted: true, intakeId: null };
+  // Use an unpersisted UUID so automated clients cannot distinguish the trap via response shape.
+  if (preparation.automatedSubmission) return { accepted: true, intakeId: crypto.randomUUID() };
 
   const clientAddress = readCloudflareClientAddress(input.request);
   if (!clientAddress) return { accepted: false, reason: "request_not_allowed" };
