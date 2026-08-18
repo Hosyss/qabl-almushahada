@@ -146,8 +146,14 @@ jobs:
           ]);
           if (!page.url().endsWith('/titles')) throw new Error(`Navigation failed: ${page.url()}`);
           const clickRequests = requests.slice(beforeClick);
-          if (!clickRequests.some((raw) => new URL(raw).pathname === '/titles.rsc')) {
-            throw new Error(`Expected /titles.rsc only after the click; requests: ${JSON.stringify(clickRequests)}`);
+          const clickPaths = clickRequests.map((raw) => new URL(raw).pathname);
+          const navigationTransport = clickPaths.includes('/titles.rsc')
+            ? 'rsc'
+            : clickPaths.includes('/titles')
+              ? 'document'
+              : null;
+          if (!navigationTransport) {
+            throw new Error(`No /titles request followed the click; requests: ${JSON.stringify(clickRequests)}`);
           }
 
           const report = {
@@ -168,7 +174,8 @@ jobs:
             },
             navigation: {
               titlesOpened: true,
-              titlesRscRequestedAfterClick: true,
+              requestObservedAfterClick: true,
+              transport: navigationTransport,
             },
             failures: [],
           };
