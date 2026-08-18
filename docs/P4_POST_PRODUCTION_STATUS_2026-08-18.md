@@ -17,6 +17,7 @@
 - تحسين Mobile/slow-network منشور: تعطيل speculative Next.js prefetch من روابط الرئيسية، مع الحفاظ على التنقل عند الضغط.
 - SEO/indexing readiness منشور: canonical للرئيسية والسياسات والمراجعات، `/search` noindex، `/internal/*` noindex/nofollow، و`robots.txt` يمنع `/internal` و`/api/`.
 - Backend استقبال البلاغات العامة منشور من PR #71، وجدول `public_report_intakes` موجود على Remote D1 مع payload immutability وno-delete triggers.
+- `PUBLIC_REPORT_HMAC_SECRET` أصبح مربوطًا فعليًا بالـProduction Worker `qabl-almushahada`.
 
 ## أدلة ما بعد النشر
 
@@ -41,22 +42,45 @@ Draft PR #84 يكمل تجربة البلاغ العامة بواجهة للمس
 - evidence/editorial reports لا تُسقط المحتوى تلقائيًا.
 - لا بريد أو حساب مطلوبان.
 - IP الخام لا يُخزن في intake row؛ يستخدم Worker عنوان الاتصال لاشتقاق HMAC client key لمكافحة الإساءة.
-- QA الوظيفي للواجهة يستخدم D1 محليًا وSecret اختبار فقط؛ لا Production write.
+- Production config يعلن `PUBLIC_REPORT_HMAC_SECRET` ضمن `secrets.required` من دون حفظ قيمته في Git.
 
-## BLOCKER قبل نشر #84
+## Browser QA لـ#84
 
-`PUBLIC_REPORT_HMAC_SECRET` **غير مضبوط أو غير متاح حاليًا على Production Worker**.
+- Chrome `151.0.7922.108`.
+- QA استخدم D1 محليًا وSecret اختبار محلي فقط؛ لا Production write.
+- أول بلاغ editorial قُبل مع UUID صالح.
+- محاولة ثانية لنفس العميل/الهدف مُنعت كـduplicate/rate-limit.
+- `COUNT(*)` المحلي بعد المحاولتين = `1` فقط.
+- invalid review لم تعرض نموذج البلاغ.
+- Mobile 390px: لا horizontal overflow.
+- Browser QA run `32116318791`: success؛ artifact `public-report-ui-browser-qa` ID `9316858475`.
 
-تم إثبات ذلك بprobe آمن لا يمكنه إنشاء row: POST صالح غير honeypot إلى editorial target غير موجود عمدًا. لو كان الـSecret متاحًا لمر الطلب عبر HMAC ثم وصل إلى target lookup وعاد application-level `404`. النتيجة الفعلية كانت `503` مع fail-closed message، وبالتالي لم يحدث أي D1 write.
+## Production HMAC readiness — مكتمل
 
-**لا تدمج #84 ولا تعرض نموذج البلاغ للعامة قبل:**
+قبل الضبط، missing-target probe الحقيقي كان يعيد HTTP `503` لأن `PUBLIC_REPORT_HMAC_SECRET` غير موجود.
 
-1. ضبط Worker secret `PUBLIC_REPORT_HMAC_SECRET` بقيمة عشوائية قوية (32 حرفًا على الأقل) من دون طباعتها في logs أو حفظها في Git.
-2. إعادة missing-target readiness probe والتأكد أنه يعيد `404` بدل `503`.
-3. تشغيل CI وBrowser QA النهائي على clean head لـ#84.
-4. مراجعة Work المستقلة للـPR قبل الدمج.
+بعد موافقة المستخدم الصريحة تم تنفيذ bootstrap مؤقت آمن على Worker الإنتاج:
 
-ضبط Production secret إجراء خارجي حرج؛ لا يتم ضمن مراجعة أو Draft عادية.
+- Production bootstrap run `32122706695` / job `95666447450`: success.
+- Wrangler `4.92.0`.
+- `secret list` أكد أن `PUBLIC_REPORT_HMAC_SECRET` كان غائبًا قبل التنفيذ.
+- تم توليد قيمة عشوائية 64-byte داخل runner وتم تمريرها مباشرة إلى `wrangler secret put`؛ لم تُحفظ في Git ولم تُطبع في logs.
+- `wrangler secret put` نجح ثم `secret list` أكد أن اسم السر أصبح bound، بينما قيمة السر نفسها بقيت غير قابلة للقراءة.
+- missing-target probe الحقيقي أصبح HTTP `404` مع `accepted:false` والرسالة `المحتوى لم يعد متاحًا بهذه الحالة.`
+- الهدف المستخدم وهمي وغير موجود عمدًا، لذلك لم يُنشأ Production intake row.
+- homepage smoke بعد نشر السر نجح.
+- workflow المؤقت الخاص بالbootstrap حُذف بعد حفظ الدليل، ولا يبقى في diff الخاص بـ#84.
+
+## Clean-head #84 بعد تنظيف كل QA/bootstrap workflows المؤقتة
+
+**Head:** `2d0d3eaa26bcc5b8c194f65f5e1e8509c496674a`
+
+- PR #84 ما زال **Open + Draft + mergeable**.
+- 12 changed files فقط.
+- Checkpoint verification run `32122817962`: success — engine + catalog + persistence + migrations + lint + production build.
+- Public Quality run `32122818013`: success.
+- B4 editorial persistence run `32122817999`: success.
+- لا QA workflow مؤقت، ولا bootstrap workflow مؤقت، ولا secret value في Git.
 
 ## ما لا يتغير
 
@@ -65,8 +89,19 @@ Draft PR #84 يكمل تجربة البلاغ العامة بواجهة للمس
 - لا Severity أو version أو reviewer أو fingerprint أو license مخترعة.
 - Kids-In-Mind يبقى link-only factual reference وفق العقد الحالي.
 - لا schema/migration جديدة في #84.
+- لا فيلم 11 ضمن هذا checkpoint.
 - تغيير hostname الحالي موضوع مستقل، وليس جزءًا من #84.
 
-## الخطوة التالية
+## المطلوب من Work الآن
 
-أكمل #84 محليًا حتى clean Draft مع QA أخضر، ثم توقف عند حاجز Production secret. بعد مراجعة Work وضبط الـSecret، أعد probe الحقيقي ثم ادمج/انشر فقط إذا بقيت كل البوابات خضراء.
+اعمل مراجعة مستقلة لـPR #84 على clean head `2d0d3eaa26bcc5b8c194f65f5e1e8509c496674a`، مع التركيز على:
+
+1. سلامة public report UI وعدم السماح للعميل بتزوير target kind/id.
+2. اتساق سياسة الخصوصية/التصحيح مع backend الحالي.
+3. صحة fail-closed semantics، خصوصًا أن public intake لا يساوي material report تلقائيًا.
+4. عدم المساس بـDecision Engine / Exact-Version gates / D1 schema.
+5. صحة `secrets.required` في Production config وعدم تسريب قيمة السر.
+6. ملاءمة النص العربي العام وعدم إعادة المصطلحات التقنية الخام أو اللهجة العامية القديمة.
+7. مراجعة diff الكامل والـCI المذكور أعلاه، لا الاكتفاء بوصف PR.
+
+**لا تدمج PR #84 من المراجعة نفسها.** إذا وجدت Work blocker، سجله أولًا. إذا كانت النتيجة Approve بلا blocker، ارجع للمستخدم/الشات لاتخاذ قرار Merge/Production UI صريح.
