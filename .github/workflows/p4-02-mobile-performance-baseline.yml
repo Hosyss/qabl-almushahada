@@ -1,0 +1,198 @@
+name: P4-02 mobile performance baseline temporary
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p4-02-mobile-performance-baseline
+  cancel-in-progress: true
+
+jobs:
+  production-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+
+      - name: Install temporary browser driver
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright-core@1.55.0
+
+      - name: Measure mobile slow-network baseline
+        shell: bash
+        env:
+          WORKER_URL: https://qabl-almushahada.buildtools.workers.dev
+        run: |
+          set -euo pipefail
+          export CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p qa-artifacts
+          cat > .qa-p4-02-baseline.mjs <<'NODE'
+          import fs from 'node:fs/promises';
+          import { chromium } from 'playwright-core';
+
+          const baseURL = process.env.WORKER_URL;
+          if (!baseURL) throw new Error('WORKER_URL is required');
+          const browser = await chromium.launch({ executablePath: process.env.CHROME, headless: true });
+          const runs = [];
+
+          function finite(value, label) {
+            if (!Number.isFinite(value) || value < 0) throw new Error(`${label} is not finite: ${value}`);
+            return value;
+          }
+
+          for (let index = 0; index < 3; index += 1) {
+            const context = await browser.newContext({
+              viewport: { width: 390, height: 844 },
+              deviceScaleFactor: 2,
+              locale: 'ar-EG',
+              reducedMotion: 'no-preference',
+            });
+            const page = await context.newPage();
+            await page.addInitScript(() => {
+              window.__p402 = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0 };
+              try {
+                new PerformanceObserver((list) => {
+                  for (const entry of list.getEntries()) window.__p402.lcp = Math.max(window.__p402.lcp, entry.startTime || 0);
+                }).observe({ type: 'largest-contentful-paint', buffered: true });
+              } catch {}
+              try {
+                new PerformanceObserver((list) => {
+                  for (const entry of list.getEntries()) if (!entry.hadRecentInput) window.__p402.cls += entry.value || 0;
+                }).observe({ type: 'layout-shift', buffered: true });
+              } catch {}
+              try {
+                new PerformanceObserver((list) => {
+                  for (const entry of list.getEntries()) {
+                    window.__p402.longTasks += 1;
+                    window.__p402.longTaskMs += entry.duration || 0;
+                  }
+                }).observe({ type: 'longtask', buffered: true });
+              } catch {}
+            });
+
+            const cdp = await context.newCDPSession(page);
+            await cdp.send('Network.enable');
+            await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+            await cdp.send('Network.emulateNetworkConditions', {
+              offline: false,
+              latency: 150,
+              downloadThroughput: 200000,
+              uploadThroughput: 93750,
+              connectionType: 'cellular4g',
+            });
+            await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+
+            const response = await page.goto(`${baseURL}/`, { waitUntil: 'load', timeout: 60000 });
+            if (!response?.ok()) throw new Error(`Baseline homepage HTTP ${response?.status()}`);
+            await page.waitForTimeout(1800);
+
+            const metrics = await page.evaluate(() => {
+              const navigation = performance.getEntriesByType('navigation')[0];
+              const resources = performance.getEntriesByType('resource').map((entry) => ({
+                name: entry.name,
+                initiatorType: entry.initiatorType,
+                transferSize: entry.transferSize || 0,
+                encodedBodySize: entry.encodedBodySize || 0,
+                duration: entry.duration || 0,
+              }));
+              const paints = Object.fromEntries(performance.getEntriesByType('paint').map((entry) => [entry.name, entry.startTime]));
+              const aggregate = (predicate) => resources.filter(predicate).reduce((sum, entry) => sum + (entry.transferSize || entry.encodedBodySize || 0), 0);
+              const navBytes = navigation ? (navigation.transferSize || navigation.encodedBodySize || 0) : 0;
+              return {
+                userAgent: navigator.userAgent,
+                navigation: {
+                  ttfbMs: navigation?.responseStart || 0,
+                  domContentLoadedMs: navigation?.domContentLoadedEventEnd || 0,
+                  loadMs: navigation?.loadEventEnd || 0,
+                  transferBytes: navBytes,
+                },
+                fcpMs: paints['first-contentful-paint'] || 0,
+                lcpMs: window.__p402?.lcp || 0,
+                cls: window.__p402?.cls || 0,
+                longTasks: window.__p402?.longTasks || 0,
+                longTaskMs: window.__p402?.longTaskMs || 0,
+                totalTransferBytes: navBytes + aggregate(() => true),
+                scriptTransferBytes: aggregate((entry) => entry.initiatorType === 'script'),
+                imageTransferBytes: aggregate((entry) => entry.initiatorType === 'img'),
+                cssTransferBytes: aggregate((entry) => entry.initiatorType === 'css' || entry.name.includes('.css')),
+                resourceCount: resources.length + 1,
+                topResources: resources
+                  .map((entry) => ({ ...entry, bytes: entry.transferSize || entry.encodedBodySize || 0 }))
+                  .sort((a, b) => b.bytes - a.bytes)
+                  .slice(0, 12),
+                scrollWidth: document.documentElement.scrollWidth,
+                innerWidth,
+              };
+            });
+
+            for (const [label, value] of Object.entries({
+              ttfbMs: metrics.navigation.ttfbMs,
+              fcpMs: metrics.fcpMs,
+              lcpMs: metrics.lcpMs,
+              loadMs: metrics.navigation.loadMs,
+              cls: metrics.cls,
+              totalTransferBytes: metrics.totalTransferBytes,
+              resourceCount: metrics.resourceCount,
+            })) finite(Number(value), `${label} run ${index + 1}`);
+            if (metrics.scrollWidth > metrics.innerWidth + 1) {
+              throw new Error(`Mobile horizontal overflow: ${metrics.scrollWidth}/${metrics.innerWidth}`);
+            }
+            runs.push(metrics);
+            await context.close();
+          }
+
+          function median(values) {
+            const sorted = [...values].sort((a, b) => a - b);
+            return sorted[Math.floor(sorted.length / 2)];
+          }
+          const medianMetrics = {
+            ttfbMs: median(runs.map((run) => run.navigation.ttfbMs)),
+            fcpMs: median(runs.map((run) => run.fcpMs)),
+            lcpMs: median(runs.map((run) => run.lcpMs)),
+            loadMs: median(runs.map((run) => run.navigation.loadMs)),
+            cls: median(runs.map((run) => run.cls)),
+            longTasks: median(runs.map((run) => run.longTasks)),
+            longTaskMs: median(runs.map((run) => run.longTaskMs)),
+            totalTransferBytes: median(runs.map((run) => run.totalTransferBytes)),
+            scriptTransferBytes: median(runs.map((run) => run.scriptTransferBytes)),
+            imageTransferBytes: median(runs.map((run) => run.imageTransferBytes)),
+            cssTransferBytes: median(runs.map((run) => run.cssTransferBytes)),
+            resourceCount: median(runs.map((run) => run.resourceCount)),
+          };
+          const report = {
+            measuredAt: new Date().toISOString(),
+            target: `${baseURL}/`,
+            profile: {
+              viewport: '390x844',
+              deviceScaleFactor: 2,
+              latencyMs: 150,
+              downloadKbps: 1600,
+              uploadKbps: 750,
+              cpuSlowdown: 4,
+              cacheDisabled: true,
+              runs: 3,
+            },
+            browser: await browser.version(),
+            median: medianMetrics,
+            runs,
+          };
+          await fs.writeFile('qa-artifacts/report.json', JSON.stringify(report, null, 2));
+          console.log(JSON.stringify(report, null, 2));
+          await browser.close();
+          NODE
+          node .qa-p4-02-baseline.mjs
+
+      - name: Upload baseline artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-02-mobile-performance-baseline-${{ github.sha }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
