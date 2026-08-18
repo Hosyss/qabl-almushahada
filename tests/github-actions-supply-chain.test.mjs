@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 const WORKFLOWS = path.join(process.cwd(), ".github", "workflows");
-const FULL_SHA = /^[0-9a-f]{40}$/iu;
+// Full commit SHAs are intentional here: mutable tags and branches are rejected.
+const FULL_SHA = /^[0-9a-f]{40}$/u;
 
 test("every external GitHub Action is pinned to a full-length commit SHA", async () => {
   const files = (await readdir(WORKFLOWS)).filter((name) => /\.ya?ml$/u.test(name)).sort();
@@ -21,7 +22,7 @@ test("every external GitHub Action is pinned to a full-length commit SHA", async
       assert.ok(at > 0, `${file} has an external action without a ref: ${reference}`);
       const action = reference.slice(0, at);
       const ref = reference.slice(at + 1);
-      assert.match(ref, FULL_SHA, `${file} must pin ${action} to a full 40-character commit SHA, not ${ref}`);
+      assert.match(ref, FULL_SHA, `${file} must pin ${action} to a lowercase full 40-character commit SHA, not ${ref}`);
       seen.push({ file, action, ref });
     }
   }
