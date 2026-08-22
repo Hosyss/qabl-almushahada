@@ -9,6 +9,7 @@ URL=""
 PROJECT_HTTP=""
 PROJECT_CREATE_HTTP=""
 WRANGLER_EXIT=""
+SMOKE_HTTP=""
 
 publish_result() {
   rc=$?
@@ -29,6 +30,7 @@ publish_result() {
     echo "project_http=$PROJECT_HTTP"
     echo "project_create_http=$PROJECT_CREATE_HTTP"
     echo "wrangler_exit=$WRANGLER_EXIT"
+    echo "smoke_http=$SMOKE_HTTP"
   } > "$RESULT_FILE"
   exit "$rc"
 }
@@ -104,17 +106,48 @@ set -e
 if [[ "$WRANGLER_EXIT" != "0" ]]; then
   exit "$WRANGLER_EXIT"
 fi
-
-URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' "$RUNNER_TEMP/pages-deploy.log" | tail -n 1 || true)"
-test -n "$URL" || { echo "Wrangler did not return a Pages URL." >&2; exit 26; }
 STAGE="pages_deployed"
 
-curl --fail --show-error --silent --location --retry 3 \
-  --dump-header "$RUNNER_TEMP/live-headers.txt" \
-  --output "$RUNNER_TEMP/live-home.html" \
-  "$URL/"
-grep -Fq 'RARELIX' "$RUNNER_TEMP/live-home.html"
-grep -Eqi '^x-robots-tag:.*noindex' "$RUNNER_TEMP/live-headers.txt"
+mapfile -t CANDIDATE_URLS < <(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' "$RUNNER_TEMP/pages-deploy.log" | awk '!seen[$0]++')
+if [[ "${#CANDIDATE_URLS[@]}" -eq 0 ]]; then
+  echo "Wrangler did not return a Pages URL." >&2
+  exit 26
+fi
+
+SMOKE_OK=0
+for candidate in "${CANDIDATE_URLS[@]}"; do
+  echo "Smoke-testing Pages candidate: $candidate"
+  headers="$RUNNER_TEMP/live-headers.txt"
+  body="$RUNNER_TEMP/live-home.html"
+  rm -f "$headers" "$body"
+  set +e
+  SMOKE_HTTP="$(curl --silent --show-error --location \
+    --retry 10 --retry-all-errors --retry-delay 2 \
+    --connect-timeout 10 --max-time 30 \
+    --dump-header "$headers" \
+    --output "$body" \
+    --write-out '%{http_code}' \
+    "$candidate/")"
+  curl_rc=$?
+  set -e
+  if [[ "$curl_rc" -ne 0 || "$SMOKE_HTTP" != "200" ]]; then
+    continue
+  fi
+  if ! grep -Fq 'RARELIX' "$body"; then
+    continue
+  fi
+  if ! grep -Eqi '^x-robots-tag:.*noindex' "$headers"; then
+    continue
+  fi
+  URL="$candidate"
+  SMOKE_OK=1
+  break
+done
+
+if [[ "$SMOKE_OK" -ne 1 ]]; then
+  echo "No returned Cloudflare Pages URL passed the live brand + noindex smoke test." >&2
+  exit 27
+fi
 STAGE="live_smoke_verified"
 
 echo "RARELIX live preview: $URL"
