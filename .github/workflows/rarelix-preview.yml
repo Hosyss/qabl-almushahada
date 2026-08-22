@@ -1,13 +1,167 @@
-name: RARELIX preview staging
+name: RARELIX Pages noindex preview
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - rarelix-pages-preview-20260822
+    paths:
+      - ".rarelix/**"
+      - ".github/workflows/rarelix-preview.yml"
 
 permissions:
   contents: read
 
+concurrency:
+  group: rarelix-pages-preview
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CF_PAGES_PROJECT: rarelix-preview
+  EXPECTED_ARCHIVE_SHA256: f4e441d2e1707450331e84d88b584dfea3debd36912d312b425368430cacac12
+
 jobs:
-  placeholder:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
-      - run: echo "RARELIX preview workflow placeholder"
+      - name: Check out isolated preview branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Require existing Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo "CLOUDFLARE_API_TOKEN is missing" >&2; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "CLOUDFLARE_ACCOUNT_ID is missing" >&2; exit 1; }
+
+      - name: Reconstruct and verify RARELIX v3.9 preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/rarelix-v39-pages.tar.xz"
+          dist="$RUNNER_TEMP/rarelix-dist"
+          cat .rarelix/payload/part*.b64 | base64 --decode > "$archive"
+          echo "$EXPECTED_ARCHIVE_SHA256  $archive" | sha256sum -c -
+          mkdir -p "$dist"
+          tar -xJf "$archive" -C "$dist"
+
+          # Four historical icon variants are unreferenced build leftovers. Keep the
+          # verified archive immutable, then remove only these unused preview files.
+          rm -f \
+            "$dist/assets/icon-192-opt.png" \
+            "$dist/assets/icon-192-q.png" \
+            "$dist/assets/icon-512-opt.png" \
+            "$dist/assets/icon-512-q.png"
+
+          test -f "$dist/index.html"
+          test -f "$dist/_headers"
+          test -f "$dist/robots.txt"
+          test "$(find "$dist" -type f | wc -l | tr -d ' ')" -eq 56
+          if grep -RInE 'icon-(192|512)-(opt|q)\.png' "$dist"; then
+            echo "Removed icon variant is still referenced." >&2
+            exit 1
+          fi
+
+      - name: Verify preview remains fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          dist="$RUNNER_TEMP/rarelix-dist"
+          grep -Fqi 'X-Robots-Tag: noindex, nofollow, noarchive' "$dist/_headers"
+          grep -Eq '^Disallow:[[:space:]]*/' "$dist/robots.txt"
+          grep -Fq 'RARELIX' "$dist/index.html"
+
+          if grep -RniE --binary-files=without-match 'buildtools|hosy|findza|findblaze' "$dist"; then
+            echo "Reserved/internal naming leaked into public preview." >&2
+            exit 1
+          fi
+
+          while IFS= read -r -d '' page; do
+            if ! grep -Eqi '<meta[^>]+name=["'"']robots["'"'][^>]+content=["'"'][^"'"']*noindex|<meta[^>]+content=["'"'][^"'"']*noindex[^>]+name=["'"']robots["'"']' "$page"; then
+              echo "HTML page lacks noindex metadata: $page" >&2
+              exit 1
+            fi
+          done < <(find "$dist" -type f -name '*.html' -print0)
+
+          echo "RARELIX preview safety checks passed."
+
+      - name: Resolve or create isolated Pages project
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_json="$RUNNER_TEMP/pages-project.json"
+          http_code="$(curl --silent --show-error \
+            --output "$project_json" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$CF_PAGES_PROJECT")"
+
+          if [[ "$http_code" == "404" ]]; then
+            create_json="$RUNNER_TEMP/pages-project-create.json"
+            create_code="$(curl --silent --show-error \
+              --output "$create_json" \
+              --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              --header 'Content-Type: application/json' \
+              --data '{"name":"rarelix-preview","production_branch":"release"}' \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects")"
+            if [[ "$create_code" != "200" && "$create_code" != "201" ]]; then
+              cat "$create_json" >&2
+              exit 1
+            fi
+            echo "Created isolated Cloudflare Pages project: $CF_PAGES_PROJECT"
+          elif [[ "$http_code" == "200" ]]; then
+            echo "Using existing isolated Cloudflare Pages project: $CF_PAGES_PROJECT"
+          else
+            cat "$project_json" >&2
+            exit 1
+          fi
+
+      - name: Deploy noindex preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          dist="$RUNNER_TEMP/rarelix-dist"
+          ./node_modules/.bin/wrangler pages deploy "$dist" \
+            --project-name="$CF_PAGES_PROJECT" \
+            --branch=preview \
+            2>&1 | tee "$RUNNER_TEMP/pages-deploy.log"
+
+          url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.pages\.dev' "$RUNNER_TEMP/pages-deploy.log" | tail -n 1 || true)"
+          if [[ -z "$url" ]]; then
+            echo "Wrangler completed without returning a Pages deployment URL." >&2
+            exit 1
+          fi
+          echo "RARELIX_PREVIEW_URL=$url" >> "$GITHUB_ENV"
+          printf '%s\n' "$url" > "$RUNNER_TEMP/rarelix-preview-url.txt"
+
+      - name: Smoke-test live preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 3 \
+            --dump-header "$RUNNER_TEMP/live-headers.txt" \
+            --output "$RUNNER_TEMP/live-home.html" \
+            "$RARELIX_PREVIEW_URL/"
+
+          grep -Fq 'RARELIX' "$RUNNER_TEMP/live-home.html"
+          grep -Eqi '^x-robots-tag:.*noindex' "$RUNNER_TEMP/live-headers.txt"
+
+          echo "### RARELIX live noindex preview deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: $RARELIX_PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Verified archive SHA-256: $EXPECTED_ARCHIVE_SHA256" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Public deployment files: 56" >> "$GITHUB_STEP_SUMMARY"
+          echo "- X-Robots-Tag noindex: verified live" >> "$GITHUB_STEP_SUMMARY"
