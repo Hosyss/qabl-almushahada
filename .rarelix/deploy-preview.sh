@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-PROJECT="rarelix"
+PROJECT="rarelix-eg"
 OLD_PROJECT="rarelix-preview"
 EXPECTED_ARCHIVE_SHA256="f4e441d2e1707450331e84d88b584dfea3debd36912d312b425368430cacac12"
 RESULT_FILE=".rarelix/LIVE_PREVIEW_RESULT.txt"
@@ -84,7 +84,7 @@ if [[ "$PROJECT_HTTP" == "404" ]]; then
     --request POST \
     --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
     --header 'Content-Type: application/json' \
-    --data '{"name":"rarelix","production_branch":"main"}' \
+    --data '{"name":"rarelix-eg","production_branch":"main"}' \
     "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects")"
   if [[ "$PROJECT_CREATE_HTTP" != "200" && "$PROJECT_CREATE_HTTP" != "201" ]]; then
     cat "$create_json" >&2
@@ -106,7 +106,7 @@ set -e
 if [[ "$WRANGLER_EXIT" != "0" ]]; then exit "$WRANGLER_EXIT"; fi
 STAGE="pages_deployed"
 
-CANDIDATE_URLS=("https://rarelix.pages.dev")
+CANDIDATE_URLS=("https://rarelix-eg.pages.dev")
 while IFS= read -r candidate; do
   [[ -n "$candidate" ]] || continue
   seen=0
@@ -144,7 +144,6 @@ if [[ "$SMOKE_OK" -ne 1 ]]; then
 fi
 STAGE="live_smoke_verified"
 
-# Remove the temporary project only after the clean hostname is verified live.
 old_delete_json="$RUNNER_TEMP/old-project-delete.json"
 OLD_PROJECT_DELETE_HTTP="$(curl --silent --show-error \
   --output "$old_delete_json" \
